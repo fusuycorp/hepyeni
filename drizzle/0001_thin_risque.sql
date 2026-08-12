@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "title_group_external_unique" ON "title" USING btree ("group_id","external_source","external_id");
