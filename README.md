@@ -48,7 +48,7 @@ books, movies & TV, music, and podcasts, then rate and review once consumed.
 | `DATABASE_URL` | everything | Postgres connection string |
 | `AUTH_SECRET` | everything | `bunx auth secret` or `openssl rand -base64 32` |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google sign-in | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) OAuth client |
-| `AUTH_RESEND_KEY` / `EMAIL_FROM` | email magic-link | added in a later milestone |
+| `EMAIL_SERVER_HOST` / `EMAIL_SERVER_PORT` / `EMAIL_SERVER_USER` / `EMAIL_SERVER_PASSWORD` / `EMAIL_FROM` | email magic-link | PurelyMail SMTP (`smtp.purelymail.com:465`) — sending domain needs PurelyMail's DNS records (MX, SPF, 3x DKIM, DMARC, ownership TXT) verified first |
 | `TMDB_API_KEY` | movies/TV search | TMDB's v4 "API Read Access Token" (Bearer), not the v3 API Key |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | music search | added when that media type ships |
 
