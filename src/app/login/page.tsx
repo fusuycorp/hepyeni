@@ -1,12 +1,23 @@
 import { signInWithEmail, signInWithGoogle } from "@/lib/actions/auth";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 className="text-2xl font-semibold">Titirek</h1>
       <p className="max-w-xs text-sm text-zinc-500 dark:text-zinc-400">
         Vote on what your group reads, watches, and listens to next.
       </p>
+      {error === "AccessDenied" && (
+        <p className="max-w-xs text-sm text-red-600 dark:text-red-400">
+          This account has been suspended.
+        </p>
+      )}
       <form action={signInWithGoogle}>
         <button
           type="submit"

@@ -20,11 +20,18 @@ export default async function GroupsPage() {
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-4 py-8">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Your groups</h1>
-        <form action={signOutAction}>
-          <button className="text-sm text-zinc-500 underline" type="submit">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          {session.user.isAdmin && (
+            <Link href="/admin" className="text-sm text-zinc-500 underline">
+              Admin
+            </Link>
+          )}
+          <form action={signOutAction}>
+            <button className="text-sm text-zinc-500 underline" type="submit">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <ul className="flex flex-col gap-2">

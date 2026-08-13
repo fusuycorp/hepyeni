@@ -5,6 +5,9 @@ export default auth((req) => {
   if (!req.auth) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
+  if (req.nextUrl.pathname.startsWith("/admin") && !req.auth.user.isAdmin) {
+    return NextResponse.redirect(new URL("/groups", req.nextUrl));
+  }
 });
 
 export const config = {

@@ -34,7 +34,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     session({ session, user }) {
       session.user.id = user.id;
+      session.user.isAdmin = user.isAdmin;
       return session;
+    },
+    signIn({ user }) {
+      // `user` is the existing DB row for returning users (both providers
+      // resolve it before creating any session) — brand new users can't be
+      // banned before they exist, so there's nothing to check for them.
+      if ("bannedAt" in user && user.bannedAt) return false;
+      return true;
     },
   },
 });

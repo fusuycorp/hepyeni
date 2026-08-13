@@ -9,6 +9,7 @@ import {
   jsonb,
   uniqueIndex,
   pgEnum,
+  boolean,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import { MEDIA_TYPES } from "@/lib/media-types";
@@ -21,6 +22,9 @@ export const users = pgTable("user", {
   email: text("email").unique().notNull(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+  bannedAt: timestamp("banned_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 export const accounts = pgTable(
