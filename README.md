@@ -58,7 +58,25 @@ books, movies & TV, music, and podcasts, then rate and review once consumed.
 - `bun run db:migrate` — apply pending migrations
 - `bun run db:studio` — browse the local database
 
+## Docker
+
+`Dockerfile` and `docker-compose.yml` live in this repo (not the deployment
+docs repo) so CI can build from a plain `actions/checkout` — matching the
+`boun-scrape`/`uniyok-atlas` convention. For local Docker Compose instead of
+`bun run dev`:
+
+```bash
+cp .env.example .env
+docker compose up -d
+docker compose run --rm migrate
+```
+
 ## Deployment
 
-Deployment configs live in the org's `~/deployment/selfhosted` repo under
-`services/titirek/`, not in this repo (per org convention).
+Production Swarm stack config (`docker-stack.yml`, env docs) lives in the
+org's `~/deployment/selfhosted` repo under `services/titirek/` — that repo
+only holds the stack config that references the pre-built registry image,
+not a copy of the Dockerfile. CI (`.github/workflows/deploy.yml`) builds and
+pushes to `registry.bogazici.app/budok/titirek`, then triggers a Dokploy
+redeploy. See `docs/dokploy-api-guide.md` in the deployment repo for the
+full Dokploy API reference.

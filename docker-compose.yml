@@ -1,0 +1,63 @@
+services:
+  titirek:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: titirek
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://titirek:${POSTGRES_PASSWORD:-titirek_dev}@postgres:5432/titirek}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_TRUST_HOST=true
+      - AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
+      - AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
+      - AUTH_RESEND_KEY=${AUTH_RESEND_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+    networks:
+      - titirek-network
+    depends_on:
+      - postgres
+
+  # One-off migration runner — uses the `builder` stage (has drizzle-kit)
+  # rather than the slim `runner` stage. Run explicitly, it doesn't start
+  # with `docker compose up`:
+  #   docker compose run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: titirek-migrate
+    command: ["bun", "run", "db:migrate"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://titirek:${POSTGRES_PASSWORD:-titirek_dev}@postgres:5432/titirek}
+    networks:
+      - titirek-network
+    depends_on:
+      - postgres
+    profiles: ["tools"]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: titirek-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=titirek
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-titirek_dev}
+      - POSTGRES_DB=titirek
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - titirek-network
+
+networks:
+  titirek-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
