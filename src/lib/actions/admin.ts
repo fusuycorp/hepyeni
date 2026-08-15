@@ -1,25 +1,21 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import {
-  groupMembers,
-  groups,
-  reviews,
-  sessions,
-  titles,
-  users,
-} from "@/db/schema";
 import { requireAdmin } from "@/lib/admin";
+import { isNotFound } from "@/lib/pocketbase/errors";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import type {
+  ReviewsResponse,
+  TitlesResponse,
+} from "@/types/pocketbase-types";
 
 async function requireCallerAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  await requireAdmin(session.user.id);
-  return session.user.id;
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireAdmin(session.id);
+  return session.id;
 }
 
 export async function setUserAdmin(userId: string, isAdmin: boolean) {
@@ -28,7 +24,8 @@ export async function setUserAdmin(userId: string, isAdmin: boolean) {
     throw new Error("You can't change your own admin status");
   }
 
-  await db.update(users).set({ isAdmin }).where(eq(users.id, userId));
+  const pb = await getSuperuserClient();
+  await pb.collection("users").update(userId, { isAdmin });
 
   revalidatePath("/admin/users");
 }
@@ -37,13 +34,16 @@ export async function banUser(userId: string) {
   const callerId = await requireCallerAdmin();
   if (userId === callerId) throw new Error("You can't ban yourself");
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(users)
-      .set({ bannedAt: new Date() })
-      .where(eq(users.id, userId));
-    await tx.delete(sessions).where(eq(sessions.userId, userId));
-  });
+  const pb = await getSuperuserClient();
+  // A single-field update — no session table to clean up, unlike today's
+  // two-statement transaction. PocketBase's JWTs are otherwise stateless,
+  // but getSession()'s authRefresh-based freshness check (see
+  // src/lib/pocketbase/session.ts) means this still takes effect on the
+  // banned user's very next request, the same latency NextAuth's
+  // delete-all-sessions gave us.
+  await pb
+    .collection("users")
+    .update(userId, { bannedAt: new Date().toISOString() });
 
   revalidatePath("/admin/users");
 }
@@ -51,7 +51,8 @@ export async function banUser(userId: string) {
 export async function unbanUser(userId: string) {
   await requireCallerAdmin();
 
-  await db.update(users).set({ bannedAt: null }).where(eq(users.id, userId));
+  const pb = await getSuperuserClient();
+  await pb.collection("users").update(userId, { bannedAt: null });
 
   revalidatePath("/admin/users");
 }
@@ -59,7 +60,12 @@ export async function unbanUser(userId: string) {
 export async function adminDeleteGroup(groupId: string) {
   await requireCallerAdmin();
 
-  await db.delete(groups).where(eq(groups.id, groupId));
+  const pb = await getSuperuserClient();
+  // cascadeDelete:true on group_members.group and titles.group (and
+  // transitively votes/reviews via titles.*) handles cleanup natively —
+  // no explicit child-deletion helper needed, unlike a Document-DB-style
+  // backend without native relation cascades.
+  await pb.collection("groups").delete(groupId);
 
   revalidatePath("/admin/groups");
 }
@@ -67,9 +73,13 @@ export async function adminDeleteGroup(groupId: string) {
 export async function adminDeleteTitle(titleId: string, groupId: string) {
   await requireCallerAdmin();
 
-  await db
-    .delete(titles)
-    .where(and(eq(titles.id, titleId), eq(titles.groupId, groupId)));
+  const pb = await getSuperuserClient();
+  const title = await pb.collection("titles").getOne<TitlesResponse>(titleId);
+  if (title.group !== groupId) {
+    throw new Error("Title not found in this group");
+  }
+
+  await pb.collection("titles").delete(titleId);
 
   revalidatePath(`/admin/groups/${groupId}`);
 }
@@ -77,15 +87,25 @@ export async function adminDeleteTitle(titleId: string, groupId: string) {
 export async function adminDeleteReview(reviewId: string, groupId: string) {
   await requireCallerAdmin();
 
-  const review = await db.query.reviews.findFirst({
-    where: eq(reviews.id, reviewId),
-    with: { title: true },
-  });
-  if (!review || review.title.groupId !== groupId) {
+  const pb = await getSuperuserClient();
+
+  let review: ReviewsResponse<{ title?: TitlesResponse }>;
+  try {
+    review = await pb
+      .collection("reviews")
+      .getOne<ReviewsResponse<{ title?: TitlesResponse }>>(reviewId, {
+        expand: "title",
+      });
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Review not found in this group");
+    throw err;
+  }
+
+  if (review.expand?.title?.group !== groupId) {
     throw new Error("Review not found in this group");
   }
 
-  await db.delete(reviews).where(eq(reviews.id, reviewId));
+  await pb.collection("reviews").delete(reviewId);
 
   revalidatePath(`/admin/groups/${groupId}`);
 }
@@ -96,11 +116,16 @@ export async function adminRemoveGroupMember(
 ) {
   await requireCallerAdmin();
 
-  await db
-    .delete(groupMembers)
-    .where(
-      and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)),
+  const pb = await getSuperuserClient();
+  const member = await pb
+    .collection("group_members")
+    .getFirstListItem(
+      pb.filter("group = {:groupId} && user = {:userId}", {
+        groupId,
+        userId,
+      }),
     );
+  await pb.collection("group_members").delete(member.id);
 
   revalidatePath(`/admin/groups/${groupId}`);
 }

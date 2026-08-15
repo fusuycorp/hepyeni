@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local PocketBase instance (see README) — the binary and its SQLite data
+# dir, not the committed pb_migrations/ schema
+/pocketbase
+/pb_data

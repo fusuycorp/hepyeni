@@ -1,60 +1,75 @@
-import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { groupMembers, titles } from "@/db/schema";
 import { markConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { MEDIA_TYPE_LABELS } from "@/lib/media-types";
+import { isNotFound } from "@/lib/pocketbase/errors";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import type {
+  GroupMembersResponse,
+  GroupsResponse,
+  ReviewsResponse,
+  TitlesResponse,
+  UsersResponse,
+  VotesResponse,
+} from "@/types/pocketbase-types";
+
+type TitleExpand = {
+  addedBy?: UsersResponse;
+  votes_via_title?: VotesResponse[];
+  reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
+};
 
 export default async function GroupPage({
   params,
 }: {
   params: Promise<{ groupId: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const { groupId } = await params;
+  const pb = await getSuperuserClient();
 
-  const membership = await db.query.groupMembers.findFirst({
-    where: and(
-      eq(groupMembers.groupId, groupId),
-      eq(groupMembers.userId, session.user.id),
-    ),
-    with: {
-      group: {
-        with: {
-          members: { with: { user: true } },
-        },
-      },
-    },
-  });
+  let group: GroupsResponse;
+  try {
+    await pb
+      .collection("group_members")
+      .getFirstListItem(
+        pb.filter("group = {:groupId} && user = {:userId}", {
+          groupId,
+          userId: session.id,
+        }),
+      );
+    group = await pb.collection("groups").getOne<GroupsResponse>(groupId);
+  } catch (err) {
+    if (isNotFound(err)) notFound();
+    throw err;
+  }
 
-  if (!membership) notFound();
-
-  const { group } = membership;
-
-  const groupTitles = await db.query.titles.findMany({
-    where: eq(titles.groupId, groupId),
-    with: {
-      addedByUser: true,
-      votes: true,
-      reviews: { with: { user: true } },
-    },
-    orderBy: desc(titles.createdAt),
-  });
+  const [members, groupTitles] = await Promise.all([
+    pb
+      .collection("group_members")
+      .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
+        filter: pb.filter("group = {:groupId}", { groupId }),
+        expand: "user",
+      }),
+    pb.collection("titles").getFullList<TitlesResponse<TitleExpand>>({
+      filter: pb.filter("group = {:groupId}", { groupId }),
+      expand: "addedBy,votes_via_title,reviews_via_title.user",
+      sort: "-createdAt",
+    }),
+  ]);
 
   const withScore = groupTitles.map((title) => {
-    const score = title.votes.reduce(
+    const votes = title.expand?.votes_via_title ?? [];
+    const score = votes.reduce(
       (acc, v) => acc + (v.value === "up" ? 1 : -1),
       0,
     );
-    const userVote = title.votes.find(
-      (v) => v.userId === session.user.id,
-    )?.value;
+    const userVote = votes.find((v) => v.user === session.id)?.value;
     return { ...title, score, userVote };
   });
 
@@ -62,7 +77,8 @@ export default async function GroupPage({
     .filter((t) => t.status === "proposed")
     .sort(
       (a, b) =>
-        b.score - a.score || b.createdAt.getTime() - a.createdAt.getTime(),
+        b.score - a.score ||
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   const consumed = withScore.filter((t) => t.status === "consumed");
 
@@ -77,12 +93,12 @@ export default async function GroupPage({
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-zinc-500">
-          Members ({group.members.length})
+          Members ({members.length})
         </h2>
         <ul className="flex flex-col gap-1">
-          {group.members.map((m) => (
-            <li key={m.userId} className="text-sm">
-              {m.user.name ?? m.user.email}
+          {members.map((m) => (
+            <li key={m.id} className="text-sm">
+              {m.expand?.user?.name ?? m.expand?.user?.email}
               {m.role === "owner" && (
                 <span className="ml-2 text-xs text-zinc-500">owner</span>
               )}
@@ -159,7 +175,7 @@ export default async function GroupPage({
                 )}
                 <p className="text-xs text-zinc-400">
                   {MEDIA_TYPE_LABELS[title.mediaType]} · added by{" "}
-                  {title.addedByUser.name ?? title.addedByUser.email}
+                  {title.expand?.addedBy?.name ?? title.expand?.addedBy?.email}
                 </p>
                 <form action={markConsumed.bind(null, title.id, groupId)}>
                   <button
@@ -187,15 +203,14 @@ export default async function GroupPage({
           </h2>
           <ul className="flex flex-col gap-3">
             {consumed.map((title) => {
-              const avg = title.reviews.length
-                ? title.reviews.reduce((acc, r) => acc + r.rating, 0) /
-                  title.reviews.length
+              const reviews = title.expand?.reviews_via_title ?? [];
+              const avg = reviews.length
+                ? reviews.reduce((acc, r) => acc + r.rating, 0) /
+                  reviews.length
                 : null;
-              const myReview = title.reviews.find(
-                (r) => r.userId === session.user.id,
-              );
-              const otherReviews = title.reviews.filter(
-                (r) => r.userId !== session.user.id,
+              const myReview = reviews.find((r) => r.user === session.id);
+              const otherReviews = reviews.filter(
+                (r) => r.user !== session.id,
               );
 
               return (
@@ -224,8 +239,8 @@ export default async function GroupPage({
                       <p className="text-xs text-zinc-400">
                         {MEDIA_TYPE_LABELS[title.mediaType]}
                         {avg !== null &&
-                          ` · ★ ${avg.toFixed(1)} (${title.reviews.length} review${
-                            title.reviews.length === 1 ? "" : "s"
+                          ` · ★ ${avg.toFixed(1)} (${reviews.length} review${
+                            reviews.length === 1 ? "" : "s"
                           })`}
                       </p>
                     </div>
@@ -272,7 +287,7 @@ export default async function GroupPage({
                       {otherReviews.map((r) => (
                         <li key={r.id} className="text-xs text-zinc-500">
                           <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                            {r.user.name ?? r.user.email}
+                            {r.expand?.user?.name ?? r.expand?.user?.email}
                           </span>{" "}
                           rated it {r.rating}/5
                           {r.reviewText ? `: ${r.reviewText}` : ""}

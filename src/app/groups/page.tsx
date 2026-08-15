@@ -1,27 +1,32 @@
-import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { groupMembers } from "@/db/schema";
-import { createGroup, joinGroup } from "@/lib/actions/groups";
 import { signOutAction } from "@/lib/actions/auth";
+import { createGroup, joinGroup } from "@/lib/actions/groups";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import type {
+  GroupMembersResponse,
+  GroupsResponse,
+} from "@/types/pocketbase-types";
 
 export default async function GroupsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const memberships = await db.query.groupMembers.findMany({
-    where: eq(groupMembers.userId, session.user.id),
-    with: { group: true },
-  });
+  const pb = await getSuperuserClient();
+  const memberships = await pb
+    .collection("group_members")
+    .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
+      filter: pb.filter("user = {:userId}", { userId: session.id }),
+      expand: "group",
+    });
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-4 py-8">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Your groups</h1>
         <div className="flex items-center gap-3">
-          {session.user.isAdmin && (
+          {session.isAdmin && (
             <Link href="/admin" className="text-sm text-zinc-500 underline">
               Admin
             </Link>
@@ -35,19 +40,23 @@ export default async function GroupsPage() {
       </header>
 
       <ul className="flex flex-col gap-2">
-        {memberships.map(({ group }) => (
-          <li key={group.id}>
-            <Link
-              href={`/groups/${group.id}`}
-              className="block rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800"
-            >
-              <div className="font-medium">{group.name}</div>
-              <div className="text-xs text-zinc-500">
-                Invite code: {group.inviteCode}
-              </div>
-            </Link>
-          </li>
-        ))}
+        {memberships.map((membership) => {
+          const group = membership.expand?.group;
+          if (!group) return null;
+          return (
+            <li key={group.id}>
+              <Link
+                href={`/groups/${group.id}`}
+                className="block rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800"
+              >
+                <div className="font-medium">{group.name}</div>
+                <div className="text-xs text-zinc-500">
+                  Invite code: {group.inviteCode}
+                </div>
+              </Link>
+            </li>
+          );
+        })}
         {memberships.length === 0 && (
           <li className="text-sm text-zinc-500">
             You&apos;re not in any groups yet.

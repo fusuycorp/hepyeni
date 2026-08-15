@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { reviews } from "@/db/schema";
+import { isValidationNotUnique } from "@/lib/pocketbase/errors";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireMembership, requireTitleInGroup } from "@/lib/membership";
 
 export async function submitReview(
@@ -12,10 +12,10 @@ export async function submitReview(
   groupId: string,
   formData: FormData,
 ) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  await requireMembership(groupId, session.user.id);
+  await requireMembership(groupId, session.id);
   await requireTitleInGroup(titleId, groupId);
 
   const rating = Number(formData.get("rating"));
@@ -24,13 +24,27 @@ export async function submitReview(
   }
   const reviewText = String(formData.get("reviewText") ?? "").trim() || null;
 
-  await db
-    .insert(reviews)
-    .values({ titleId, userId: session.user.id, rating, reviewText })
-    .onConflictDoUpdate({
-      target: [reviews.titleId, reviews.userId],
-      set: { rating, reviewText },
+  const pb = await getSuperuserClient();
+  try {
+    await pb.collection("reviews").create({
+      title: titleId,
+      user: session.id,
+      rating,
+      reviewText,
     });
+  } catch (err) {
+    if (!isValidationNotUnique(err)) throw err;
+
+    const existing = await pb
+      .collection("reviews")
+      .getFirstListItem(
+        pb.filter("title = {:titleId} && user = {:userId}", {
+          titleId,
+          userId: session.id,
+        }),
+      );
+    await pb.collection("reviews").update(existing.id, { rating, reviewText });
+  }
 
   revalidatePath(`/groups/${groupId}`);
 }

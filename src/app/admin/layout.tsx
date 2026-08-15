@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { requireAdmin } from "@/lib/admin";
+import { getSession } from "@/lib/pocketbase/session";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  await requireAdmin(session.user.id);
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireAdmin(session.id);
 
   return (
     <div className="flex flex-1 flex-col">

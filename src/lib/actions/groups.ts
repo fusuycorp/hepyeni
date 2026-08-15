@@ -1,39 +1,43 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { groupMembers, groups } from "@/db/schema";
+import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { generateInviteCode } from "@/lib/invite-code";
+import type { GroupsResponse } from "@/types/pocketbase-types";
 
 export async function createGroup(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Group name is required");
 
+  const pb = await getSuperuserClient();
+
   // inviteCode is unique; astronomically unlikely to collide (32^8
-  // combinations) but retry a few times rather than surfacing a raw DB
-  // constraint error to the user on the rare chance it does.
-  let group;
+  // combinations) but retry a few times rather than surfacing a raw
+  // validation error to the user on the rare chance it does.
+  let group: GroupsResponse | undefined;
   for (let attempt = 0; !group && attempt < 5; attempt++) {
-    [group] = await db
-      .insert(groups)
-      .values({
+    try {
+      group = await pb.collection("groups").create<GroupsResponse>({
         name,
         inviteCode: generateInviteCode(),
-        createdBy: session.user.id,
-      })
-      .onConflictDoNothing({ target: groups.inviteCode })
-      .returning();
+        createdBy: session.id,
+      });
+    } catch (err) {
+      if (!isValidationNotUnique(err, "inviteCode")) throw err;
+    }
   }
-  if (!group) throw new Error("Couldn't generate a unique invite code, try again");
+  if (!group) {
+    throw new Error("Couldn't generate a unique invite code, try again");
+  }
 
-  await db.insert(groupMembers).values({
-    groupId: group.id,
-    userId: session.user.id,
+  await pb.collection("group_members").create({
+    group: group.id,
+    user: session.id,
     role: "owner",
   });
 
@@ -41,23 +45,39 @@ export async function createGroup(formData: FormData) {
 }
 
 export async function joinGroup(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const code = String(formData.get("code") ?? "")
     .trim()
     .toUpperCase();
   if (!code) throw new Error("Invite code is required");
 
-  const group = await db.query.groups.findFirst({
-    where: eq(groups.inviteCode, code),
-  });
-  if (!group) throw new Error("Invalid invite code");
+  const pb = await getSuperuserClient();
 
-  await db
-    .insert(groupMembers)
-    .values({ groupId: group.id, userId: session.user.id, role: "member" })
-    .onConflictDoNothing();
+  let group: GroupsResponse;
+  try {
+    group = await pb
+      .collection("groups")
+      .getFirstListItem<GroupsResponse>(
+        pb.filter("inviteCode = {:code}", { code }),
+      );
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Invalid invite code");
+    throw err;
+  }
+
+  try {
+    await pb.collection("group_members").create({
+      group: group.id,
+      user: session.id,
+      role: "member",
+    });
+  } catch (err) {
+    // Re-joining a group is a silent no-op, matching the unique (group,
+    // user) index behavior relied on today.
+    if (!isValidationNotUnique(err)) throw err;
+  }
 
   redirect(`/groups/${group.id}`);
 }

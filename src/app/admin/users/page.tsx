@@ -1,17 +1,17 @@
-import { desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { users } from "@/db/schema";
 import { banUser, setUserAdmin, unbanUser } from "@/lib/actions/admin";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import type { UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AdminUsersPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  const allUsers = await db.query.users.findMany({
-    orderBy: desc(users.createdAt),
-  });
+  const pb = await getSuperuserClient();
+  const allUsers = await pb
+    .collection("users")
+    .getFullList<UsersResponse>({ sort: "-created" });
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-8">
@@ -19,7 +19,7 @@ export default async function AdminUsersPage() {
 
       <ul className="flex flex-col gap-2">
         {allUsers.map((user) => {
-          const isSelf = user.id === session.user.id;
+          const isSelf = user.id === session.id;
           return (
             <li
               key={user.id}
@@ -40,8 +40,7 @@ export default async function AdminUsersPage() {
                   )}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  {user.email} · joined{" "}
-                  {user.createdAt.toISOString().slice(0, 10)}
+                  {user.email} · joined {user.created.slice(0, 10)}
                 </p>
               </div>
 

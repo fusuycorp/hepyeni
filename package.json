@@ -6,31 +6,22 @@
     "dev": "bun --bun next dev",
     "build": "bun --bun next build",
     "start": "bun --bun next start",
-    "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "lint": "eslint"
   },
   "dependencies": {
-    "@auth/drizzle-adapter": "^1.11.3",
-    "drizzle-orm": "^0.45.2",
     "next": "16.3.0",
-    "next-auth": "^5.0.0-beta.32",
-    "nodemailer": "^9.0.5",
+    "pocketbase": "^0.27.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
-    "postgres": "^3.4.9",
+    "pocketbase-typegen": "^1.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // PocketBase's own JS migration runner format (globals like `migrate`,
+    // `Collection`, `TextField` come from its JSVM sandbox, not a module
+    // system) — not part of the Next.js app, shouldn't be linted as such.
+    "pb_migrations/**",
   ]),
 ]);
 

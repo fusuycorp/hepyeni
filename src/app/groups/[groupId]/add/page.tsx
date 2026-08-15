@@ -1,9 +1,8 @@
-import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { groupMembers } from "@/db/schema";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { isNotFound } from "@/lib/pocketbase/errors";
 import { AddTitleForm } from "./add-title-form";
 
 export default async function AddTitlePage({
@@ -11,18 +10,25 @@ export default async function AddTitlePage({
 }: {
   params: Promise<{ groupId: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
   const { groupId } = await params;
+  const pb = await getSuperuserClient();
 
-  const membership = await db.query.groupMembers.findFirst({
-    where: and(
-      eq(groupMembers.groupId, groupId),
-      eq(groupMembers.userId, session.user.id),
-    ),
-  });
-  if (!membership) notFound();
+  try {
+    await pb
+      .collection("group_members")
+      .getFirstListItem(
+        pb.filter("group = {:groupId} && user = {:userId}", {
+          groupId,
+          userId: session.id,
+        }),
+      );
+  } catch (err) {
+    if (isNotFound(err)) notFound();
+    throw err;
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">

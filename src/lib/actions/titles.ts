@@ -1,11 +1,10 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { titles } from "@/db/schema";
+import { isValidationNotUnique } from "@/lib/pocketbase/errors";
+import { getSession } from "@/lib/pocketbase/session";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type { MediaType } from "@/lib/media-types";
 import { requireMembership, requireTitleInGroup } from "@/lib/membership";
 import { getProvider } from "@/lib/providers";
@@ -24,8 +23,8 @@ export async function searchTitles(
   mediaType: MediaType,
   query: string,
 ): Promise<NormalizedSearchResult[]> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Please sign in again");
+  const session = await getSession();
+  if (!session) throw new Error("Please sign in again");
   if (!query.trim()) return [];
 
   return getProvider(mediaType).search(query.trim());
@@ -36,10 +35,10 @@ export async function addTitle(
   mediaType: MediaType,
   result: NormalizedSearchResult,
 ) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Please sign in again");
+  const session = await getSession();
+  if (!session) throw new Error("Please sign in again");
 
-  await requireMembership(groupId, session.user.id);
+  await requireMembership(groupId, session.id);
 
   // `result` is a plain object from the client, not re-verified against a
   // live provider search — cap sizes at this trust boundary so a member
@@ -49,13 +48,13 @@ export async function addTitle(
   const title = result.title.slice(0, 300);
   if (!title.trim()) throw new Error("Title is required");
 
-  // onConflictDoNothing: this title (by external source+id) may already be
-  // in the group — a harmless no-op rather than an unhandled unique-
-  // constraint error, e.g. if a client retries after a spurious failure.
-  await db
-    .insert(titles)
-    .values({
-      groupId,
+  const pb = await getSuperuserClient();
+  try {
+    // This title (by external source+id) may already be in the group — a
+    // harmless no-op rather than an unhandled unique-constraint error, e.g.
+    // if a client retries after a spurious failure.
+    await pb.collection("titles").create({
+      group: groupId,
       mediaType,
       externalSource: result.externalSource.slice(0, 100),
       externalId: result.externalId.slice(0, 200),
@@ -63,22 +62,26 @@ export async function addTitle(
       creator: result.creator?.slice(0, 300),
       coverUrl: result.coverUrl?.slice(0, 2000),
       metadata: result.metadata,
-      addedBy: session.user.id,
-    })
-    .onConflictDoNothing();
+      status: "proposed",
+      addedBy: session.id,
+    });
+  } catch (err) {
+    if (!isValidationNotUnique(err)) throw err;
+  }
 }
 
 export async function markConsumed(titleId: string, groupId: string) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-  await requireMembership(groupId, session.user.id);
+  await requireMembership(groupId, session.id);
   await requireTitleInGroup(titleId, groupId);
 
-  await db
-    .update(titles)
-    .set({ status: "consumed", consumedAt: new Date() })
-    .where(and(eq(titles.id, titleId), eq(titles.groupId, groupId)));
+  const pb = await getSuperuserClient();
+  await pb.collection("titles").update(titleId, {
+    status: "consumed",
+    consumedAt: new Date().toISOString(),
+  });
 
   revalidatePath(`/groups/${groupId}`);
 }

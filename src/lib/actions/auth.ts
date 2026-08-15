@@ -1,17 +1,96 @@
 "use server";
 
-import { signIn, signOut } from "@/auth";
+import { redirect } from "next/navigation";
+import PocketBase from "pocketbase";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import {
+  clearSessionCookie,
+  consumeOtpCookie,
+  oauth2RedirectUrl,
+  setOAuth2StateCookie,
+  setOtpCookie,
+  setSessionCookie,
+} from "@/lib/pocketbase/session";
+import type { UsersResponse } from "@/types/pocketbase-types";
 
 export async function signInWithGoogle() {
-  await signIn("google", { redirectTo: "/groups" });
+  const pb = new PocketBase(process.env.PB_URL);
+  const methods = await pb.collection("users").listAuthMethods();
+  const google = methods.oauth2.providers.find((p) => p.name === "google");
+  if (!google) throw new Error("Google sign-in is not configured");
+
+  await setOAuth2StateCookie({
+    state: google.state,
+    codeVerifier: google.codeVerifier,
+  });
+
+  // authURL ends with `redirect_uri=` (no value) — PocketBase's documented
+  // pattern is to concatenate the redirect URL directly, not merge query
+  // params via the URL API.
+  redirect(google.authURL + oauth2RedirectUrl());
 }
 
 export async function signInWithEmail(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   if (!email) throw new Error("Email is required");
-  await signIn("nodemailer", { email, redirectTo: "/groups" });
+
+  // PocketBase's requestOTP is a no-op (anti-enumeration) for unknown
+  // emails — it does NOT create a user, unlike NextAuth's old Nodemailer
+  // provider. Look up-or-create first to preserve "first email sign-in
+  // creates the account".
+  const superuser = await getSuperuserClient();
+  try {
+    await superuser
+      .collection("users")
+      .getFirstListItem(superuser.filter("email = {:email}", { email }));
+  } catch {
+    const randomPassword = crypto.randomUUID();
+    await superuser.collection("users").create({
+      email,
+      emailVisibility: true,
+      verified: false,
+      password: randomPassword,
+      passwordConfirm: randomPassword, // unused: passwordAuth is disabled app-wide
+    });
+  }
+
+  const pb = new PocketBase(process.env.PB_URL);
+  const { otpId } = await pb.collection("users").requestOTP(email);
+  await setOtpCookie({ email, otpId });
+
+  redirect("/login?step=code");
+}
+
+export async function verifyEmailCode(formData: FormData) {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) throw new Error("Code is required");
+
+  const stored = await consumeOtpCookie();
+  if (!stored) redirect("/login?error=AccessDenied");
+
+  // redirect() throws a special error that must propagate un-caught, so the
+  // fallible OTP exchange is isolated in its own try/catch and every
+  // redirect() call happens outside of it.
+  const pb = new PocketBase(process.env.PB_URL);
+  let record: UsersResponse;
+  let token: string;
+  try {
+    ({ token, record } = await pb
+      .collection("users")
+      .authWithOTP<UsersResponse>(stored.otpId, code));
+  } catch {
+    redirect("/login?error=AccessDenied");
+  }
+
+  if (record.bannedAt) redirect("/login?error=AccessDenied");
+
+  await setSessionCookie(token);
+  redirect("/groups");
 }
 
 export async function signOutAction() {
-  await signOut({ redirectTo: "/login" });
+  await clearSessionCookie();
+  redirect("/login");
 }

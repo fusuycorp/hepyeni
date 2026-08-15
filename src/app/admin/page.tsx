@@ -1,38 +1,52 @@
-import { desc } from "drizzle-orm";
-import { db } from "@/db";
-import { groups } from "@/db/schema";
+import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AdminDashboardPage() {
-  const [allUsers, allGroups, allTitles, allVotes, allReviews, recentGroups] =
-    await Promise.all([
-      db.query.users.findMany(),
-      db.query.groups.findMany(),
-      db.query.titles.findMany(),
-      db.query.votes.findMany(),
-      db.query.reviews.findMany(),
-      db.query.groups.findMany({
-        orderBy: desc(groups.createdAt),
-        limit: 5,
-        with: { creator: true },
-      }),
-    ]);
+  const pb = await getSuperuserClient();
 
-  const bannedUsers = allUsers.filter((u) => u.bannedAt).length;
-  const proposedTitles = allTitles.filter(
-    (t) => t.status === "proposed",
-  ).length;
-  const consumedTitles = allTitles.filter(
-    (t) => t.status === "consumed",
-  ).length;
+  const [
+    usersCount,
+    bannedCount,
+    groupsCount,
+    proposedCount,
+    consumedCount,
+    votesCount,
+    reviewsCount,
+    recentGroups,
+  ] = await Promise.all([
+    pb.collection("users").getList(1, 1).then((r) => r.totalItems),
+    pb
+      .collection("users")
+      .getList(1, 1, { filter: 'bannedAt != ""' })
+      .then((r) => r.totalItems),
+    pb.collection("groups").getList(1, 1).then((r) => r.totalItems),
+    pb
+      .collection("titles")
+      .getList(1, 1, { filter: 'status = "proposed"' })
+      .then((r) => r.totalItems),
+    pb
+      .collection("titles")
+      .getList(1, 1, { filter: 'status = "consumed"' })
+      .then((r) => r.totalItems),
+    pb.collection("votes").getList(1, 1).then((r) => r.totalItems),
+    pb.collection("reviews").getList(1, 1).then((r) => r.totalItems),
+    pb
+      .collection("groups")
+      .getList<GroupsResponse<{ createdBy?: UsersResponse }>>(1, 5, {
+        sort: "-createdAt",
+        expand: "createdBy",
+      })
+      .then((r) => r.items),
+  ]);
 
   const stats = [
-    { label: "Users", value: allUsers.length },
-    { label: "Banned users", value: bannedUsers },
-    { label: "Groups", value: allGroups.length },
-    { label: "Titles proposed", value: proposedTitles },
-    { label: "Titles consumed", value: consumedTitles },
-    { label: "Votes", value: allVotes.length },
-    { label: "Reviews", value: allReviews.length },
+    { label: "Users", value: usersCount },
+    { label: "Banned users", value: bannedCount },
+    { label: "Groups", value: groupsCount },
+    { label: "Titles proposed", value: proposedCount },
+    { label: "Titles consumed", value: consumedCount },
+    { label: "Votes", value: votesCount },
+    { label: "Reviews", value: reviewsCount },
   ];
 
   return (
@@ -65,7 +79,9 @@ export default async function AdminDashboardPage() {
             >
               <span className="font-medium">{group.name}</span>{" "}
               <span className="text-zinc-500">
-                by {group.creator.name ?? group.creator.email}
+                by{" "}
+                {group.expand?.createdBy?.name ??
+                  group.expand?.createdBy?.email}
               </span>
             </li>
           ))}
