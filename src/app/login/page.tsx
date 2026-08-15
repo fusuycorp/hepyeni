@@ -1,3 +1,7 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   signInWithApple,
   signInWithEmail,
@@ -25,118 +29,120 @@ export default async function LoginPage({
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 className="text-2xl font-semibold">Titirek</h1>
-      <p className="max-w-xs text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="max-w-xs text-sm text-muted-foreground">
         Vote on what your group reads, watches, and listens to next.
       </p>
       {error && ERROR_MESSAGES[error] && (
-        <p className="max-w-xs text-sm text-red-600 dark:text-red-400">
+        <p className="max-w-xs text-sm text-destructive">
           {ERROR_MESSAGES[error]}
         </p>
       )}
 
       {otp ? (
         <form action={verifyEmailCode} className="flex w-64 flex-col gap-2">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             Enter the code sent to {otp.email}
           </p>
-          <input
+          <Input
             type="text"
             name="code"
             inputMode="numeric"
             required
             autoFocus
             placeholder="123456"
-            className="rounded-full border border-zinc-300 px-4 py-2 text-center text-sm tracking-widest dark:border-zinc-700 dark:bg-transparent"
+            className="h-12 rounded-full text-center tracking-widest"
           />
-          <button
-            type="submit"
-            className="flex h-12 w-full items-center justify-center rounded-full bg-foreground px-5 font-medium text-background"
-          >
+          <Button type="submit" className="h-12 rounded-full">
             Verify code
-          </button>
+          </Button>
         </form>
       ) : (
-        <>
+        <div className="flex w-64 flex-col gap-3">
           <form action={signInWithGoogle}>
-            <button
-              type="submit"
-              className="flex h-12 w-64 items-center justify-center gap-2 rounded-full bg-foreground px-5 font-medium text-background"
-            >
+            <Button type="submit" className="h-12 w-full rounded-full">
               Continue with Google
-            </button>
+            </Button>
           </form>
 
           <form action={signInWithApple}>
-            <button
-              type="submit"
-              className="flex h-12 w-64 items-center justify-center gap-2 rounded-full bg-foreground px-5 font-medium text-background"
-            >
+            <Button type="submit" className="h-12 w-full rounded-full">
               Continue with Apple
-            </button>
+            </Button>
           </form>
 
-          <div className="flex w-64 items-center gap-3 text-xs text-zinc-400">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          <div className="my-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <Separator className="flex-1" />
             or
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+            <Separator className="flex-1" />
           </div>
 
-          <form action={signInWithEmail} className="flex w-64 flex-col gap-2">
-            <input
-              type="email"
-              name="email"
-              required
-              placeholder="you@example.com"
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm text-center dark:border-zinc-700 dark:bg-transparent"
-            />
-            <button
-              type="submit"
-              className="flex h-12 w-full items-center justify-center rounded-full border border-zinc-300 px-5 font-medium dark:border-zinc-700"
-            >
-              Continue with email
-            </button>
-          </form>
+          <Tabs defaultValue="link" className="gap-3">
+            <TabsList className="w-full">
+              <TabsTrigger value="link">Email link</TabsTrigger>
+              <TabsTrigger value="password">Password</TabsTrigger>
+            </TabsList>
 
-          <div className="flex w-64 items-center gap-3 text-xs text-zinc-400">
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-            or use a password
-            <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-          </div>
+            <TabsContent value="link">
+              <form
+                action={signInWithEmail}
+                className="flex flex-col gap-2"
+              >
+                <Input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="you@example.com"
+                  className="h-12 rounded-full text-center"
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="h-12 w-full rounded-full"
+                >
+                  Continue with email
+                </Button>
+              </form>
+            </TabsContent>
 
-          <form className="flex w-64 flex-col gap-2">
-            <input
-              type="email"
-              name="email"
-              required
-              placeholder="you@example.com"
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm text-center dark:border-zinc-700 dark:bg-transparent"
-            />
-            <input
-              type="password"
-              name="password"
-              required
-              minLength={8}
-              placeholder="Password"
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm text-center dark:border-zinc-700 dark:bg-transparent"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                formAction={signInWithPassword}
-                className="flex h-12 flex-1 items-center justify-center rounded-full border border-zinc-300 px-5 font-medium dark:border-zinc-700"
-              >
-                Sign in
-              </button>
-              <button
-                type="submit"
-                formAction={signUpWithPassword}
-                className="flex h-12 flex-1 items-center justify-center rounded-full border border-zinc-300 px-5 font-medium dark:border-zinc-700"
-              >
-                Sign up
-              </button>
-            </div>
-          </form>
-        </>
+            <TabsContent value="password">
+              <form className="flex flex-col gap-2">
+                <Input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="you@example.com"
+                  className="h-12 rounded-full text-center"
+                />
+                <Input
+                  type="password"
+                  name="password"
+                  required
+                  minLength={8}
+                  placeholder="Password"
+                  className="h-12 rounded-full text-center"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    formAction={signInWithPassword}
+                    variant="outline"
+                    className="h-12 flex-1 rounded-full"
+                  >
+                    Sign in
+                  </Button>
+                  <Button
+                    type="submit"
+                    formAction={signUpWithPassword}
+                    variant="outline"
+                    className="h-12 flex-1 rounded-full"
+                  >
+                    Sign up
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
     </div>
   );

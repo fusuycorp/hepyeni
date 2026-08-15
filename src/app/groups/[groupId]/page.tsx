@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { MarkConsumedButton } from "@/components/mark-consumed-button";
+import { MediaCover } from "@/components/media-cover";
+import { ReviewForm } from "@/components/review-form";
+import { VoteControl } from "@/components/vote-control";
 import { markConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
@@ -86,21 +94,22 @@ export default async function GroupPage({
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
       <header>
         <h1 className="text-xl font-semibold">{group.name}</h1>
-        <p className="text-xs text-zinc-500">
-          Invite code: <span className="font-mono">{group.inviteCode}</span>
+        <p className="text-xs text-muted-foreground">
+          Invite code:{" "}
+          <span className="font-mono">{group.inviteCode}</span>
         </p>
       </header>
 
       <section>
-        <h2 className="mb-2 text-sm font-medium text-zinc-500">
+        <h2 className="mb-2 text-sm font-medium text-muted-foreground">
           Members ({members.length})
         </h2>
         <ul className="flex flex-col gap-1">
           {members.map((m) => (
-            <li key={m.id} className="text-sm">
+            <li key={m.id} className="flex items-center gap-2 text-sm">
               {m.expand?.user?.name ?? m.expand?.user?.email}
               {m.role === "owner" && (
-                <span className="ml-2 text-xs text-zinc-500">owner</span>
+                <Badge variant="secondary">owner</Badge>
               )}
             </li>
           ))}
@@ -109,96 +118,61 @@ export default async function GroupPage({
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-zinc-500">
+          <h2 className="text-sm font-medium text-muted-foreground">
             Up next ({proposed.length})
           </h2>
-          <Link
-            href={`/groups/${groupId}/add`}
-            className="text-sm font-medium underline"
+          <Button
+            render={<Link href={`/groups/${groupId}/add`} />}
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
           >
             + Add a title
-          </Link>
+          </Button>
         </div>
-        <ul className="flex flex-col gap-2">
-          {proposed.map((title) => (
-            <li
-              key={title.id}
-              className="flex gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
-            >
-              <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
-                <form action={voteOnTitle.bind(null, title.id, groupId, "up")}>
-                  <button
-                    type="submit"
-                    aria-label="Upvote"
-                    className={`rounded px-1.5 py-0.5 leading-none ${
-                      title.userVote === "up"
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                    }`}
-                  >
-                    ▲
-                  </button>
-                </form>
-                <span className="text-xs font-medium tabular-nums">
-                  {title.score}
-                </span>
-                <form
-                  action={voteOnTitle.bind(null, title.id, groupId, "down")}
-                >
-                  <button
-                    type="submit"
-                    aria-label="Downvote"
-                    className={`rounded px-1.5 py-0.5 leading-none ${
-                      title.userVote === "down"
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                    }`}
-                  >
-                    ▼
-                  </button>
-                </form>
-              </div>
-              {title.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={title.coverUrl}
-                  alt=""
-                  className="h-16 w-11 shrink-0 rounded object-cover"
-                />
-              ) : (
-                <div className="h-16 w-11 shrink-0 rounded bg-zinc-200 dark:bg-zinc-800" />
-              )}
-              <div className="flex flex-1 flex-col justify-center gap-1">
-                <p className="text-sm font-medium">{title.title}</p>
-                {title.creator && (
-                  <p className="text-xs text-zinc-500">{title.creator}</p>
-                )}
-                <p className="text-xs text-zinc-400">
-                  {MEDIA_TYPE_LABELS[title.mediaType]} · added by{" "}
-                  {title.expand?.addedBy?.name ?? title.expand?.addedBy?.email}
-                </p>
-                <form action={markConsumed.bind(null, title.id, groupId)}>
-                  <button
-                    type="submit"
-                    className="text-xs font-medium text-zinc-500 underline underline-offset-2"
-                  >
-                    Mark as consumed
-                  </button>
-                </form>
-              </div>
-            </li>
-          ))}
-          {proposed.length === 0 && (
-            <li className="text-sm text-zinc-500">
-              Nothing proposed yet — add the first title.
-            </li>
-          )}
-        </ul>
+
+        {proposed.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {proposed.map((title) => (
+              <li key={title.id}>
+                <Card size="sm" className="flex-row gap-3 px-3">
+                  <VoteControl
+                    score={title.score}
+                    userVote={title.userVote}
+                    onVote={voteOnTitle.bind(null, title.id, groupId)}
+                  />
+                  <MediaCover src={title.coverUrl} />
+                  <div className="flex flex-1 flex-col justify-center gap-1">
+                    <p className="text-sm font-medium">{title.title}</p>
+                    {title.creator && (
+                      <p className="text-xs text-muted-foreground">
+                        {title.creator}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {MEDIA_TYPE_LABELS[title.mediaType]} · added by{" "}
+                      {title.expand?.addedBy?.name ??
+                        title.expand?.addedBy?.email}
+                    </p>
+                    <MarkConsumedButton
+                      onMark={markConsumed.bind(null, title.id, groupId)}
+                    />
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            title="Nothing proposed yet"
+            description="Add the first title for the group to vote on."
+          />
+        )}
       </section>
 
       {consumed.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-zinc-500">
+          <h2 className="text-sm font-medium text-muted-foreground">
             Consumed ({consumed.length})
           </h2>
           <ul className="flex flex-col gap-3">
@@ -214,87 +188,48 @@ export default async function GroupPage({
               );
 
               return (
-                <li
-                  key={title.id}
-                  className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
-                >
-                  <div className="flex gap-3">
-                    {title.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={title.coverUrl}
-                        alt=""
-                        className="h-16 w-11 shrink-0 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="h-16 w-11 shrink-0 rounded bg-zinc-200 dark:bg-zinc-800" />
-                    )}
-                    <div className="flex flex-1 flex-col justify-center">
-                      <p className="text-sm font-medium">{title.title}</p>
-                      {title.creator && (
-                        <p className="text-xs text-zinc-500">
-                          {title.creator}
+                <li key={title.id}>
+                  <Card size="sm" className="gap-3 px-3">
+                    <div className="flex gap-3">
+                      <MediaCover src={title.coverUrl} size="md" />
+                      <div className="flex flex-1 flex-col justify-center">
+                        <p className="text-sm font-medium">{title.title}</p>
+                        {title.creator && (
+                          <p className="text-xs text-muted-foreground">
+                            {title.creator}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {MEDIA_TYPE_LABELS[title.mediaType]}
+                          {avg !== null &&
+                            ` · ★ ${avg.toFixed(1)} (${reviews.length} review${
+                              reviews.length === 1 ? "" : "s"
+                            })`}
                         </p>
-                      )}
-                      <p className="text-xs text-zinc-400">
-                        {MEDIA_TYPE_LABELS[title.mediaType]}
-                        {avg !== null &&
-                          ` · ★ ${avg.toFixed(1)} (${reviews.length} review${
-                            reviews.length === 1 ? "" : "s"
-                          })`}
-                      </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <form
-                    action={submitReview.bind(null, title.id, groupId)}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center gap-2 text-sm">
-                      <label htmlFor={`rating-${title.id}`}>
-                        Your rating
-                      </label>
-                      <select
-                        id={`rating-${title.id}`}
-                        name="rating"
-                        defaultValue={myReview?.rating ?? 5}
-                        className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-transparent"
-                      >
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <textarea
-                      name="reviewText"
-                      defaultValue={myReview?.reviewText ?? ""}
-                      placeholder="Thoughts? (optional)"
-                      rows={2}
-                      className="rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-transparent"
+                    <ReviewForm
+                      defaultRating={myReview?.rating ?? 5}
+                      defaultText={myReview?.reviewText ?? ""}
+                      hasExisting={Boolean(myReview)}
+                      onSubmit={submitReview.bind(null, title.id, groupId)}
                     />
-                    <button
-                      type="submit"
-                      className="self-start rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium dark:border-zinc-700"
-                    >
-                      {myReview ? "Update review" : "Save review"}
-                    </button>
-                  </form>
 
-                  {otherReviews.length > 0 && (
-                    <ul className="flex flex-col gap-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
-                      {otherReviews.map((r) => (
-                        <li key={r.id} className="text-xs text-zinc-500">
-                          <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                            {r.expand?.user?.name ?? r.expand?.user?.email}
-                          </span>{" "}
-                          rated it {r.rating}/5
-                          {r.reviewText ? `: ${r.reviewText}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                    {otherReviews.length > 0 && (
+                      <ul className="flex flex-col gap-1 border-t pt-2">
+                        {otherReviews.map((r) => (
+                          <li key={r.id} className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {r.expand?.user?.name ?? r.expand?.user?.email}
+                            </span>{" "}
+                            rated it {r.rating}/5
+                            {r.reviewText ? `: ${r.reviewText}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
                 </li>
               );
             })}
