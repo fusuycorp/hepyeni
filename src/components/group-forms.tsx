@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +14,9 @@ function errorMessage(err: unknown, fallback: string) {
 export function CreateGroupCard({
   onCreate,
 }: {
-  onCreate: (formData: FormData) => Promise<void>;
+  onCreate: (formData: FormData) => Promise<string>;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -22,7 +24,8 @@ export function CreateGroupCard({
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await onCreate(formData);
+        const groupId = await onCreate(formData);
+        router.push(`/groups/${groupId}`);
       } catch (err) {
         toast.error(errorMessage(err, "Couldn't create the group."));
       }
@@ -49,8 +52,9 @@ export function CreateGroupCard({
 export function JoinGroupCard({
   onJoin,
 }: {
-  onJoin: (formData: FormData) => Promise<void>;
+  onJoin: (formData: FormData) => Promise<string>;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -58,7 +62,8 @@ export function JoinGroupCard({
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await onJoin(formData);
+        const groupId = await onJoin(formData);
+        router.push(`/groups/${groupId}`);
       } catch (err) {
         toast.error(errorMessage(err, "Couldn't join that group."));
       }

@@ -12,7 +12,20 @@ import type {
   GroupsResponse,
 } from "@/types/pocketbase-types";
 
-export async function createGroup(formData: FormData) {
+// createGroup/joinGroup/leaveGroup/deleteGroup are all invoked imperatively
+// from client components (group-forms.tsx, confirm-action-button.tsx) inside
+// a try/catch, not as plain <form action>s — a redirect() thrown from inside
+// that awaited call rejects the promise with Next's internal redirect
+// signal, which our own catch block would swallow before Next's
+// RedirectBoundary ever sees it (confirmed against
+// next/dist/client/components/router-reducer/reducers/server-action-reducer.js:
+// "the action promise will be rejected with a redirect so that it's handled
+// by RedirectBoundary"). So these return where to go instead of redirecting
+// themselves, and the calling client component navigates via useRouter()
+// once the awaited call actually resolves — the same pattern already used
+// by addTitle/AddTitleForm in titles.ts.
+
+export async function createGroup(formData: FormData): Promise<string> {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -46,10 +59,10 @@ export async function createGroup(formData: FormData) {
     role: "owner",
   });
 
-  redirect(`/groups/${group.id}`);
+  return group.id;
 }
 
-export async function joinGroup(formData: FormData) {
+export async function joinGroup(formData: FormData): Promise<string> {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -84,7 +97,7 @@ export async function joinGroup(formData: FormData) {
     if (!isValidationNotUnique(err)) throw err;
   }
 
-  redirect(`/groups/${group.id}`);
+  return group.id;
 }
 
 export async function renameGroup(groupId: string, formData: FormData) {
@@ -166,7 +179,6 @@ export async function leaveGroup(groupId: string) {
   }
 
   await pb.collection("group_members").delete(membership.id);
-  redirect("/groups");
 }
 
 export async function deleteGroup(groupId: string) {
@@ -178,6 +190,4 @@ export async function deleteGroup(groupId: string) {
   // group_members, titles, votes, and reviews all cascade-delete from
   // groups (see pb_migrations) — one call tears down everything.
   await pb.collection("groups").delete(groupId);
-
-  redirect("/groups");
 }

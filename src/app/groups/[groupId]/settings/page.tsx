@@ -161,6 +161,7 @@ export default async function GroupSettingsPage({
               description="You'll need a new invite code to rejoin."
               confirmLabel="Leave"
               pendingLabel="Leaving…"
+              redirectTo="/groups"
               onConfirm={leaveGroup.bind(null, groupId)}
             />
           </div>
@@ -176,6 +177,7 @@ export default async function GroupSettingsPage({
                 description="This permanently removes the group along with every title, vote, and review in it. This can't be undone."
                 confirmLabel="Delete"
                 pendingLabel="Deleting…"
+                redirectTo="/groups"
                 onConfirm={deleteGroup.bind(null, groupId)}
               />
             </div>

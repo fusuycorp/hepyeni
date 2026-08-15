@@ -16,7 +16,10 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
+  // Segment-bounded (each alternative must end at "/" or the string end) so
+  // a future route that merely starts with one of these words — e.g.
+  // /reset-password-request — doesn't silently become public too.
   matcher: [
-    "/((?!api/auth|login|reset-password|_next/static|_next/image|favicon.ico).*)",
+    "/((?!(?:api/auth|login|reset-password|_next/static|_next/image|favicon\\.ico)(?:/|$)).*)",
   ],
 };

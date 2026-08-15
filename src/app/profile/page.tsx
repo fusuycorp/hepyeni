@@ -78,6 +78,7 @@ export default async function ProfilePage() {
             description="This permanently deletes your account and removes you from every group. This can't be undone."
             confirmLabel="Delete"
             pendingLabel="Deleting…"
+            redirectTo="/login"
             onConfirm={deleteAccount}
           />
         </CardContent>
