@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import type { MediaType } from "@/lib/media-types";
+import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { requireMembership, requireTitleInGroup } from "@/lib/membership";
 import { getProvider } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
@@ -26,6 +26,7 @@ export async function searchTitles(
   const session = await getSession();
   if (!session) throw new Error("Please sign in again");
   if (!query.trim()) return [];
+  if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
 
   return getProvider(mediaType).search(query.trim());
 }
@@ -37,6 +38,7 @@ export async function addTitle(
 ) {
   const session = await getSession();
   if (!session) throw new Error("Please sign in again");
+  if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
 
   await requireMembership(groupId, session.id);
 
@@ -45,8 +47,16 @@ export async function addTitle(
   // can't stuff arbitrarily large strings into the DB via the action's RPC
   // endpoint (the UI would never send more than this, but the endpoint
   // itself doesn't otherwise enforce it).
-  const title = result.title.slice(0, 300);
-  if (!title.trim()) throw new Error("Title is required");
+  const title = String(result.title ?? "").slice(0, 300).trim();
+  if (!title) throw new Error("Title is required");
+
+  const externalSource = String(result.externalSource ?? "").slice(0, 100);
+  const externalId = String(result.externalId ?? "").slice(0, 200);
+  const creator = result.creator ? String(result.creator).slice(0, 300) : null;
+  const coverUrl =
+    result.coverUrl && /^https?:\/\//i.test(result.coverUrl)
+      ? result.coverUrl.slice(0, 2000)
+      : null;
 
   const pb = await getSuperuserClient();
   try {
@@ -56,12 +66,12 @@ export async function addTitle(
     await pb.collection("titles").create({
       group: groupId,
       mediaType,
-      externalSource: result.externalSource.slice(0, 100),
-      externalId: result.externalId.slice(0, 200),
+      externalSource,
+      externalId,
       title,
-      creator: result.creator?.slice(0, 300),
-      coverUrl: result.coverUrl?.slice(0, 2000),
-      metadata: result.metadata,
+      creator,
+      coverUrl,
+      metadata: result.metadata ?? null,
       status: "proposed",
       addedBy: session.id,
     });

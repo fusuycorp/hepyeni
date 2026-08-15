@@ -44,3 +44,27 @@ Running log of actions taken by Claude on this project, and why.
 - Live Dokploy provisioning via direct API calls (one `compose.update` for env vars, one `compose.update` for `docker-stack.yml` — the second one initially blocked by the auto-mode safety classifier as a production-config-mutating action; paused and got explicit user confirmation before retrying, per this session's own risk-communication practice): dropped `postgres`/`titirek_postgres_data`, added `pocketbase` (1 replica, pinned `worky`, volume `titirek_pb_data:/pb_data`, no hardcoded Traefik labels — domain via API instead, per `docs/dokploy-guide.md`'s own stated preference over `docs/baas-guide.md`'s template). New domain `pb.hepyeni.net` (reuses the already-live `*.hepyeni.net` wildcard, zero new DNS work) for the PocketBase Admin UI — needed since Google OAuth2 provider + PurelyMail SMTP config is UI-only, not automatable via migration or env var. Generated a fresh `PB_SUPERUSER_PASSWORD` (`openssl rand -hex 24`, not reused from anywhere) and set `PB_SUPERUSER_EMAIL` to the real maintainer email so the Admin UI is actually usable.
 - Merged `pocketbase-migration` → `main` and pushed (with the user's explicit go-ahead for this specific action, separate from the broader plan approval, since it was the actual production cutover) — CI built/pushed the new `titirek` image and triggered `compose.redeploy` successfully. **Verified live, not just "API call succeeded"**: `https://hepyeni.net/login` returns real rendered page content (both sign-in forms, not an error page), `https://pb.hepyeni.net/api/health` green, superuser login against the production PocketBase instance works, and all 6 app collections plus PocketBase's system collections are present via authenticated REST introspection against the live instance.
 - **Still open**: Google OAuth2 client credentials and PurelyMail SMTP need configuring in the PocketBase Admin UI (`pb.hepyeni.net/_/`) before real sign-in works — same "zero real users yet, credentials still blank" state as before this migration, just now on PocketBase's Settings UI instead of Dokploy env vars. `deploy-pocketbase.yml` needs `workflow`-scope git access to ever get committed/pushed; until then, any future `pb_migrations/` change needs the same manual local build+push this session used.
+
+---
+
+### Session: Modern UI Overhaul, Security Hardening & Automated Testing Suite (2026-08-15)
+
+- **Modern Responsive UI Overhaul**:
+  - Implemented unified `AppShell` with responsive boundaries: persistent `DesktopSidebar` on desktop (`≥768px`) with brand identity, group switcher, user card, and dark/light theme switch; top header and mobile `BottomNav` with safe-area insets on mobile (`<768px`).
+  - Redesigned Group View with interactive media filtering, responsive 3-column split view (2 cols backlog/consumed, 1 col member roster), and upgraded `VoteControl` touch targets with optimistic state animation.
+  - Upgraded media discovery search (`AddTitleForm`), Activity feed timeline, Group settings, User Profile, and Admin Portal with semantic design tokens (`Base UI` + `Tailwind v4`).
+- **Security & Concurrency Audit Remediations**:
+  - Remediated misleading authentication error code mapping in `auth.ts` and `login/page.tsx` (`InvalidCode`, `InvalidCredentials`, `InvalidPassword`, `SignupFailed`, `EmailInUse`, `AccessDenied`).
+  - Enabled `users.passwordAuth.enabled = true` in `pb_migrations/1755280800_initial_schema.js` to ensure password flows match PocketBase schema.
+  - Eliminated uncaught 404 race condition in `voteOnTitle` by wrapping toggle operations in `isNotFound` catch blocks.
+  - Added orphan group cleanup in `leaveGroup` when the sole owner leaves.
+  - Added server-side bounds on `reviewText` (5,000 chars), `name` (200 chars), and `password` (128 chars).
+  - Added `AbortSignal.timeout(8000)` on all external media provider fetch calls (`google-books`, `tmdb`, `spotify`, `itunes-podcasts`).
+  - Added runtime type guards on `mediaType` and protocol checks on `coverUrl`.
+- **Automated Test Suite**:
+  - Created comprehensive unit tests in `tests/`: `vote-id.test.ts`, `invite-code.test.ts`, `media-types.test.ts`, `providers.test.ts`, `membership.test.ts`.
+  - Added `"test": "bun test"` script in `package.json`.
+- **Decision Tracking & Documentation**:
+  - Initialized `DECISIONS.md` recording ADR-001 through ADR-004.
+  - Overhauled `README.md` with features, security architecture, environment reference, and test instructions.
+

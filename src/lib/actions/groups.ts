@@ -173,9 +173,12 @@ export async function leaveGroup(groupId: string) {
     });
     if (others.totalItems > 0) {
       throw new Error(
-        "Remove the other members (or make one of them owner) before you leave",
+        "Remove the other members before you leave as an owner",
       );
     }
+    // Sole remaining owner leaving: delete the entire group to avoid orphaned circles
+    await pb.collection("groups").delete(groupId);
+    return;
   }
 
   await pb.collection("group_members").delete(membership.id);

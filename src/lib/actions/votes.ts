@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isValidationNotUnique } from "@/lib/pocketbase/errors";
+import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireMembership, requireTitleInGroup } from "@/lib/membership";
@@ -31,10 +31,7 @@ export async function voteOnTitle(
   // before the id collision, so the error lands on those fields, not "id" —
   // confirmed against a real instance, don't scope the field check. On a
   // 400 there's already an existing vote: same value clicked again ->
-  // delete (toggle off), different value -> flip. This narrower flip/delete
-  // decision still reads then writes, so two near-simultaneous toggles on
-  // an already-existing vote can last-write-wins on the value — accepted as
-  // a low-stakes residual race (never a duplicate row, never a 500).
+  // delete (toggle off), different value -> flip.
   try {
     await pb
       .collection("votes")
@@ -42,11 +39,19 @@ export async function voteOnTitle(
   } catch (err) {
     if (!isValidationNotUnique(err)) throw err;
 
-    const existing = await pb.collection("votes").getOne<VotesResponse>(id);
-    if (existing.value === value) {
-      await pb.collection("votes").delete(id);
-    } else {
-      await pb.collection("votes").update(id, { value });
+    try {
+      const existing = await pb.collection("votes").getOne<VotesResponse>(id);
+      if (existing.value === value) {
+        await pb.collection("votes").delete(id);
+      } else {
+        await pb.collection("votes").update(id, { value });
+      }
+    } catch (toggleErr) {
+      if (isNotFound(toggleErr)) {
+        // Record was concurrently deleted by another request; safe to resolve
+        return;
+      }
+      throw toggleErr;
     }
   }
 

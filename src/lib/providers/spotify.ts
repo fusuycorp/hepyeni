@@ -30,6 +30,7 @@ async function fetchAccessToken(): Promise<string> {
     },
     body: "grant_type=client_credentials",
     cache: "no-store",
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     throw new Error(`Spotify token request failed: ${res.status}`);
@@ -68,6 +69,7 @@ export const spotifyProvider: MediaProvider = {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
       throw new Error(`Spotify search failed: ${res.status}`);

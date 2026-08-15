@@ -26,8 +26,8 @@ migrate((app) => {
     new TextField({ name: "avatarUrl", required: false, max: 2000 }),
   );
 
-  // Google OAuth2 + email OTP only, no password login.
-  users.passwordAuth.enabled = false;
+  // Enable OAuth2, email OTP, and password authentication.
+  users.passwordAuth.enabled = true;
   users.otp.enabled = true;
 
   app.save(users);

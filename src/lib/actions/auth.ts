@@ -78,7 +78,7 @@ export async function verifyEmailCode(formData: FormData) {
   if (!code) throw new Error("Code is required");
 
   const stored = await consumeOtpCookie();
-  if (!stored) redirect("/login?error=AccessDenied");
+  if (!stored) redirect("/login?error=InvalidCode");
 
   // redirect() throws a special error that must propagate un-caught, so the
   // fallible OTP exchange is isolated in its own try/catch and every
@@ -91,7 +91,7 @@ export async function verifyEmailCode(formData: FormData) {
       .collection("users")
       .authWithOTP<UsersResponse>(stored.otpId, code));
   } catch {
-    redirect("/login?error=AccessDenied");
+    redirect("/login?error=InvalidCode");
   }
 
   if (record.bannedAt) redirect("/login?error=AccessDenied");
@@ -105,7 +105,7 @@ export async function signInWithPassword(formData: FormData) {
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!email || !password) redirect("/login?error=AccessDenied");
+  if (!email || !password) redirect("/login?error=InvalidCredentials");
 
   const pb = new PocketBase(process.env.PB_URL);
   let record: UsersResponse;
@@ -115,7 +115,7 @@ export async function signInWithPassword(formData: FormData) {
       .collection("users")
       .authWithPassword<UsersResponse>(email, password));
   } catch {
-    redirect("/login?error=AccessDenied");
+    redirect("/login?error=InvalidCredentials");
   }
 
   if (record.bannedAt) redirect("/login?error=AccessDenied");
@@ -129,8 +129,9 @@ export async function signUpWithPassword(formData: FormData) {
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!email || !password) redirect("/login?error=AccessDenied");
+  if (!email || !password) redirect("/login?error=InvalidCredentials");
   if (password.length < 8) redirect("/login?error=WeakPassword");
+  if (password.length > 128) redirect("/login?error=InvalidPassword");
 
   // The `users` collection is create-locked to superusers (all rules are
   // null), so self-service signup has to go through the superuser client,
@@ -148,7 +149,7 @@ export async function signUpWithPassword(formData: FormData) {
     if (isValidationNotUnique(err, "email")) {
       redirect("/login?error=EmailInUse");
     }
-    redirect("/login?error=AccessDenied");
+    redirect("/login?error=SignupFailed");
   }
 
   const pb = new PocketBase(process.env.PB_URL);

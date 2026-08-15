@@ -1,77 +1,116 @@
 # Titirek
 
-Mobile-optimized reading/watch/listen group tracker: groups add and vote on
-books, movies & TV, music, and podcasts, then rate and review once consumed.
+**Titirek** is a modern, responsive collaborative media recommendation, voting, and consumption tracker for groups (book clubs, movie nights, music listening circles, podcast clubs).
 
-## Stack
+---
 
-- **Next.js** (App Router) on **Bun** — see [`docs/project-creation.md`](https://github.com/fusuycorp) conventions
-- **PocketBase** (self-hosted, SQLite-backed BaaS) for persistence and auth
-- Google OAuth2 + email OTP sign-in, both via PocketBase's built-in auth
+## Features
 
-## Local development
+- **Circle Collaboration**: Create private circles or join existing ones with 8-character invite codes.
+- **Multi-Provider Media Search**:
+  - **Books**: Google Books API (`book`)
+  - **Movies & TV Shows**: TMDB API with v4 Bearer Token (`movie`, `tv`)
+  - **Music Albums**: Spotify Web API with Client-Credentials flow (`music`)
+  - **Podcasts**: iTunes Search API (`podcast`)
+- **Concurrency-Resilient Voting**: Deterministic SHA-256 ID hashing guarantees atomic up/down vote toggling without duplicate vote rows or state race conditions.
+- **Backlog & Consumption Tracking**: Dynamic ranking by net score (`upvotes - downvotes`), one-tap "Mark as Consumed", and 1–5 star rating reviews with average score tallying.
+- **Unified Activity Timeline**: Real-time cross-group stream of proposals, votes, and member reviews.
+- **Responsive Modern UI**:
+  - **Desktop (≥768px)**: Persistent sidebar navigation, multi-column group dashboard, and split backlog/archive view.
+  - **Mobile (<768px)**: Sleek top header, touch-friendly hit targets (≥44px), and bottom navigation bar.
+  - **Theming**: Seamless dark and light mode toggle via `next-themes`.
+- **Administrative Portal**: Complete dashboard for platform metrics, user moderation (role management, account bans), and group oversight.
 
-1. Download and run a local PocketBase instance (the app talks to it entirely
-   server-side — every collection's API rules are superuser-only, see
-   `pb_migrations/`):
+---
 
-   ```bash
-   # macOS/Linux, adjust version/arch as needed — see https://pocketbase.io/docs/
-   curl -L https://github.com/pocketbase/pocketbase/releases/download/v0.27.2/pocketbase_0.27.2_linux_amd64.zip -o pocketbase.zip
-   unzip pocketbase.zip pocketbase
-   ./pocketbase serve
-   ```
+## Tech Stack
 
-   On first run, create a superuser (`./pocketbase superuser upsert you@example.com yourpassword`).
-   `pb_migrations/` is applied automatically on startup when run from this
-   repo's root.
+| Layer | Technology |
+|---|---|
+| **Runtime** | [Bun](https://bun.sh) (`bun@1.3.14`) |
+| **Framework** | [Next.js](https://nextjs.org) 16.3.0 App Router + React 19 |
+| **Database & Auth** | [PocketBase](https://pocketbase.io) (`pocketbase@0.27.3`, SQLite) |
+| **UI Components** | Tailwind CSS v4, Base UI (`@base-ui/react`), Lucide React, Sonner |
+| **Testing** | Bun Test Runner (`bun test`) |
+| **Type Generation** | `pocketbase-typegen@1.5.0` |
 
-2. Copy `.env.example` to `.env.local` and fill in the values (see below).
+---
 
-3. Install deps and start the dev server:
+## Security Architecture
 
-   ```bash
-   bun install
-   bun run dev
-   ```
+1. **Zero Client-Side DB Access**: All PocketBase collections enforce `null` API rules (superuser only). Every database interaction executes server-side in Next.js Server Actions via `getSuperuserClient()`.
+2. **Strict Multi-Tenant IDOR Defense**: Every mutation strictly validates `requireMembership`, `requireTitleInGroup`, and `requireOwner` before executing.
+3. **Instant Ban Enforcement**: Session token validation calls live `authRefresh()` on PocketBase on each request, revoking banned users immediately.
+4. **Resilient Network Requests**: External provider requests are guarded with `AbortSignal.timeout(8000)` to prevent hanging upstream connections.
+5. **Sanitization & Boundary Checks**: String inputs, passwords, and review comments are bounded on the server to prevent unbounded payload abuse.
 
-   > Scripts run via `bun --bun` to force Next.js onto Bun's runtime.
+---
 
-### Environment variables
+## Local Development
 
-| Variable | Required for | Notes |
-| --- | --- | --- |
-| `PB_URL` | everything | PocketBase instance URL (`http://127.0.0.1:8090` locally) |
-| `PB_SUPERUSER_EMAIL` / `PB_SUPERUSER_PASSWORD` | everything | The app's own server-side PocketBase client authenticates as this superuser — see `src/lib/pocketbase/superuser.ts` |
-| `APP_URL` | Google sign-in | Must match the Google OAuth2 redirect URI exactly |
-| `TMDB_API_KEY` | movies/TV search | TMDB's v4 "API Read Access Token" (Bearer), not the v3 API Key |
-| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | music search | added when that media type ships |
+### 1. Start PocketBase
+Download and start a local PocketBase instance (migrations in `pb_migrations/` apply automatically on startup):
 
-Google OAuth2 credentials and the PurelyMail SMTP config used for OTP emails
-are configured on the PocketBase instance itself (Admin UI or Settings API),
-not via this app's env vars.
+```bash
+# Download and unzip PocketBase (Linux/macOS)
+curl -L https://github.com/pocketbase/pocketbase/releases/download/v0.27.2/pocketbase_0.27.2_linux_amd64.zip -o pocketbase.zip
+unzip pocketbase.zip pocketbase
+./pocketbase serve
+```
 
-### Database
+On first run, create a superuser:
+```bash
+./pocketbase superuser upsert you@example.com yourpassword
+```
 
-Schema is declarative — `pb_migrations/*.js`, applied automatically by
-PocketBase on startup. To change the schema, edit/add a migration file
-there (see PocketBase's [JS migrations docs](https://pocketbase.io/docs/js-migrations/)).
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env.local` and set required variables:
 
-## Docker
+```bash
+cp .env.example .env.local
+```
 
-`Dockerfile` and `docker-compose.yml` live in this repo (not the deployment
-docs repo) so CI can build from a plain `actions/checkout` — matching the
-`boun-scrape`/`uniyok-atlas` convention. `docker-compose.yml` only runs the
-Next.js app; point `PB_URL` at a PocketBase instance you're running
-separately (see Local development above, or the production companion
-container documented in the deployment repo).
+| Variable | Required | Description |
+|---|---|---|
+| `PB_URL` | Yes | PocketBase URL (`http://127.0.0.1:8090` locally) |
+| `PB_SUPERUSER_EMAIL` | Yes | PocketBase superuser email |
+| `PB_SUPERUSER_PASSWORD` | Yes | PocketBase superuser password |
+| `APP_URL` | Yes (for OAuth) | Public origin URL (e.g. `http://localhost:3000`) |
+| `TMDB_API_KEY` | Optional | TMDB v4 Bearer Token for movie/TV search |
+| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Optional | Spotify API credentials for music search |
+
+### 3. Install Dependencies & Run
+```bash
+bun install
+bun run dev
+```
+
+---
+
+## Testing & Quality Assurance
+
+```bash
+# Run unit & integration tests
+bun test
+
+# Run TypeScript typechecker
+bun run typecheck
+
+# Run ESLint
+bun run lint
+
+# Build production bundle
+bun run build
+```
+
+---
+
+## Architectural Decision Records
+
+Major architectural choices, security defenses, and design patterns are documented in [`DECISIONS.md`](file:///home/devhax/projects/fusuycorp/titirek/DECISIONS.md).
+
+---
 
 ## Deployment
 
-Production Swarm stack config (`docker-stack.yml`, env docs) lives in the
-org's `~/deployment/selfhosted` repo under `services/titirek/` — that repo
-only holds the stack config that references the pre-built registry image,
-not a copy of the Dockerfile. CI (`.github/workflows/deploy.yml`) builds and
-pushes to `registry.bogazici.app/budok/titirek`, then triggers a Dokploy
-redeploy. See `docs/dokploy-guide.md` in the deployment repo for the full
-Dokploy API reference.
+Containerized via `Dockerfile` and deployed on **Docker Swarm** with **Dokploy**. CI (`.github/workflows/deploy.yml`) builds the image, pushes to `registry.bogazici.app/budok/titirek`, and triggers Dokploy redeployments.

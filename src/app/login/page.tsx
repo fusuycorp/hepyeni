@@ -26,8 +26,12 @@ import { peekOtpCookie } from "@/lib/pocketbase/session";
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "This account has been suspended by an administrator.",
+  InvalidCode: "The verification code entered is invalid or has expired.",
+  InvalidCredentials: "The email or password entered is incorrect.",
+  InvalidPassword: "Password must be at most 128 characters.",
   WeakPassword: "Password must be at least 8 characters long.",
   EmailInUse: "An account with that email already exists.",
+  SignupFailed: "Unable to create account. Please try again or use another login method.",
 };
 
 const NOTICE_MESSAGES: Record<string, string> = {

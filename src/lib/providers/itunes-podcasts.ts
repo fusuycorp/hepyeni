@@ -16,7 +16,10 @@ export const itunesPodcastProvider: MediaProvider = {
     url.searchParams.set("media", "podcast");
     url.searchParams.set("limit", "12");
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) {
       throw new Error(`iTunes podcast search failed: ${res.status}`);
     }

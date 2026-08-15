@@ -74,7 +74,14 @@ export async function adminDeleteTitle(titleId: string, groupId: string) {
   await requireCallerAdmin();
 
   const pb = await getSuperuserClient();
-  const title = await pb.collection("titles").getOne<TitlesResponse>(titleId);
+  let title: TitlesResponse;
+  try {
+    title = await pb.collection("titles").getOne<TitlesResponse>(titleId);
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Title not found in this group");
+    throw err;
+  }
+
   if (title.group !== groupId) {
     throw new Error("Title not found in this group");
   }
@@ -117,14 +124,21 @@ export async function adminRemoveGroupMember(
   await requireCallerAdmin();
 
   const pb = await getSuperuserClient();
-  const member = await pb
-    .collection("group_members")
-    .getFirstListItem(
-      pb.filter("group = {:groupId} && user = {:userId}", {
-        groupId,
-        userId,
-      }),
-    );
+  let member: { id: string };
+  try {
+    member = await pb
+      .collection("group_members")
+      .getFirstListItem(
+        pb.filter("group = {:groupId} && user = {:userId}", {
+          groupId,
+          userId,
+        }),
+      );
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Member not found in this group");
+    throw err;
+  }
+
   await pb.collection("group_members").delete(member.id);
 
   revalidatePath(`/admin/groups/${groupId}`);

@@ -22,7 +22,8 @@ export async function submitReview(
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new Error("Rating must be a whole number between 1 and 5");
   }
-  const reviewText = String(formData.get("reviewText") ?? "").trim() || null;
+  const rawReview = String(formData.get("reviewText") ?? "").trim();
+  const reviewText = rawReview ? rawReview.slice(0, 5000) : null;
 
   const pb = await getSuperuserClient();
   try {

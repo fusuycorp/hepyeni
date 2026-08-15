@@ -10,7 +10,7 @@ export async function updateProfileName(formData: FormData) {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const name = String(formData.get("name") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim().slice(0, 200);
   if (!name) throw new Error("Name is required");
 
   const pb = await getSuperuserClient();

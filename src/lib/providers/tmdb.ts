@@ -30,6 +30,7 @@ function makeTmdbProvider(
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${apiKey}` },
         cache: "no-store",
+        signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) {
         throw new Error(`TMDB search failed: ${res.status}`);

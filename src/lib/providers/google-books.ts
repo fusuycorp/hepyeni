@@ -19,7 +19,10 @@ export const googleBooksProvider: MediaProvider = {
     url.searchParams.set("q", query);
     url.searchParams.set("maxResults", "12");
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) {
       throw new Error(`Google Books search failed: ${res.status}`);
     }
