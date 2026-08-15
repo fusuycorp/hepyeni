@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { Users, Sparkles, Trash2, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CopyInviteButton } from "@/components/copy-invite-button";
 import { adminDeleteGroup } from "@/lib/actions/admin";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type {
@@ -32,50 +37,94 @@ export default async function AdminGroupsPage() {
   const titlesPerGroup = countBy(titleCounts);
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-8">
-      <h1 className="text-xl font-semibold">Groups ({groups.length})</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between pb-2 border-b">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Circle Management
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Browse all user-created circles, view content stats, or remove inactive/violating groups.
+          </p>
+        </div>
+        <Badge variant="secondary" className="text-xs">
+          {groups.length} circles
+        </Badge>
+      </div>
 
-      <ul className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map((group) => {
           const memberCount = membersPerGroup.get(group.id) ?? 0;
           const titleCount = titlesPerGroup.get(group.id) ?? 0;
-          return (
-            <li
-              key={group.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
-            >
-              <div className="flex-1">
-                <Link
-                  href={`/admin/groups/${group.id}`}
-                  className="font-medium underline"
-                >
-                  {group.name}
-                </Link>
-                <p className="text-xs text-zinc-500">
-                  {memberCount} member{memberCount === 1 ? "" : "s"} ·{" "}
-                  {titleCount} title{titleCount === 1 ? "" : "s"} · created by{" "}
-                  {group.expand?.createdBy?.name ??
-                    group.expand?.createdBy?.email}{" "}
-                  · invite code{" "}
-                  <span className="font-mono">{group.inviteCode}</span>
-                </p>
-              </div>
+          const creatorName = group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Unknown";
 
-              <form action={adminDeleteGroup.bind(null, group.id)}>
-                <button
-                  type="submit"
-                  className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium text-red-600 dark:border-zinc-700 dark:text-red-400"
-                >
-                  Delete
-                </button>
-              </form>
-            </li>
+          return (
+            <Card
+              key={group.id}
+              className="border-border/70 shadow-2xs hover:border-border transition-colors flex flex-col justify-between"
+            >
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <Link
+                      href={`/admin/groups/${group.id}`}
+                      className="text-base font-semibold text-foreground hover:text-primary transition-colors line-clamp-1"
+                    >
+                      {group.name}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      Created by <span className="font-medium text-foreground">{creatorName}</span>
+                    </p>
+                  </div>
+                  <CopyInviteButton code={group.inviteCode} />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="size-3.5" />
+                      <span>{memberCount}</span>
+                    </span>
+                    <span>&middot;</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Sparkles className="size-3.5" />
+                      <span>{titleCount}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/groups/${group.id}`}
+                      className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+                    >
+                      <span>Manage</span>
+                      <ArrowRight className="size-3" />
+                    </Link>
+
+                    <form action={adminDeleteGroup.bind(null, group.id)}>
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-destructive hover:bg-destructive/10 size-7"
+                        title="Delete Group"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
+
         {groups.length === 0 && (
-          <li className="text-sm text-zinc-500">No groups yet.</li>
+          <div className="col-span-full p-8 text-center border border-dashed rounded-xl text-muted-foreground text-xs">
+            No circles have been created yet.
+          </div>
         )}
-      </ul>
+      </div>
     </div>
   );
 }

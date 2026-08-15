@@ -1,18 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { BottomNav } from "@/components/bottom-nav";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/empty-state";
-import { MarkConsumedButton } from "@/components/mark-consumed-button";
-import { MediaCover } from "@/components/media-cover";
-import { ReviewForm } from "@/components/review-form";
-import { VoteControl } from "@/components/vote-control";
+import { Plus, Settings } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { CopyInviteButton } from "@/components/copy-invite-button";
+import { buttonVariants } from "@/components/ui/button";
+import { GroupContentView } from "./group-content-view";
 import { markConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
-import { MEDIA_TYPE_LABELS } from "@/lib/media-types";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
@@ -58,7 +53,7 @@ export default async function GroupPage({
     throw err;
   }
 
-  const [members, groupTitles] = await Promise.all([
+  const [members, groupTitles, userRecord] = await Promise.all([
     pb
       .collection("group_members")
       .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
@@ -70,6 +65,7 @@ export default async function GroupPage({
       expand: "addedBy,votes_via_title,reviews_via_title.user",
       sort: "-createdAt",
     }),
+    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
   ]);
 
   const withScore = groupTitles.map((title) => {
@@ -91,164 +87,102 @@ export default async function GroupPage({
     );
   const consumed = withScore.filter((t) => t.status === "consumed");
 
+  const currentUser = {
+    id: session.id,
+    email: session.email,
+    name: userRecord?.name,
+    avatarUrl: userRecord?.avatarUrl,
+    isAdmin: session.isAdmin,
+  };
+
+  async function handleVote(titleId: string, value: "up" | "down") {
+    "use server";
+    await voteOnTitle(titleId, groupId, value);
+  }
+
+  async function handleMarkConsumed(titleId: string) {
+    "use server";
+    await markConsumed(titleId, groupId);
+  }
+
+  async function handleSubmitReview(titleId: string, formData: FormData) {
+    "use server";
+    await submitReview(titleId, groupId, formData);
+  }
+
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8 pb-24">
-      <header className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{group.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            Invite code:{" "}
-            <span className="font-mono">{group.inviteCode}</span>
-          </p>
-        </div>
-        <Button
-          render={<Link href={`/groups/${groupId}/settings`} />}
-          variant="ghost"
-          size="sm"
-          className="h-auto p-0 text-muted-foreground"
+    <AppShell
+      user={currentUser}
+      maxWidth="wide"
+      backHref="/groups"
+      backLabel="All Circles"
+      headerActions={
+        <Link
+          href={`/groups/${groupId}/settings`}
+          className={buttonVariants({
+            variant: "ghost",
+            size: "icon-sm",
+            className: "text-muted-foreground",
+          })}
         >
-          Settings
-        </Button>
-      </header>
+          <Settings className="size-4" />
+        </Link>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        {/* Group Hero Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {group.name}
+              </h1>
+              <CopyInviteButton code={group.inviteCode} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {members.length} {members.length === 1 ? "member" : "members"} &middot; {proposed.length} up next &middot; {consumed.length} finished
+            </p>
+          </div>
 
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-          Members ({members.length})
-        </h2>
-        <ul className="flex flex-col gap-1">
-          {members.map((m) => (
-            <li key={m.id} className="flex items-center gap-2 text-sm">
-              {m.expand?.user?.name ?? m.expand?.user?.email}
-              {m.role === "owner" && (
-                <Badge variant="secondary">owner</Badge>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/groups/${groupId}/add`}
+              className={buttonVariants({
+                variant: "default",
+                size: "sm",
+                className: "gap-1.5 font-medium shadow-xs",
+              })}
+            >
+              <Plus className="size-4" />
+              <span>Propose Media</span>
+            </Link>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            Up next ({proposed.length})
-          </h2>
-          <Button
-            render={<Link href={`/groups/${groupId}/add`} />}
-            variant="link"
-            size="sm"
-            className="h-auto p-0"
-          >
-            + Add a title
-          </Button>
+            <Link
+              href={`/groups/${groupId}/settings`}
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "gap-1.5 text-muted-foreground hover:text-foreground",
+              })}
+            >
+              <Settings className="size-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
+          </div>
         </div>
 
-        {proposed.length > 0 ? (
-          <ul className="flex flex-col gap-2">
-            {proposed.map((title) => (
-              <li key={title.id}>
-                <Card size="sm" className="flex-row gap-3 px-3">
-                  <VoteControl
-                    score={title.score}
-                    userVote={title.userVote}
-                    onVote={voteOnTitle.bind(null, title.id, groupId)}
-                  />
-                  <MediaCover src={title.coverUrl} />
-                  <div className="flex flex-1 flex-col justify-center gap-1">
-                    <p className="text-sm font-medium">{title.title}</p>
-                    {title.creator && (
-                      <p className="text-xs text-muted-foreground">
-                        {title.creator}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {MEDIA_TYPE_LABELS[title.mediaType]} · added by{" "}
-                      {title.expand?.addedBy?.name ??
-                        title.expand?.addedBy?.email}
-                    </p>
-                    <MarkConsumedButton
-                      onMark={markConsumed.bind(null, title.id, groupId)}
-                    />
-                  </div>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            title="Nothing proposed yet"
-            description="Add the first title for the group to vote on."
-          />
-        )}
-      </section>
-
-      {consumed.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            Consumed ({consumed.length})
-          </h2>
-          <ul className="flex flex-col gap-3">
-            {consumed.map((title) => {
-              const reviews = title.expand?.reviews_via_title ?? [];
-              const avg = reviews.length
-                ? reviews.reduce((acc, r) => acc + r.rating, 0) /
-                  reviews.length
-                : null;
-              const myReview = reviews.find((r) => r.user === session.id);
-              const otherReviews = reviews.filter(
-                (r) => r.user !== session.id,
-              );
-
-              return (
-                <li key={title.id}>
-                  <Card size="sm" className="gap-3 px-3">
-                    <div className="flex gap-3">
-                      <MediaCover src={title.coverUrl} size="md" />
-                      <div className="flex flex-1 flex-col justify-center">
-                        <p className="text-sm font-medium">{title.title}</p>
-                        {title.creator && (
-                          <p className="text-xs text-muted-foreground">
-                            {title.creator}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {MEDIA_TYPE_LABELS[title.mediaType]}
-                          {avg !== null &&
-                            ` · ★ ${avg.toFixed(1)} (${reviews.length} review${
-                              reviews.length === 1 ? "" : "s"
-                            })`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <ReviewForm
-                      defaultRating={myReview?.rating ?? 5}
-                      defaultText={myReview?.reviewText ?? ""}
-                      hasExisting={Boolean(myReview)}
-                      onSubmit={submitReview.bind(null, title.id, groupId)}
-                    />
-
-                    {otherReviews.length > 0 && (
-                      <ul className="flex flex-col gap-1 border-t pt-2">
-                        {otherReviews.map((r) => (
-                          <li key={r.id} className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              {r.expand?.user?.name ?? r.expand?.user?.email}
-                            </span>{" "}
-                            rated it {r.rating}/5
-                            {r.reviewText ? `: ${r.reviewText}` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      <BottomNav />
-    </div>
+        {/* Group Content Tabs & List */}
+        <GroupContentView
+          group={group}
+          members={members}
+          proposed={proposed}
+          consumed={consumed}
+          currentUserId={session.id}
+          onVote={handleVote}
+          onMarkConsumed={handleMarkConsumed}
+          onSubmitReview={handleSubmitReview}
+        />
+      </div>
+    </AppShell>
   );
 }

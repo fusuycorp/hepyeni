@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { Users, Ban, Layers, Sparkles, CheckCircle2, ThumbsUp, Star, ChevronRight } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
@@ -32,7 +35,7 @@ export default async function AdminDashboardPage() {
     pb.collection("reviews").getList(1, 1).then((r) => r.totalItems),
     pb
       .collection("groups")
-      .getList<GroupsResponse<{ createdBy?: UsersResponse }>>(1, 5, {
+      .getList<GroupsResponse<{ createdBy?: UsersResponse }>>(1, 6, {
         sort: "-createdAt",
         expand: "createdBy",
       })
@@ -40,55 +43,90 @@ export default async function AdminDashboardPage() {
   ]);
 
   const stats = [
-    { label: "Users", value: usersCount },
-    { label: "Banned users", value: bannedCount },
-    { label: "Groups", value: groupsCount },
-    { label: "Titles proposed", value: proposedCount },
-    { label: "Titles consumed", value: consumedCount },
-    { label: "Votes", value: votesCount },
-    { label: "Reviews", value: reviewsCount },
+    { label: "Total Users", value: usersCount, icon: Users, color: "text-blue-500 bg-blue-500/10" },
+    { label: "Banned Users", value: bannedCount, icon: Ban, color: "text-rose-500 bg-rose-500/10" },
+    { label: "Active Groups", value: groupsCount, icon: Layers, color: "text-purple-500 bg-purple-500/10" },
+    { label: "Proposed Titles", value: proposedCount, icon: Sparkles, color: "text-amber-500 bg-amber-500/10" },
+    { label: "Consumed Titles", value: consumedCount, icon: CheckCircle2, color: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Total Votes", value: votesCount, icon: ThumbsUp, color: "text-indigo-500 bg-indigo-500/10" },
+    { label: "Total Reviews", value: reviewsCount, icon: Star, color: "text-amber-400 bg-amber-400/10" },
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-8">
-      <h1 className="text-xl font-semibold">Dashboard</h1>
+    <div className="space-y-8">
+      <div className="pb-2 border-b">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Platform Overview
+        </h1>
+        <p className="text-xs text-muted-foreground mt-1">
+          System analytics, engagement metrics, and administrative status.
+        </p>
+      </div>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-          >
-            <p className="text-2xl font-semibold tabular-nums">
-              {stat.value}
-            </p>
-            <p className="text-xs text-zinc-500">{stat.label}</p>
-          </div>
-        ))}
+      {/* Metrics Grid */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.label} className="border-border/70 shadow-2xs">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {stat.label}
+                  </p>
+                </div>
+                <div className={`flex size-10 items-center justify-center rounded-xl ${stat.color}`}>
+                  <Icon className="size-5" />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </section>
 
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-zinc-500">
-          Recently created groups
-        </h2>
-        <ul className="flex flex-col gap-1">
+      {/* Recent Groups */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recently Created Circles
+          </h2>
+          <Link
+            href="/admin/groups"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            View all groups
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {recentGroups.map((group) => (
-            <li
-              key={group.id}
-              className="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
-            >
-              <span className="font-medium">{group.name}</span>{" "}
-              <span className="text-zinc-500">
-                by{" "}
-                {group.expand?.createdBy?.name ??
-                  group.expand?.createdBy?.email}
-              </span>
-            </li>
+            <Link key={group.id} href={`/admin/groups/${group.id}`}>
+              <Card className="border-border/70 hover:border-primary/40 transition-all p-3.5 flex items-center justify-between group shadow-2xs">
+                <div className="space-y-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                    {group.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    by{" "}
+                    <span className="font-medium text-foreground">
+                      {group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Unknown"}
+                    </span>
+                  </p>
+                </div>
+                <ChevronRight className="size-4 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 shrink-0" />
+              </Card>
+            </Link>
           ))}
+
           {recentGroups.length === 0 && (
-            <li className="text-sm text-zinc-500">No groups yet.</li>
+            <p className="text-xs text-muted-foreground p-4 text-center border border-dashed rounded-lg">
+              No groups have been created yet.
+            </p>
           )}
-        </ul>
+        </div>
       </section>
     </div>
   );

@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BottomNav } from "@/components/bottom-nav";
-import { Card } from "@/components/ui/card";
+import { Rss, Star } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { MediaCover } from "@/components/media-cover";
-import { MEDIA_TYPE_LABELS } from "@/lib/media-types";
+import { MediaBadge } from "@/components/media-badge";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type {
@@ -30,19 +33,35 @@ type ActivityItem =
       }>;
     };
 
+function formatRelativeTime(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export default async function ActivityPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
   const pb = await getSuperuserClient();
 
-  const memberships = await pb
-    .collection("group_members")
-    .getFullList<GroupMembersResponse>({
+  const [memberships, userRecord] = await Promise.all([
+    pb.collection("group_members").getFullList<GroupMembersResponse>({
       filter: pb.filter("user = {:userId}", { userId: session.id }),
-    });
-  const groupIds = memberships.map((m) => m.group);
+    }),
+    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
+  ]);
 
+  const groupIds = memberships.map((m) => m.group);
   let items: ActivityItem[] = [];
 
   if (groupIds.length > 0) {
@@ -61,7 +80,7 @@ export default async function ActivityPage() {
         .collection("titles")
         .getList<TitlesResponse<{ group?: GroupsResponse; addedBy?: UsersResponse }>>(
           1,
-          20,
+          30,
           { filter: titleGroupFilter, expand: "group,addedBy", sort: "-createdAt" },
         ),
       pb
@@ -71,7 +90,7 @@ export default async function ActivityPage() {
             title?: TitlesResponse<{ group?: GroupsResponse }>;
             user?: UsersResponse;
           }>
-        >(1, 20, {
+        >(1, 30, {
           filter: reviewGroupFilter,
           expand: "title.group,user",
           sort: "-createdAt",
@@ -92,79 +111,172 @@ export default async function ActivityPage() {
     ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   }
 
-  return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8 pb-24">
-      <h1 className="text-xl font-semibold">Activity</h1>
+  const currentUser = {
+    id: session.id,
+    email: session.email,
+    name: userRecord?.name,
+    avatarUrl: userRecord?.avatarUrl,
+    isAdmin: session.isAdmin,
+  };
 
-      {items.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {items.slice(0, 25).map((item) => {
-            if (item.kind === "proposed") {
-              const { title } = item;
-              const group = title.expand?.group;
-              return (
-                <li key={`t-${title.id}`}>
-                  <Link href={group ? `/groups/${group.id}` : "#"}>
-                    <Card size="sm" className="flex-row items-center gap-3 px-3">
-                      <MediaCover src={title.coverUrl} />
-                      <p className="flex-1 text-sm">
-                        <span className="font-medium">
-                          {title.expand?.addedBy?.name ??
-                            title.expand?.addedBy?.email}
-                        </span>{" "}
-                        proposed{" "}
-                        <span className="font-medium">{title.title}</span>
-                        {group && <> in {group.name}</>}
-                        <span className="block text-xs text-muted-foreground">
-                          {MEDIA_TYPE_LABELS[title.mediaType]} ·{" "}
-                          {new Date(title.createdAt).toLocaleDateString()}
-                        </span>
-                      </p>
+  return (
+    <AppShell user={currentUser} maxWidth="wide" title="Recent Activity">
+      <div className="flex flex-col gap-6">
+        <div className="pb-4 border-b">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Activity Feed
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Real-time proposals, votes, and member reviews across all your circles.
+          </p>
+        </div>
+
+        {items.length > 0 ? (
+          <div className="space-y-3">
+            {items.slice(0, 30).map((item) => {
+              if (item.kind === "proposed") {
+                const { title } = item;
+                const group = title.expand?.group;
+                const author = title.expand?.addedBy;
+                const authorName = author?.name || author?.email || "Member";
+                const initials = authorName.slice(0, 2).toUpperCase();
+
+                return (
+                  <Link
+                    key={`t-${title.id}`}
+                    href={group ? `/groups/${group.id}` : "#"}
+                    className="group block"
+                  >
+                    <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                      <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
+                        <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
+                          {author?.avatarUrl && <AvatarImage src={author.avatarUrl} alt={authorName} />}
+                          <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
+
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span className="font-semibold text-foreground">{authorName}</span>
+                              <span>proposed a new title</span>
+                              {group && (
+                                <>
+                                  <span>in</span>
+                                  <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                    {group.name}
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {formatRelativeTime(title.createdAt)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/30 border border-border/40 group-hover:bg-muted/50 transition-colors">
+                            <MediaCover
+                              src={title.coverUrl}
+                              alt={title.title}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <MediaBadge type={title.mediaType} size="sm" />
+                              </div>
+                              <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                                {title.title}
+                              </p>
+                              {title.creator && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {title.creator}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
                     </Card>
                   </Link>
-                </li>
-              );
-            }
+                );
+              }
 
-            const { review } = item;
-            const group = review.expand?.title?.expand?.group;
-            return (
-              <li key={`r-${review.id}`}>
-                <Link href={group ? `/groups/${group.id}` : "#"}>
-                  <Card size="sm" className="px-3">
-                    <p className="text-sm">
-                      <span className="font-medium">
-                        {review.expand?.user?.name ?? review.expand?.user?.email}
-                      </span>{" "}
-                      rated{" "}
-                      <span className="font-medium">
-                        {review.expand?.title?.title}
-                      </span>{" "}
-                      {review.rating}/5
-                      {group && <> in {group.name}</>}
-                    </p>
-                    {review.reviewText && (
-                      <p className="text-sm text-muted-foreground">
-                        {review.reviewText}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(review.createdAt).toLocaleDateString()}
-                    </p>
+              const { review } = item;
+              const title = review.expand?.title;
+              const group = title?.expand?.group;
+              const reviewer = review.expand?.user;
+              const reviewerName = reviewer?.name || reviewer?.email || "Member";
+              const initials = reviewerName.slice(0, 2).toUpperCase();
+
+              return (
+                <Link
+                  key={`r-${review.id}`}
+                  href={group ? `/groups/${group.id}` : "#"}
+                  className="group block"
+                >
+                  <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                    <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
+                      <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
+                        {reviewer?.avatarUrl && <AvatarImage src={reviewer.avatarUrl} alt={reviewerName} />}
+                        <AvatarFallback>{initials}</AvatarFallback>
+                      </Avatar>
+
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">{reviewerName}</span>
+                            <span>reviewed</span>
+                            <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
+                            {group && (
+                              <>
+                                <span>in</span>
+                                <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                  {group.name}
+                                </Badge>
+                              </>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            {formatRelativeTime(review.createdAt)}
+                          </span>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-1 text-amber-400">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`size-3.5 ${
+                                  i < review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+                                }`}
+                              />
+                            ))}
+                            <span className="text-xs font-semibold text-foreground ml-1.5">
+                              {review.rating}.0 / 5.0
+                            </span>
+                          </div>
+
+                          {review.reviewText && (
+                            <p className="text-xs text-muted-foreground leading-relaxed italic">
+                              &ldquo;{review.reviewText}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
                   </Card>
                 </Link>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <EmptyState
-          title="No activity yet"
-          description="Proposals, votes, and reviews from your groups will show up here."
-        />
-      )}
-
-      <BottomNav />
-    </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Rss}
+            title="No activity yet"
+            description="When members in your circles propose titles or write reviews, they will appear here in chronological order."
+          />
+        )}
+      </div>
+    </AppShell>
   );
 }

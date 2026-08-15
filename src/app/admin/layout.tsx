@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Shield, ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { buttonVariants } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { getSession } from "@/lib/pocketbase/session";
 
@@ -13,24 +16,60 @@ export default async function AdminLayout({
   await requireAdmin(session.id);
 
   return (
-    <div className="flex flex-1 flex-col">
-      <nav className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto flex w-full max-w-4xl items-center gap-4 px-4 py-3 text-sm">
-          <Link href="/admin" className="font-medium">
-            Admin
-          </Link>
-          <Link href="/admin/users" className="text-zinc-500">
-            Users
-          </Link>
-          <Link href="/admin/groups" className="text-zinc-500">
-            Groups
-          </Link>
-          <Link href="/groups" className="ml-auto text-zinc-500 underline">
-            Back to app
-          </Link>
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      {/* Admin Top Navbar */}
+      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-4 sm:px-8">
+        <div className="mx-auto flex w-full max-w-5xl h-14 items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <Link href="/admin" className="flex items-center gap-2 font-bold text-sm tracking-tight">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Shield className="size-4" />
+              </div>
+              <span>Admin Portal</span>
+            </Link>
+
+            <nav className="flex items-center gap-1 text-xs font-medium">
+              <Link
+                href="/admin"
+                className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/admin/users"
+                className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Users
+              </Link>
+              <Link
+                href="/admin/groups"
+                className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Groups
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link
+              href="/groups"
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8",
+              })}
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Back to App</span>
+            </Link>
+          </div>
         </div>
-      </nav>
-      {children}
+      </header>
+
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-8 py-8">
+        {children}
+      </main>
     </div>
   );
 }

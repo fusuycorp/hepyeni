@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { AppShell } from "@/components/layout/app-shell";
+import { AddTitleForm } from "./add-title-form";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { isNotFound } from "@/lib/pocketbase/errors";
-import { AddTitleForm } from "./add-title-form";
+import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AddTitlePage({
   params,
@@ -17,6 +17,7 @@ export default async function AddTitlePage({
   const { groupId } = await params;
   const pb = await getSuperuserClient();
 
+  let group: GroupsResponse;
   try {
     await pb
       .collection("group_members")
@@ -26,25 +27,42 @@ export default async function AddTitlePage({
           userId: session.id,
         }),
       );
+    group = await pb.collection("groups").getOne<GroupsResponse>(groupId);
   } catch (err) {
     if (isNotFound(err)) notFound();
     throw err;
   }
 
+  const userRecord = await pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null);
+
+  const currentUser = {
+    id: session.id,
+    email: session.email,
+    name: userRecord?.name,
+    avatarUrl: userRecord?.avatarUrl,
+    isAdmin: session.isAdmin,
+  };
+
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
-      <header className="flex items-center gap-3">
-        <Button
-          render={<Link href={`/groups/${groupId}`} />}
-          variant="ghost"
-          size="sm"
-          className="h-auto p-0 text-muted-foreground"
-        >
-          &larr; Back
-        </Button>
-        <h1 className="text-lg font-semibold">Add a title</h1>
-      </header>
-      <AddTitleForm groupId={groupId} />
-    </div>
+    <AppShell
+      user={currentUser}
+      maxWidth="wide"
+      backHref={`/groups/${groupId}`}
+      backLabel={group.name}
+      title={`Propose Media · ${group.name}`}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="pb-4 border-b">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Propose Media
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Search books, movies, TV shows, music, or podcasts to add to {group.name}&apos;s backlog.
+          </p>
+        </div>
+
+        <AddTitleForm groupId={groupId} />
+      </div>
+    </AppShell>
   );
 }

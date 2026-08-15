@@ -1,17 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BottomNav } from "@/components/bottom-nav";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Users, ChevronRight } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { CreateGroupCard, JoinGroupCard } from "@/components/group-forms";
-import { signOutAction } from "@/lib/actions/auth";
+import { CopyInviteButton } from "@/components/copy-invite-button";
 import { createGroup, joinGroup } from "@/lib/actions/groups";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type {
   GroupMembersResponse,
   GroupsResponse,
+  TitlesResponse,
+  UsersResponse,
 } from "@/types/pocketbase-types";
 
 export default async function GroupsPage() {
@@ -19,64 +22,141 @@ export default async function GroupsPage() {
   if (!session) redirect("/login");
 
   const pb = await getSuperuserClient();
-  const memberships = await pb
-    .collection("group_members")
-    .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
-      filter: pb.filter("user = {:userId}", { userId: session.id }),
-      expand: "group",
+  const [memberships, userRecord] = await Promise.all([
+    pb
+      .collection("group_members")
+      .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
+        filter: pb.filter("user = {:userId}", { userId: session.id }),
+        expand: "group",
+      }),
+    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
+  ]);
+
+  const groupIds = memberships
+    .map((m) => m.group)
+    .filter((id): id is string => Boolean(id));
+
+  // Fetch title stats for user's groups
+  let titlesByGroup: Record<string, { proposed: number; consumed: number }> = {};
+  if (groupIds.length > 0) {
+    const filterParams = Object.fromEntries(groupIds.map((id, i) => [`g${i}`, id]));
+    const filterExpr = `(${groupIds.map((_, i) => `group = {:g${i}}`).join(" || ")})`;
+    const allTitles = await pb.collection("titles").getFullList<TitlesResponse>({
+      filter: pb.filter(filterExpr, filterParams),
+      fields: "id,group,status",
     });
 
-  return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-4 py-8 pb-24">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Your groups</h1>
-        <div className="flex items-center gap-4">
-          {session.isAdmin && (
-            <Link
-              href="/admin"
-              className="text-sm text-muted-foreground underline"
-            >
-              Admin
-            </Link>
-          )}
-          <form action={signOutAction}>
-            <Button type="submit" variant="link" size="sm" className="h-auto p-0 text-muted-foreground">
-              Sign out
-            </Button>
-          </form>
-        </div>
-      </header>
+    titlesByGroup = allTitles.reduce((acc, t) => {
+      if (!acc[t.group]) acc[t.group] = { proposed: 0, consumed: 0 };
+      if (t.status === "proposed") acc[t.group].proposed += 1;
+      else if (t.status === "consumed") acc[t.group].consumed += 1;
+      return acc;
+    }, {} as Record<string, { proposed: number; consumed: number }>);
+  }
 
-      {memberships.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {memberships.map((membership) => {
-            const group = membership.expand?.group;
-            if (!group) return null;
-            return (
-              <li key={group.id}>
-                <Link href={`/groups/${group.id}`}>
-                  <Card size="sm" className="px-4 transition-colors hover:bg-muted/50">
-                    <div className="font-medium">{group.name}</div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      Invite code: {group.inviteCode}
-                    </div>
+  const currentUser = {
+    id: session.id,
+    email: session.email,
+    name: userRecord?.name,
+    avatarUrl: userRecord?.avatarUrl,
+    isAdmin: session.isAdmin,
+  };
+
+  return (
+    <AppShell user={currentUser} maxWidth="wide" title="Your Groups">
+      <div className="flex flex-col gap-8">
+        {/* Header Hero */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Your Circles
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Collaborate and track recommendations with your reading & watching clubs.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full border">
+              {memberships.length} {memberships.length === 1 ? "group" : "groups"}
+            </span>
+          </div>
+        </div>
+
+        {/* Groups Grid */}
+        {memberships.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {memberships.map((membership) => {
+              const group = membership.expand?.group;
+              if (!group) return null;
+              const stats = titlesByGroup[group.id] ?? { proposed: 0, consumed: 0 };
+              const isOwner = membership.role === "owner";
+
+              return (
+                <Link
+                  key={group.id}
+                  href={`/groups/${group.id}`}
+                  className="group block"
+                >
+                  <Card className="h-full flex flex-col justify-between border-border/70 hover:border-primary/50 hover:shadow-md transition-all duration-200 group-active:scale-[0.99]">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors line-clamp-1">
+                          {group.name}
+                        </CardTitle>
+                        <Badge
+                          variant={isOwner ? "default" : "secondary"}
+                          className="shrink-0 text-[10px] uppercase tracking-wider font-semibold"
+                        >
+                          {membership.role}
+                        </Badge>
+                      </div>
+                      <CardDescription className="text-xs flex items-center gap-2 mt-1">
+                        <span>Code:</span>
+                        <CopyInviteButton code={group.inviteCode} />
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                            <span className="text-primary font-bold">{stats.proposed}</span> Up Next
+                          </span>
+                          <span>&middot;</span>
+                          <span className="font-medium text-muted-foreground">
+                            {stats.consumed} Done
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-muted-foreground group-hover:text-primary transition-colors font-medium">
+                          <span>Open</span>
+                          <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                        </div>
+                      </div>
+                    </CardContent>
                   </Card>
                 </Link>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <EmptyState
-          title="You're not in any groups yet"
-          description="Create a group for your friends, or join one with an invite code."
-        />
-      )}
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Users}
+            title="You're not in any groups yet"
+            description="Create a new circle for your friends or book club, or join an existing one using an invite code."
+          />
+        )}
 
-      <CreateGroupCard onCreate={createGroup} />
-      <JoinGroupCard onJoin={joinGroup} />
-
-      <BottomNav />
-    </div>
+        {/* Create & Join Actions Section */}
+        <div className="space-y-3 pt-4 border-t">
+          <h2 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">
+            Add or Join Circles
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CreateGroupCard onCreate={createGroup} />
+            <JoinGroupCard onJoin={joinGroup} />
+          </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }

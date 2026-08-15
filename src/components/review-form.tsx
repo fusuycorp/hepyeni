@@ -38,9 +38,9 @@ export function ReviewForm({
   const shown = hovered ?? rating;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <div
-        className="flex items-center gap-1"
+        className="flex items-center gap-1.5 p-1 rounded-lg bg-muted/30 w-fit border border-border/40"
         onMouseLeave={() => setHovered(null)}
       >
         <input type="hidden" name="rating" value={rating} />
@@ -48,16 +48,18 @@ export function ReviewForm({
           <button
             key={n}
             type="button"
-            aria-label={`Rate ${n} out of 5`}
+            aria-label={`Rate ${n} out of 5 stars`}
             aria-pressed={rating === n}
             onMouseEnter={() => setHovered(n)}
             onClick={() => setRating(n)}
-            className="p-0.5 text-muted-foreground"
+            className="p-1 rounded-md transition-transform hover:scale-110 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Star
               className={cn(
-                "size-4",
-                n <= shown && "fill-primary text-primary",
+                "size-5 transition-colors",
+                n <= shown
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-muted-foreground/40 hover:text-muted-foreground"
               )}
             />
           </button>
@@ -66,15 +68,15 @@ export function ReviewForm({
       <Textarea
         name="reviewText"
         defaultValue={defaultText}
-        placeholder="Thoughts? (optional)"
+        placeholder="Share your thoughts with the group (optional)..."
         rows={2}
-        className="text-sm"
+        className="text-xs resize-y min-h-[60px]"
       />
       <Button
         type="submit"
-        variant="outline"
-        size="sm"
-        className="self-start"
+        variant="secondary"
+        size="xs"
+        className="self-start font-medium"
         disabled={isPending}
       >
         {isPending ? "Saving…" : hasExisting ? "Update review" : "Save review"}
