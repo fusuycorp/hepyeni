@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { SendResetLinkButton } from "@/components/send-reset-link-button";
@@ -24,18 +23,8 @@ export default async function ProfilePage() {
   const user = await pb.collection("users").getOne<UsersResponse>(session.id);
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
-      <header className="flex items-center gap-3">
-        <Button
-          render={<Link href="/groups" />}
-          variant="ghost"
-          size="sm"
-          className="h-auto p-0 text-muted-foreground"
-        >
-          &larr; Back
-        </Button>
-        <h1 className="text-lg font-semibold">Profile</h1>
-      </header>
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8 pb-24">
+      <h1 className="text-xl font-semibold">Profile</h1>
 
       <div className="flex items-center gap-3">
         <Avatar size="lg">
@@ -93,6 +82,8 @@ export default async function ProfilePage() {
           />
         </CardContent>
       </Card>
+
+      <BottomNav />
     </div>
   );
 }

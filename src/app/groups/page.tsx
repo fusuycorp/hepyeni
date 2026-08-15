@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -26,16 +27,10 @@ export default async function GroupsPage() {
     });
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-4 py-8 pb-24">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Your groups</h1>
         <div className="flex items-center gap-4">
-          <Link
-            href="/profile"
-            className="text-sm text-muted-foreground underline"
-          >
-            Profile
-          </Link>
           {session.isAdmin && (
             <Link
               href="/admin"
@@ -80,6 +75,8 @@ export default async function GroupsPage() {
 
       <CreateGroupCard onCreate={createGroup} />
       <JoinGroupCard onJoin={joinGroup} />
+
+      <BottomNav />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { BottomNav } from "@/components/bottom-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -91,7 +92,7 @@ export default async function GroupPage({
   const consumed = withScore.filter((t) => t.status === "consumed");
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8 pb-24">
       <header className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold">{group.name}</h1>
@@ -246,6 +247,8 @@ export default async function GroupPage({
           </ul>
         </section>
       )}
+
+      <BottomNav />
     </div>
   );
 }
