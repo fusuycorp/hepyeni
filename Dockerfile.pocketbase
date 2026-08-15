@@ -1,0 +1,16 @@
+# Bakes titirek's own pb_migrations/ into the stock PocketBase image so
+# Dokploy (which only ever pulls images, never builds from a git checkout)
+# has something to run. Everything else — superuser bootstrap via
+# PB_ADMIN_EMAIL/PB_ADMIN_PASSWORD, default --dir=/pb_data, automigrate
+# defaulting to true — is already handled by the base image's own
+# entrypoint (verified against its actual source, not assumed); no custom
+# entrypoint needed here.
+#
+# Default migrationsDir (when --migrationsDir isn't passed, which the base
+# image's entrypoint doesn't) resolves to <dataDir>/../pb_migrations —
+# i.e. /pb_data/../pb_migrations = /pb_migrations, NOT /pb/pb_migrations
+# (the path the org's docs/baas-guide.md template assumes — that guide's
+# volume path looks wrong for this specific image; flagged separately).
+FROM ghcr.io/muchobien/pocketbase:0.39.11
+
+COPY pb_migrations /pb_migrations
