@@ -30,6 +30,12 @@ export default async function GroupsPage() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Your groups</h1>
         <div className="flex items-center gap-4">
+          <Link
+            href="/profile"
+            className="text-sm text-muted-foreground underline"
+          >
+            Profile
+          </Link>
           {session.isAdmin && (
             <Link
               href="/admin"

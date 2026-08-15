@@ -1,4 +1,13 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,12 +27,16 @@ const ERROR_MESSAGES: Record<string, string> = {
   EmailInUse: "An account with that email already exists.",
 };
 
+const NOTICE_MESSAGES: Record<string, string> = {
+  ResetComplete: "Password updated — sign in with your new password.",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; step?: string }>;
+  searchParams: Promise<{ error?: string; step?: string; notice?: string }>;
 }) {
-  const { error, step } = await searchParams;
+  const { error, step, notice } = await searchParams;
   const otp = step === "code" ? await peekOtpCookie() : null;
 
   return (
@@ -35,6 +48,11 @@ export default async function LoginPage({
       {error && ERROR_MESSAGES[error] && (
         <p className="max-w-xs text-sm text-destructive">
           {ERROR_MESSAGES[error]}
+        </p>
+      )}
+      {notice && NOTICE_MESSAGES[notice] && (
+        <p className="max-w-xs text-sm text-muted-foreground">
+          {NOTICE_MESSAGES[notice]}
         </p>
       )}
 
@@ -140,6 +158,30 @@ export default async function LoginPage({
                   </Button>
                 </div>
               </form>
+
+              <Dialog>
+                <DialogTrigger
+                  render={
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="mt-1 h-auto p-0 text-muted-foreground"
+                    >
+                      Forgot password?
+                    </Button>
+                  }
+                />
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reset your password</DialogTitle>
+                    <DialogDescription>
+                      Enter your account email and we&apos;ll send a link to
+                      set a new password.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ForgotPasswordForm />
+                </DialogContent>
+              </Dialog>
             </TabsContent>
           </Tabs>
         </div>

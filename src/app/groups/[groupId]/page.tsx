@@ -92,12 +92,22 @@ export default async function GroupPage({
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
-      <header>
-        <h1 className="text-xl font-semibold">{group.name}</h1>
-        <p className="text-xs text-muted-foreground">
-          Invite code:{" "}
-          <span className="font-mono">{group.inviteCode}</span>
-        </p>
+      <header className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{group.name}</h1>
+          <p className="text-xs text-muted-foreground">
+            Invite code:{" "}
+            <span className="font-mono">{group.inviteCode}</span>
+          </p>
+        </div>
+        <Button
+          render={<Link href={`/groups/${groupId}/settings`} />}
+          variant="ghost"
+          size="sm"
+          className="h-auto p-0 text-muted-foreground"
+        >
+          Settings
+        </Button>
       </header>
 
       <section>

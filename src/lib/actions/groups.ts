@@ -1,11 +1,16 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { generateInviteCode } from "@/lib/invite-code";
-import type { GroupsResponse } from "@/types/pocketbase-types";
+import { requireMembership, requireOwner } from "@/lib/membership";
+import type {
+  GroupMembersResponse,
+  GroupsResponse,
+} from "@/types/pocketbase-types";
 
 export async function createGroup(formData: FormData) {
   const session = await getSession();
@@ -80,4 +85,99 @@ export async function joinGroup(formData: FormData) {
   }
 
   redirect(`/groups/${group.id}`);
+}
+
+export async function renameGroup(groupId: string, formData: FormData) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireOwner(groupId, session.id);
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Group name is required");
+
+  const pb = await getSuperuserClient();
+  await pb.collection("groups").update(groupId, { name });
+
+  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/settings`);
+}
+
+export async function regenerateInviteCode(groupId: string) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireOwner(groupId, session.id);
+
+  const pb = await getSuperuserClient();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await pb
+        .collection("groups")
+        .update(groupId, { inviteCode: generateInviteCode() });
+      break;
+    } catch (err) {
+      if (attempt === 4 || !isValidationNotUnique(err, "inviteCode")) {
+        throw err;
+      }
+    }
+  }
+
+  revalidatePath(`/groups/${groupId}/settings`);
+}
+
+export async function removeMember(groupId: string, memberId: string) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  const requester = await requireOwner(groupId, session.id);
+
+  const pb = await getSuperuserClient();
+  const target = await pb
+    .collection("group_members")
+    .getOne<GroupMembersResponse>(memberId);
+  if (target.group !== groupId) throw new Error("Member not found in this group");
+  if (target.id === requester.id) {
+    throw new Error('Use "Leave group" to remove yourself');
+  }
+
+  await pb.collection("group_members").delete(memberId);
+
+  revalidatePath(`/groups/${groupId}/settings`);
+  revalidatePath(`/groups/${groupId}`);
+}
+
+export async function leaveGroup(groupId: string) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  const membership = await requireMembership(groupId, session.id);
+
+  const pb = await getSuperuserClient();
+
+  if (membership.role === "owner") {
+    const others = await pb.collection("group_members").getList(1, 1, {
+      filter: pb.filter("group = {:groupId} && id != {:id}", {
+        groupId,
+        id: membership.id,
+      }),
+    });
+    if (others.totalItems > 0) {
+      throw new Error(
+        "Remove the other members (or make one of them owner) before you leave",
+      );
+    }
+  }
+
+  await pb.collection("group_members").delete(membership.id);
+  redirect("/groups");
+}
+
+export async function deleteGroup(groupId: string) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireOwner(groupId, session.id);
+
+  const pb = await getSuperuserClient();
+  // group_members, titles, votes, and reviews all cascade-delete from
+  // groups (see pb_migrations) — one call tears down everything.
+  await pb.collection("groups").delete(groupId);
+
+  redirect("/groups");
 }

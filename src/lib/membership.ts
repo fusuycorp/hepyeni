@@ -25,6 +25,17 @@ export async function requireMembership(
   }
 }
 
+export async function requireOwner(
+  groupId: string,
+  userId: string,
+): Promise<GroupMembersResponse> {
+  const membership = await requireMembership(groupId, userId);
+  if (membership.role !== "owner") {
+    throw new Error("Only the group owner can do this");
+  }
+  return membership;
+}
+
 // Membership only proves the caller belongs to the `groupId` they passed in —
 // it says nothing about whether `titleId` actually belongs to that group.
 // Server actions are directly callable with arbitrary arguments, so every

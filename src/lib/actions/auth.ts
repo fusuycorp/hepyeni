@@ -162,6 +162,47 @@ export async function signUpWithPassword(formData: FormData) {
   redirect("/groups");
 }
 
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  if (!email) return;
+
+  const pb = new PocketBase(process.env.PB_URL);
+  try {
+    // Anti-enumeration by design on PocketBase's side: this resolves the
+    // same way whether or not the email exists — callers should always
+    // show the same "check your email" message regardless of outcome.
+    await pb.collection("users").requestPasswordReset(email);
+  } catch {
+    // Swallowed for the same anti-enumeration reason.
+  }
+}
+
+export async function confirmPasswordReset(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
+  if (!token) redirect("/login?error=AccessDenied");
+  if (password.length < 8) {
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=WeakPassword`);
+  }
+  if (password !== passwordConfirm) {
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=Mismatch`);
+  }
+
+  const pb = new PocketBase(process.env.PB_URL);
+  try {
+    await pb
+      .collection("users")
+      .confirmPasswordReset(token, password, passwordConfirm);
+  } catch {
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=Invalid`);
+  }
+
+  redirect("/login?notice=ResetComplete");
+}
+
 export async function signOutAction() {
   await clearSessionCookie();
   redirect("/login");
