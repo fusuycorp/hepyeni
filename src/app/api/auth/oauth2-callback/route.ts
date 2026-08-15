@@ -8,14 +8,15 @@ import {
 } from "@/lib/pocketbase/session";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
-export async function GET(req: NextRequest) {
+async function handleCallback(
+  req: NextRequest,
+  code: string | null,
+  state: string | null,
+) {
   const deny = () =>
     NextResponse.redirect(new URL("/login?error=AccessDenied", req.nextUrl));
 
-  const code = req.nextUrl.searchParams.get("code");
-  const state = req.nextUrl.searchParams.get("state");
   const stored = await consumeOAuth2StateCookie();
-
   if (!code || !state || !stored || stored.state !== state) return deny();
 
   const pb = new PocketBase(process.env.PB_URL);
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     const { token, record } = await pb
       .collection("users")
       .authWithOAuth2Code<UsersResponse>(
-        "google",
+        stored.provider,
         code,
         stored.codeVerifier,
         oauth2RedirectUrl(),
@@ -36,4 +37,23 @@ export async function GET(req: NextRequest) {
   } catch {
     return deny();
   }
+}
+
+export async function GET(req: NextRequest) {
+  return handleCallback(
+    req,
+    req.nextUrl.searchParams.get("code"),
+    req.nextUrl.searchParams.get("state"),
+  );
+}
+
+// Apple's OAuth2 sends the callback as a POST (response_mode=form_post) when
+// name/email scopes are requested, unlike Google's query-string GET.
+export async function POST(req: NextRequest) {
+  const form = await req.formData();
+  return handleCallback(
+    req,
+    form.get("code")?.toString() ?? null,
+    form.get("state")?.toString() ?? null,
+  );
 }

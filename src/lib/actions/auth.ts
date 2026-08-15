@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import PocketBase from "pocketbase";
+import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import {
   clearSessionCookie,
@@ -13,21 +14,30 @@ import {
 } from "@/lib/pocketbase/session";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
-export async function signInWithGoogle() {
+async function signInWithOAuth2(provider: "google" | "apple") {
   const pb = new PocketBase(process.env.PB_URL);
   const methods = await pb.collection("users").listAuthMethods();
-  const google = methods.oauth2.providers.find((p) => p.name === "google");
-  if (!google) throw new Error("Google sign-in is not configured");
+  const method = methods.oauth2.providers.find((p) => p.name === provider);
+  if (!method) throw new Error(`${provider} sign-in is not configured`);
 
   await setOAuth2StateCookie({
-    state: google.state,
-    codeVerifier: google.codeVerifier,
+    provider,
+    state: method.state,
+    codeVerifier: method.codeVerifier,
   });
 
   // authURL ends with `redirect_uri=` (no value) — PocketBase's documented
   // pattern is to concatenate the redirect URL directly, not merge query
   // params via the URL API.
-  redirect(google.authURL + oauth2RedirectUrl());
+  redirect(method.authURL + oauth2RedirectUrl());
+}
+
+export async function signInWithGoogle() {
+  await signInWithOAuth2("google");
+}
+
+export async function signInWithApple() {
+  await signInWithOAuth2("apple");
 }
 
 export async function signInWithEmail(formData: FormData) {
@@ -52,7 +62,7 @@ export async function signInWithEmail(formData: FormData) {
       emailVisibility: true,
       verified: false,
       password: randomPassword,
-      passwordConfirm: randomPassword, // unused: passwordAuth is disabled app-wide
+      passwordConfirm: randomPassword,
     });
   }
 
@@ -83,6 +93,68 @@ export async function verifyEmailCode(formData: FormData) {
   } catch {
     redirect("/login?error=AccessDenied");
   }
+
+  if (record.bannedAt) redirect("/login?error=AccessDenied");
+
+  await setSessionCookie(token);
+  redirect("/groups");
+}
+
+export async function signInWithPassword(formData: FormData) {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  if (!email || !password) redirect("/login?error=AccessDenied");
+
+  const pb = new PocketBase(process.env.PB_URL);
+  let record: UsersResponse;
+  let token: string;
+  try {
+    ({ token, record } = await pb
+      .collection("users")
+      .authWithPassword<UsersResponse>(email, password));
+  } catch {
+    redirect("/login?error=AccessDenied");
+  }
+
+  if (record.bannedAt) redirect("/login?error=AccessDenied");
+
+  await setSessionCookie(token);
+  redirect("/groups");
+}
+
+export async function signUpWithPassword(formData: FormData) {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  if (!email || !password) redirect("/login?error=AccessDenied");
+  if (password.length < 8) redirect("/login?error=WeakPassword");
+
+  // The `users` collection is create-locked to superusers (all rules are
+  // null), so self-service signup has to go through the superuser client,
+  // same as the email/OTP account-creation path above.
+  const superuser = await getSuperuserClient();
+  try {
+    await superuser.collection("users").create({
+      email,
+      emailVisibility: true,
+      verified: false,
+      password,
+      passwordConfirm: password,
+    });
+  } catch (err) {
+    if (isValidationNotUnique(err, "email")) {
+      redirect("/login?error=EmailInUse");
+    }
+    redirect("/login?error=AccessDenied");
+  }
+
+  const pb = new PocketBase(process.env.PB_URL);
+  const { token, record } = await pb
+    .collection("users")
+    .authWithPassword<UsersResponse>(email, password);
 
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 

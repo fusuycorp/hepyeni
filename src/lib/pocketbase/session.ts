@@ -70,7 +70,11 @@ export const SESSION_COOKIE_NAME = SESSION_COOKIE;
 // --- OAuth2 transient state — only lives across the redirect-to-Google ->
 // callback round trip, a few minutes at most. ---
 
-export type OAuth2State = { state: string; codeVerifier: string };
+export type OAuth2State = {
+  provider: "google" | "apple";
+  state: string;
+  codeVerifier: string;
+};
 
 // Must be byte-identical between the redirect-to-Google step and the
 // callback step, or the OAuth2 provider rejects the code exchange.
