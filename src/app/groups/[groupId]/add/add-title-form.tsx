@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
-import { addTitle, searchTitles } from "@/lib/actions/titles";
+import { addTitle } from "@/lib/actions/titles";
 import { isProviderAvailable } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 import { cn } from "@/lib/utils";
@@ -40,16 +40,24 @@ export function AddTitleForm({
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    if (!query.trim()) return;
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
 
     startSearch(async () => {
       try {
-        const res = await searchTitles(mediaType, query);
-        if (!res.success) {
-          toast.error(res.error || t.titles.searchFailed);
+        const url = `/api/titles/search?mediaType=${encodeURIComponent(mediaType)}&q=${encodeURIComponent(cleanQuery)}`;
+        const res = await fetch(url);
+        const data = (await res.json()) as {
+          results?: NormalizedSearchResult[];
+          error?: string;
+          traceId?: string;
+        };
+
+        if (!res.ok) {
+          toast.error(data.error || t.titles.searchFailed);
           setResults([]);
         } else {
-          setResults(res.results);
+          setResults(data.results || []);
         }
         setHasSearched(true);
       } catch (err) {
@@ -59,6 +67,7 @@ export function AddTitleForm({
       }
     });
   }
+
 
 
   function handleAdd(result: NormalizedSearchResult) {

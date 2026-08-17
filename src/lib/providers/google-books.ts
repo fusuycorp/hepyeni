@@ -1,4 +1,4 @@
-import { AppError, logDiagnostic } from "@/lib/errors";
+import { logDiagnostic } from "@/lib/errors";
 import type { MediaProvider, NormalizedSearchResult } from "./types";
 
 type GoogleBooksItem = {
@@ -13,6 +13,15 @@ type GoogleBooksItem = {
   };
 };
 
+type ItunesEbookResult = {
+  trackId: number;
+  trackName: string;
+  artistName?: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+  description?: string;
+};
+
 type OpenLibraryDoc = {
   key: string;
   title: string;
@@ -22,9 +31,42 @@ type OpenLibraryDoc = {
   number_of_pages_median?: number;
 };
 
+async function searchItunesBooks(query: string): Promise<NormalizedSearchResult[]> {
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", query);
+  url.searchParams.set("media", "ebook");
+  url.searchParams.set("entity", "ebook");
+  url.searchParams.set("limit", "12");
+
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { "User-Agent": "Titirek/1.0 (https://hepyeni.net)" },
+    signal: AbortSignal.timeout(4000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`iTunes eBook search failed with HTTP ${res.status}`);
+  }
+
+  const data = (await res.json()) as { results?: ItunesEbookResult[] };
+
+  return (data.results ?? []).map((item) => ({
+    externalId: String(item.trackId),
+    externalSource: "itunes",
+    title: item.trackName || "Untitled",
+    creator: item.artistName,
+    coverUrl: item.artworkUrl100?.replace("100x100", "600x600"),
+    metadata: {
+      description: item.description,
+      publishedDate: item.releaseDate,
+    },
+  }));
+}
+
 async function searchOpenLibrary(query: string): Promise<NormalizedSearchResult[]> {
   const url = new URL("https://openlibrary.org/search.json");
   url.searchParams.set("q", query);
+  url.searchParams.set("fields", "key,title,author_name,cover_i,first_publish_year,number_of_pages_median");
   url.searchParams.set("limit", "12");
 
   const res = await fetch(url, {
@@ -32,7 +74,7 @@ async function searchOpenLibrary(query: string): Promise<NormalizedSearchResult[
     headers: {
       "User-Agent": "Titirek/1.0 (https://hepyeni.net; contact@titirek.app)",
     },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(4000),
   });
 
   if (!res.ok) {
@@ -40,7 +82,6 @@ async function searchOpenLibrary(query: string): Promise<NormalizedSearchResult[
   }
 
   const data = (await res.json()) as { docs?: OpenLibraryDoc[] };
-
 
   return (data.docs ?? []).map((doc) => ({
     externalId: doc.key.replace("/works/", ""),
@@ -68,75 +109,69 @@ export const googleBooksProvider: MediaProvider = {
     const apiKey =
       process.env.GOOGLE_BOOKS_API_KEY || process.env.GOOGLE_API_KEY;
 
-    const url = new URL("https://www.googleapis.com/books/v1/volumes");
-    url.searchParams.set("q", cleanQuery);
-    url.searchParams.set("maxResults", "12");
-    if (apiKey) {
-      url.searchParams.set("key", apiKey);
-    }
-
+    // 1. Try Google Books (if configured or available)
     try {
-      const res = await fetch(url, {
-        cache: "no-store",
-        headers: {
-          "User-Agent": "Titirek/1.0 (https://hepyeni.net)",
-        },
-        signal: AbortSignal.timeout(8000),
-      });
-
-
-      if (!res.ok) {
-        throw new Error(`Google Books API HTTP ${res.status}`);
+      const url = new URL("https://www.googleapis.com/books/v1/volumes");
+      url.searchParams.set("q", cleanQuery);
+      url.searchParams.set("maxResults", "12");
+      if (apiKey) {
+        url.searchParams.set("key", apiKey);
       }
 
-      const data = (await res.json()) as { items?: GoogleBooksItem[] };
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: { "User-Agent": "Titirek/1.0 (https://hepyeni.net)" },
+        signal: AbortSignal.timeout(4000),
+      });
 
-      return (data.items ?? []).map((item) => ({
-        externalId: item.id,
-        externalSource: "google-books",
-        title: item.volumeInfo?.title ?? "Untitled",
-        creator: item.volumeInfo?.authors?.join(", "),
-        coverUrl: (
-          item.volumeInfo?.imageLinks?.thumbnail ||
-          item.volumeInfo?.imageLinks?.smallThumbnail
-        )?.replace("http://", "https://"),
-        metadata: {
-          description: item.volumeInfo?.description,
-          publishedDate: item.volumeInfo?.publishedDate,
-          pageCount: item.volumeInfo?.pageCount,
-        },
-      }));
+      if (res.ok) {
+        const data = (await res.json()) as { items?: GoogleBooksItem[] };
+        const results = (data.items ?? []).map((item) => ({
+          externalId: item.id,
+          externalSource: "google-books",
+          title: item.volumeInfo?.title ?? "Untitled",
+          creator: item.volumeInfo?.authors?.join(", "),
+          coverUrl: (
+            item.volumeInfo?.imageLinks?.thumbnail ||
+            item.volumeInfo?.imageLinks?.smallThumbnail
+          )?.replace("http://", "https://"),
+          metadata: {
+            description: item.volumeInfo?.description,
+            publishedDate: item.volumeInfo?.publishedDate,
+            pageCount: item.volumeInfo?.pageCount,
+          },
+        }));
+        if (results.length > 0) return results;
+      }
     } catch (googleErr) {
-      // Primary provider failed (rate limit, quota, timeout, network error).
-      // Attempt resilient fallback via OpenLibrary.
       logDiagnostic(googleErr, {
         action: "searchTitles:google-books",
         query: cleanQuery,
-        note: "Attempting Open Library fallback",
+        note: "Google Books quota/rate-limited, falling back to iTunes Books",
       });
+    }
 
-      try {
-        const fallbackResults = await searchOpenLibrary(cleanQuery);
-        if (fallbackResults.length > 0) {
-          return fallbackResults;
-        }
-      } catch (openLibErr) {
-        logDiagnostic(openLibErr, {
-          action: "searchTitles:open-library-fallback",
-          query: cleanQuery,
-        });
-      }
-
-      // If both providers failed or returned empty on error, throw structured AppError
-      throw new AppError("Book search service is temporarily unavailable.", {
-        code: "BOOK_SEARCH_FAILED",
-        technicalDetails: {
-          query: cleanQuery,
-          googleError:
-            googleErr instanceof Error ? googleErr.message : String(googleErr),
-        },
-        cause: googleErr,
+    // 2. High-speed zero-config public fallback via iTunes Books
+    try {
+      const itunesResults = await searchItunesBooks(cleanQuery);
+      if (itunesResults.length > 0) return itunesResults;
+    } catch (itunesErr) {
+      logDiagnostic(itunesErr, {
+        action: "searchTitles:itunes-ebook-fallback",
+        query: cleanQuery,
+        note: "Falling back to Open Library",
       });
+    }
+
+    // 3. Resilient third-tier fallback via Open Library
+    try {
+      return await searchOpenLibrary(cleanQuery);
+    } catch (openLibErr) {
+      logDiagnostic(openLibErr, {
+        action: "searchTitles:open-library-fallback",
+        query: cleanQuery,
+      });
+      return [];
     }
   },
 };

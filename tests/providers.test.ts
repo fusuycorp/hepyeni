@@ -28,5 +28,25 @@ describe("Media Providers Registry", () => {
       expect(results).toEqual([]);
     }
   });
+
+  it("searches public media providers and returns normalized results", async () => {
+    const bookProvider = getProvider("book");
+    const bookResults = await bookProvider.search("dune");
+    expect(Array.isArray(bookResults)).toBe(true);
+    if (bookResults.length > 0) {
+      expect(bookResults[0].title).toBeDefined();
+      expect(bookResults[0].externalId).toBeDefined();
+      expect(bookResults[0].externalSource).toBeDefined();
+    }
+
+    const musicProvider = getProvider("music");
+    const musicResults = await musicProvider.search("beatles");
+    expect(Array.isArray(musicResults)).toBe(true);
+    if (musicResults.length > 0) {
+      expect(musicResults[0].title).toBeDefined();
+      expect(musicResults[0].creator).toBeDefined();
+    }
+  });
 });
+
 
