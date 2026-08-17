@@ -146,25 +146,14 @@ volumes:
 
 ## 4. CI/CD Deployment Pipeline
 
-Two independent workflows watch `main`:
+A single workflow, [`.github/workflows/deploy.yml`](file:///home/devhax/projects/fusuycorp/titirek/.github/workflows/deploy.yml), handles both images and the redeploy, triggered on every push to `main` (excluding `**.md`/`.gitignore`) and via `workflow_dispatch`:
 
-### 4.1 App image: `.github/workflows/deploy.yml`
-Triggers on every push to `main` (excluding `**.md`/`.gitignore`):
+1. **`changes`** — diffs the pushed commit range (`github.event.before...github.sha`) to detect whether `pb_migrations/**` or `Dockerfile.pocketbase` changed. Always `true` on `workflow_dispatch` or when there's no prior commit to diff against (first push / force-push).
+2. **`build-app`** — always runs. Builds and pushes `registry.bogazici.app/budok/titirek:latest`.
+3. **`build-pocketbase`** (`needs: changes`, conditional on `changes.outputs.pocketbase`) — only runs when PocketBase-relevant paths changed. Builds and pushes `registry.bogazici.app/budok/titirek-pb:latest`.
+4. **`deploy`** (`needs: [build-app, build-pocketbase]`) — waits for both. Since `build-pocketbase` is legitimately skipped on most pushes, this job's `if` explicitly accepts `build-app: success` plus `build-pocketbase` being either `success` or `skipped` (a plain `needs` success check would treat a skip as a block). Sends an authenticated `POST /api/compose.redeploy` to `https://dokploy.bogazici.app` with `x-api-key: ${{ secrets.DOKPLOY_API_KEY }}`; if that fails, retries once with a differently-shaped (tRPC-wrapped) payload against the same endpoint, since Dokploy's API has historically accepted either shape depending on version. This is a fixed two-attempt fallback, **not** a retry loop — there is no delay between attempts.
 
-1. **Build & Push Job**:
-   - Checks out the repository.
-   - Sets up Docker Buildx.
-   - Logs into `registry.bogazici.app` using repository secrets `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`.
-   - Builds and pushes `registry.bogazici.app/budok/titirek:latest`.
-2. **Dokploy Redeploy Trigger** (`needs: build-and-push`):
-   - Sends an authenticated `POST /api/compose.redeploy` request to `https://dokploy.bogazici.app` with `x-api-key: ${{ secrets.DOKPLOY_API_KEY }}`.
-   - If that fails, retries once with a differently-shaped (tRPC-wrapped) payload against the same endpoint, since Dokploy's API has historically accepted either shape depending on version. This is a fixed two-attempt fallback, **not** a retry loop and **not** exponential backoff — there is no delay between attempts, and both attempts fire immediately in the same job run.
-
-### 4.2 PocketBase image: `.github/workflows/deploy-pocketbase.yml`
-Triggers only when `pb_migrations/**` or `Dockerfile.pocketbase` change on `main`. Builds and pushes `registry.bogazici.app/budok/titirek-pb:latest` — deliberately does **not** call `compose.redeploy` itself (see the workflow's own header comment); the coordinated stack redeploy that picks up a new PocketBase image happens separately.
-
-> [!WARNING]
-> A commit that touches only `pb_migrations/**` fires both workflows in parallel with no ordering between them. `deploy.yml` isn't path-filtered against `pb_migrations/**`, so its (much faster) redeploy can fire while `deploy-pocketbase.yml`'s image push is still in flight, which would leave the running `pocketbase` service on the previous image/migration set until the next unrelated push. There's no `workflow_run` gate enforcing build-before-redeploy order between the two workflows today.
+This replaces a previous two-workflow setup (separate `deploy.yml` / `deploy-pocketbase.yml`) that had no ordering between them: a commit touching only `pb_migrations/**` could redeploy before the new PocketBase image finished pushing, leaving the running `pocketbase` service on stale migrations. The `needs` dependency here makes that ordering explicit and enforced by GitHub Actions rather than incidental to build-time differences.
 
 ---
 

@@ -10,8 +10,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-push:
-    name: Build & Push Container Image
+  changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      pocketbase: ${{ steps.filter.outputs.pocketbase }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect PocketBase-relevant Changes
+        id: filter
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            # Manual dispatch, or no prior commit to diff against (first push /
+            # force-push edge case) — rebuild the PocketBase image to be safe.
+            echo "pocketbase=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -qE '^(pb_migrations/|Dockerfile\.pocketbase$)'; then
+            echo "pocketbase=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pocketbase=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-app:
+    name: Build & Push App Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -52,9 +79,59 @@ jobs:
           # standalone image layer can exceed that on push.
           outputs: type=image,push=true,compression=gzip,compression-level=9,force-compression=true
 
+  build-pocketbase:
+    name: Build & Push PocketBase Image
+    needs: changes
+    if: needs.changes.outputs.pocketbase == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Custom Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.bogazici.app
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Extract Metadata for Image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: registry.bogazici.app/budok/titirek-pb
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.pocketbase
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=image,push=true,compression=gzip,compression-level=9,force-compression=true
+
   deploy:
     name: Trigger Dokploy Redeployment
-    needs: build-and-push
+    needs: [build-app, build-pocketbase]
+    # build-pocketbase is conditionally skipped (see `changes` job) when this
+    # push doesn't touch pb_migrations/**  or Dockerfile.pocketbase — that
+    # must not block deploy. It must still block deploy if it actually ran
+    # and failed, which is why this can't just be the default `needs`
+    # success check (a skipped dependency fails that check).
+    if: |
+      always() &&
+      needs.build-app.result == 'success' &&
+      (needs.build-pocketbase.result == 'success' || needs.build-pocketbase.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Dokploy Stack Redeployment
