@@ -75,7 +75,6 @@ titirek/
 | [`next.config.ts`](file:///home/devhax/projects/fusuycorp/titirek/next.config.ts) | Next.js configuration enabling standalone output build mode (`output: "standalone"`). |
 | [`components.json`](file:///home/devhax/projects/fusuycorp/titirek/components.json) | Configuration for UI component generation and styling tokens. |
 | [`eslint.config.mjs`](file:///home/devhax/projects/fusuycorp/titirek/eslint.config.mjs) | ESLint configuration utilizing Next.js Core Web Vitals rules. |
-| [`AGENT_LOG.md`](file:///home/devhax/projects/fusuycorp/titirek/AGENT_LOG.md) | Historical log of engineering activities, infrastructure changes, and deployments. |
 | [`DECISIONS.md`](file:///home/devhax/projects/fusuycorp/titirek/DECISIONS.md) | Architectural Decision Records (ADR-001 through ADR-004) covering UI shells, voting hashing, IDOR defense, and external adapters. |
 
 ---
