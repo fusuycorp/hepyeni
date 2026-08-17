@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, requireOwner, resolveCircleAccess } from "@/lib/membership";
+import { requireMembership, resolveCircleAccess } from "@/lib/membership";
 import type {
   GroupSchedulesRecord,
   GroupSchedulesResponse,
@@ -14,6 +14,13 @@ import type {
   TitlesResponse,
   UsersResponse,
 } from "@/types/pocketbase-types";
+
+function toIsoDate(val?: string | null): string | undefined {
+  if (!val || typeof val !== "string" || !val.trim()) return undefined;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
 
 export interface CreateScheduleMilestoneInput {
   title: string;
@@ -63,54 +70,54 @@ export async function getGroupSchedules(
 
     if (schedules.length === 0) return [];
 
-  const scheduleIds = schedules.map((s) => s.id);
+    const scheduleIds = schedules.map((s) => s.id);
 
-  // Fetch all milestones for these schedules
-  const allMilestones = await pb
-    .collection("schedule_milestones")
-    .getFullList<ScheduleMilestonesResponse>({
-      filter: scheduleIds.map((id) => `schedule = "${id}"`).join(" || "),
-      sort: "orderIndex",
-    });
-
-  const milestoneIds = allMilestones.map((m) => m.id);
-
-  // Fetch all checkins for these milestones
-  let allCheckins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[] = [];
-  if (milestoneIds.length > 0) {
-    allCheckins = await pb
-      .collection("milestone_checkins")
-      .getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
-        filter: milestoneIds.map((id) => `milestone = "${id}"`).join(" || "),
-        expand: "user",
+    // Fetch all milestones for these schedules
+    const allMilestones = await pb
+      .collection("schedule_milestones")
+      .getFullList<ScheduleMilestonesResponse>({
+        filter: scheduleIds.map((id) => `schedule = "${id}"`).join(" || "),
+        sort: "orderIndex",
       });
-  }
 
-  const checkinsByMilestone = new Map<
-    string,
-    MilestoneCheckinsResponse<{ user?: UsersResponse }>[]
-  >();
-  for (const c of allCheckins) {
-    const list = checkinsByMilestone.get(c.milestone) || [];
-    list.push(c);
-    checkinsByMilestone.set(c.milestone, list);
-  }
+    const milestoneIds = allMilestones.map((m) => m.id);
 
-  const milestonesBySchedule = new Map<string, MilestoneWithCheckins[]>();
-  for (const m of allMilestones) {
-    const checkins = checkinsByMilestone.get(m.id) || [];
-    const hasCheckedIn = session?.id
-      ? checkins.some((c) => c.user === session.id)
-      : false;
+    // Fetch all checkins for these milestones
+    let allCheckins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[] = [];
+    if (milestoneIds.length > 0) {
+      allCheckins = await pb
+        .collection("milestone_checkins")
+        .getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
+          filter: milestoneIds.map((id) => `milestone = "${id}"`).join(" || "),
+          expand: "user",
+        });
+    }
 
-    const list = milestonesBySchedule.get(m.schedule) || [];
-    list.push({
-      ...m,
-      checkins,
-      hasCheckedIn,
-    });
-    milestonesBySchedule.set(m.schedule, list);
-  }
+    const checkinsByMilestone = new Map<
+      string,
+      MilestoneCheckinsResponse<{ user?: UsersResponse }>[]
+    >();
+    for (const c of allCheckins) {
+      const list = checkinsByMilestone.get(c.milestone) || [];
+      list.push(c);
+      checkinsByMilestone.set(c.milestone, list);
+    }
+
+    const milestonesBySchedule = new Map<string, MilestoneWithCheckins[]>();
+    for (const m of allMilestones) {
+      const checkins = checkinsByMilestone.get(m.id) || [];
+      const hasCheckedIn = session?.id
+        ? checkins.some((c) => c.user === session.id)
+        : false;
+
+      const list = milestonesBySchedule.get(m.schedule) || [];
+      list.push({
+        ...m,
+        checkins,
+        hasCheckedIn,
+      });
+      milestonesBySchedule.set(m.schedule, list);
+    }
 
     return schedules.map((s) => ({
       ...s,
@@ -129,10 +136,13 @@ export async function createGroupSchedule(
   input: CreateGroupScheduleInput,
 ) {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
+  if (!session) throw new Error("Unauthorized: Please sign in first");
 
-  // Require owner or admin
-  await requireOwner(groupId, session.id);
+  // Require circle membership or admin
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.isMember && !session.isAdmin) {
+    throw new Error("Only circle members or owners can create schedules");
+  }
 
   const pb = await getSuperuserClient();
 
@@ -141,34 +151,41 @@ export async function createGroupSchedule(
     title: input.titleId || undefined,
     name: input.name.trim().slice(0, 200),
     description: input.description ? input.description.trim().slice(0, 1000) : undefined,
-    startDate: input.startDate || undefined,
-    targetDate: input.targetDate || undefined,
+    startDate: toIsoDate(input.startDate),
+    targetDate: toIsoDate(input.targetDate),
     status: "active",
     createdBy: session.id,
   };
 
-  const schedule = await pb
-    .collection("group_schedules")
-    .create<GroupSchedulesResponse>(scheduleData);
+  try {
+    const schedule = await pb
+      .collection("group_schedules")
+      .create<GroupSchedulesResponse>(scheduleData);
 
-  // Create milestones in order
-  for (let i = 0; i < input.milestones.length; i++) {
-    const m = input.milestones[i];
-    if (!m.title.trim()) continue;
+    // Create milestones in order
+    for (let i = 0; i < input.milestones.length; i++) {
+      const m = input.milestones[i];
+      if (!m.title.trim()) continue;
 
-    const milestoneData: Partial<ScheduleMilestonesRecord> = {
-      schedule: schedule.id,
-      title: m.title.trim().slice(0, 200),
-      targetDate: m.targetDate || undefined,
-      targetUnit: m.targetUnit ? m.targetUnit.trim().slice(0, 100) : undefined,
-      orderIndex: i,
-    };
+      const milestoneData: Partial<ScheduleMilestonesRecord> = {
+        schedule: schedule.id,
+        title: m.title.trim().slice(0, 200),
+        targetDate: toIsoDate(m.targetDate),
+        targetUnit: m.targetUnit ? m.targetUnit.trim().slice(0, 100) : undefined,
+        orderIndex: i,
+      };
 
-    await pb.collection("schedule_milestones").create(milestoneData);
+      await pb.collection("schedule_milestones").create(milestoneData);
+    }
+
+    revalidatePath(`/groups/${groupId}`);
+    return schedule;
+  } catch (err: unknown) {
+    const errObj = err as { data?: { message?: string }; message?: string };
+    const errorDetails = errObj?.data ? JSON.stringify(errObj.data) : errObj?.message || String(err);
+    console.error("[createGroupSchedule Error]:", errorDetails, err);
+    throw new Error(errObj?.data?.message || errObj?.message || "Failed to create schedule");
   }
-
-  revalidatePath(`/groups/${groupId}`);
-  return schedule;
 }
 
 export async function updateGroupScheduleStatus(
@@ -178,7 +195,10 @@ export async function updateGroupScheduleStatus(
 ) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
-  await requireOwner(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.isOwner && !session.isAdmin) {
+    throw new Error("Only circle owners can update schedule status");
+  }
   const pb = await getSuperuserClient();
 
   await pb.collection("group_schedules").update(scheduleId, { status });
@@ -188,7 +208,10 @@ export async function updateGroupScheduleStatus(
 export async function deleteGroupSchedule(scheduleId: string, groupId: string) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
-  await requireOwner(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.isOwner && !session.isAdmin) {
+    throw new Error("Only circle owners can delete schedules");
+  }
   const pb = await getSuperuserClient();
 
   await pb.collection("group_schedules").delete(scheduleId);

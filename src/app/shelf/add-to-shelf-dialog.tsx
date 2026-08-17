@@ -118,8 +118,9 @@ export function AddToShelfDialog() {
         setCustomTitle("");
         setCustomCreator("");
         setIsCustomMode(false);
-      } catch {
-        toast.error(t.common.error);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : t.common.error;
+        toast.error(msg);
       }
     });
   };

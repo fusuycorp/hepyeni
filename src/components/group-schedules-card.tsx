@@ -123,8 +123,9 @@ export function GroupSchedulesCard({
           { title: "", targetDate: "", targetUnit: "" },
           { title: "", targetDate: "", targetUnit: "" },
         ]);
-      } catch {
-        toast.error(t.common.error);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : t.common.error;
+        toast.error(msg);
       }
     });
   };
@@ -134,8 +135,9 @@ export function GroupSchedulesCard({
     startTransition(async () => {
       try {
         await toggleMilestoneCheckin(milestoneId, groupId);
-      } catch {
-        toast.error(t.common.error);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : t.common.error;
+        toast.error(msg);
       }
     });
   };
@@ -146,8 +148,9 @@ export function GroupSchedulesCard({
       try {
         await deleteGroupSchedule(scheduleId, groupId);
         toast.success(t.schedules.scheduleDeleted);
-      } catch {
-        toast.error(t.common.error);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : t.common.error;
+        toast.error(msg);
       }
     });
   };

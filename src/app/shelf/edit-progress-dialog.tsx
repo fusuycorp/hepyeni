@@ -81,8 +81,9 @@ export function EditProgressDialog({
 
         toast.success(t.shelf.progressSaved);
         onOpenChange(false);
-      } catch {
-        toast.error(t.common.error);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : t.common.error;
+        toast.error(msg);
       }
     });
   };
@@ -95,8 +96,9 @@ export function EditProgressDialog({
         await deleteMediaProgress(item.id);
         toast.success(t.shelf.progressDeleted);
         onOpenChange(false);
-      } catch {
-        toast.error(t.common.error);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : t.common.error;
+        toast.error(msg);
       } finally {
         setIsDeleting(false);
       }
