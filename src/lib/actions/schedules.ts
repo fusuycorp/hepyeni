@@ -50,17 +50,18 @@ export async function getGroupSchedules(
     return [];
   }
 
-  const pb = await getSuperuserClient();
+  try {
+    const pb = await getSuperuserClient();
 
-  const schedules = await pb
-    .collection("group_schedules")
-    .getFullList<GroupSchedulesResponse<{ title?: TitlesResponse; createdBy?: UsersResponse }>>({
-      filter: pb.filter("group = {:groupId}", { groupId }),
-      expand: "title,createdBy",
-      sort: "-createdAt",
-    });
+    const schedules = await pb
+      .collection("group_schedules")
+      .getFullList<GroupSchedulesResponse<{ title?: TitlesResponse; createdBy?: UsersResponse }>>({
+        filter: pb.filter("group = {:groupId}", { groupId }),
+        expand: "title,createdBy",
+        sort: "-createdAt",
+      });
 
-  if (schedules.length === 0) return [];
+    if (schedules.length === 0) return [];
 
   const scheduleIds = schedules.map((s) => s.id);
 
@@ -111,12 +112,16 @@ export async function getGroupSchedules(
     milestonesBySchedule.set(m.schedule, list);
   }
 
-  return schedules.map((s) => ({
-    ...s,
-    titleRecord: s.expand?.title,
-    creator: s.expand?.createdBy,
-    milestones: milestonesBySchedule.get(s.id) || [],
-  }));
+    return schedules.map((s) => ({
+      ...s,
+      titleRecord: s.expand?.title,
+      creator: s.expand?.createdBy,
+      milestones: milestonesBySchedule.get(s.id) || [],
+    }));
+  } catch (err) {
+    console.error("[getGroupSchedules Error]:", err);
+    return [];
+  }
 }
 
 export async function createGroupSchedule(

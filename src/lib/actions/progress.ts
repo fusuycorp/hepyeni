@@ -42,20 +42,25 @@ export async function getPersonalShelf(
   const session = await getSession();
   if (!session) return [];
 
-  const pb = await getSuperuserClient();
-  let filter = pb.filter("user = {:userId}", { userId: session.id });
-  if (statusFilter) {
-    filter += ` && status = "${statusFilter}"`;
+  try {
+    const pb = await getSuperuserClient();
+    let filter = pb.filter("user = {:userId}", { userId: session.id });
+    if (statusFilter) {
+      filter += ` && status = "${statusFilter}"`;
+    }
+
+    const records = await pb
+      .collection("user_media_progress")
+      .getFullList<UserMediaProgressResponse>({
+        filter,
+        sort: "-updatedAt",
+      });
+
+    return records;
+  } catch (err) {
+    console.error("[getPersonalShelf Error]:", err);
+    return [];
   }
-
-  const records = await pb
-    .collection("user_media_progress")
-    .getFullList<UserMediaProgressResponse>({
-      filter,
-      sort: "-updated",
-    });
-
-  return records;
 }
 
 export async function saveMediaProgress(input: SaveMediaProgressInput) {
@@ -249,12 +254,18 @@ export async function getTitleCircleProgress(
     },
   );
 
-  const progressRecords = await pb
-    .collection("user_media_progress")
-    .getFullList<UserMediaProgressResponse<{ user?: UsersResponse }>>({
-      filter,
-      expand: "user",
-    });
+  let progressRecords: UserMediaProgressResponse<{ user?: UsersResponse }>[] = [];
+  try {
+    progressRecords = await pb
+      .collection("user_media_progress")
+      .getFullList<UserMediaProgressResponse<{ user?: UsersResponse }>>({
+        filter,
+        expand: "user",
+      });
+  } catch (err) {
+    console.error("[getTitleCircleProgress Error]:", err);
+    return [];
+  }
 
   const memberMap = new Map<string, UsersResponse>();
   for (const m of members) {
@@ -327,22 +338,27 @@ export async function getCircleLiveActivity(
 
   if (memberMap.size === 0) return [];
 
-  const activeProgress = await pb
-    .collection("user_media_progress")
-    .getFullList<UserMediaProgressResponse>({
-      filter: 'status = "in_progress" && isSharedWithCircles != false',
-      sort: "-updated",
-    });
-
-  const result: CircleLiveActivityItem[] = [];
-  for (const p of activeProgress) {
-    if (memberMap.has(p.user)) {
-      result.push({
-        user: memberMap.get(p.user)!,
-        progress: p,
+  try {
+    const activeProgress = await pb
+      .collection("user_media_progress")
+      .getFullList<UserMediaProgressResponse>({
+        filter: 'status = "in_progress" && isSharedWithCircles != false',
+        sort: "-updatedAt",
       });
-    }
-  }
 
-  return result;
+    const result: CircleLiveActivityItem[] = [];
+    for (const p of activeProgress) {
+      if (memberMap.has(p.user)) {
+        result.push({
+          user: memberMap.get(p.user)!,
+          progress: p,
+        });
+      }
+    }
+
+    return result;
+  } catch (err) {
+    console.error("[getCircleLiveActivity Error]:", err);
+    return [];
+  }
 }
