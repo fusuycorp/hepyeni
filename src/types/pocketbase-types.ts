@@ -79,11 +79,28 @@ export type GroupMembersRecord = {
   user: RecordIdString;
 };
 
+export interface GroupGuestSettings {
+  visibility: {
+    backlog: boolean;
+    finished: boolean;
+    reviews: boolean;
+    comments: boolean;
+  };
+  permissions: {
+    canVote: boolean;
+    canComment: boolean;
+    canReview: boolean;
+    canPropose: boolean;
+  };
+}
+
 export type GroupsRecord = {
   createdAt: IsoAutoDateString;
   createdBy: RecordIdString;
+  guestSettings?: GroupGuestSettings | null;
   id: string;
   inviteCode: string;
+  isPublic?: boolean;
   name: string;
 };
 

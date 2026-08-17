@@ -18,6 +18,39 @@ import { autoJoinPendingInvite } from "@/lib/actions/groups";
 import { logDiagnostic } from "@/lib/errors";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
+export type UserAuthMethods = {
+  hasPassword: boolean;
+  hasOtp: boolean;
+  oauthProviders: string[];
+};
+
+export async function getUserAuthMethods(
+  userId: string,
+): Promise<UserAuthMethods> {
+  try {
+    const pb = await getSuperuserClient();
+    const externalAuths = await pb.collection("users").listExternalAuths(userId);
+    const oauthProviders = externalAuths
+      .map((item) =>
+        typeof item.provider === "string" ? item.provider.toLowerCase() : "",
+      )
+      .filter((p): p is string => Boolean(p));
+
+    return {
+      hasPassword: true,
+      hasOtp: true,
+      oauthProviders,
+    };
+  } catch (err) {
+    logDiagnostic(err, { action: "getUserAuthMethods", userId });
+    return {
+      hasPassword: true,
+      hasOtp: true,
+      oauthProviders: [],
+    };
+  }
+}
+
 export async function getAvailableAuthProviders(): Promise<{
   google: boolean;
   apple: boolean;

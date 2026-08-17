@@ -1,9 +1,159 @@
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type {
+  GroupGuestSettings,
   GroupMembersResponse,
+  GroupsResponse,
   TitlesResponse,
 } from "@/types/pocketbase-types";
+
+export interface CircleAccess {
+  group: GroupsResponse;
+  isOwner: boolean;
+  isMember: boolean;
+  isGuest: boolean;
+  canViewBacklog: boolean;
+  canViewFinished: boolean;
+  canViewReviews: boolean;
+  canViewComments: boolean;
+  canVote: boolean;
+  canComment: boolean;
+  canReview: boolean;
+  canPropose: boolean;
+}
+
+export const DEFAULT_GUEST_SETTINGS: GroupGuestSettings = {
+  visibility: {
+    backlog: true,
+    finished: true,
+    reviews: true,
+    comments: true,
+  },
+  permissions: {
+    canVote: false,
+    canComment: false,
+    canReview: false,
+    canPropose: false,
+  },
+};
+
+export function evaluateCircleAccess(
+  group: GroupsResponse,
+  membership?: GroupMembersResponse | null,
+): CircleAccess {
+  if (membership) {
+    return {
+      group,
+      isOwner: membership.role === "owner",
+      isMember: true,
+      isGuest: false,
+      canViewBacklog: true,
+      canViewFinished: true,
+      canViewReviews: true,
+      canViewComments: true,
+      canVote: true,
+      canComment: true,
+      canReview: true,
+      canPropose: true,
+    };
+  }
+
+  const isPublic = Boolean(group.isPublic);
+  if (!isPublic) {
+    return {
+      group,
+      isOwner: false,
+      isMember: false,
+      isGuest: true,
+      canViewBacklog: false,
+      canViewFinished: false,
+      canViewReviews: false,
+      canViewComments: false,
+      canVote: false,
+      canComment: false,
+      canReview: false,
+      canPropose: false,
+    };
+  }
+
+  const settings: GroupGuestSettings = {
+    visibility: {
+      backlog:
+        group.guestSettings?.visibility?.backlog ??
+        DEFAULT_GUEST_SETTINGS.visibility.backlog,
+      finished:
+        group.guestSettings?.visibility?.finished ??
+        DEFAULT_GUEST_SETTINGS.visibility.finished,
+      reviews:
+        group.guestSettings?.visibility?.reviews ??
+        DEFAULT_GUEST_SETTINGS.visibility.reviews,
+      comments:
+        group.guestSettings?.visibility?.comments ??
+        DEFAULT_GUEST_SETTINGS.visibility.comments,
+    },
+    permissions: {
+      canVote:
+        group.guestSettings?.permissions?.canVote ??
+        DEFAULT_GUEST_SETTINGS.permissions.canVote,
+      canComment:
+        group.guestSettings?.permissions?.canComment ??
+        DEFAULT_GUEST_SETTINGS.permissions.canComment,
+      canReview:
+        group.guestSettings?.permissions?.canReview ??
+        DEFAULT_GUEST_SETTINGS.permissions.canReview,
+      canPropose:
+        group.guestSettings?.permissions?.canPropose ??
+        DEFAULT_GUEST_SETTINGS.permissions.canPropose,
+    },
+  };
+
+  return {
+    group,
+    isOwner: false,
+    isMember: false,
+    isGuest: true,
+    canViewBacklog: settings.visibility.backlog,
+    canViewFinished: settings.visibility.finished,
+    canViewReviews: settings.visibility.reviews,
+    canViewComments: settings.visibility.comments,
+    canVote: settings.permissions.canVote,
+    canComment: settings.permissions.canComment,
+    canReview: settings.permissions.canReview,
+    canPropose: settings.permissions.canPropose,
+  };
+}
+
+export async function resolveCircleAccess(
+  groupId: string,
+  userId?: string,
+): Promise<CircleAccess> {
+  const pb = await getSuperuserClient();
+  let group: GroupsResponse;
+  try {
+    group = await pb.collection("groups").getOne<GroupsResponse>(groupId);
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Circle not found");
+    throw err;
+  }
+
+  let membership: GroupMembersResponse | null = null;
+  if (userId) {
+    try {
+      membership = await pb
+        .collection("group_members")
+        .getFirstListItem<GroupMembersResponse>(
+          pb.filter("group = {:groupId} && user = {:userId}", {
+            groupId,
+            userId,
+          }),
+        );
+    } catch (err) {
+      if (!isNotFound(err)) throw err;
+    }
+  }
+
+  return evaluateCircleAccess(group, membership);
+}
 
 export async function requireMembership(
   groupId: string,

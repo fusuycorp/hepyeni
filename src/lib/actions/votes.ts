@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, requireTitleInGroup } from "@/lib/membership";
+import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { voteRecordId } from "@/lib/pocketbase/vote-id";
 import type { VotesResponse } from "@/types/pocketbase-types";
 
@@ -17,7 +17,10 @@ export async function voteOnTitle(
   const session = await getSession();
   if (!session) redirect("/login");
 
-  await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.canVote) {
+    throw new Error("You do not have permission to vote in this circle");
+  }
   await requireTitleInGroup(titleId, groupId);
 
   const pb = await getSuperuserClient();

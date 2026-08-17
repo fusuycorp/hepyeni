@@ -52,12 +52,18 @@ interface TitleDetailViewProps {
   group: GroupsResponse;
   title: TitleWithScore;
   comments: CommentsResponse<{ user?: UsersResponse }>[];
-  currentUserId: string;
+  currentUserId?: string;
   currentUserRole?: string;
   isAdmin?: boolean;
   currentUserName?: string;
   currentUserEmail?: string;
   currentUserAvatarUrl?: string;
+  isGuest?: boolean;
+  canViewReviews?: boolean;
+  canViewComments?: boolean;
+  canVote?: boolean;
+  canComment?: boolean;
+  canReview?: boolean;
   onVote: (value: "up" | "down") => Promise<void>;
   onMarkConsumed: () => Promise<void>;
   onUnmarkConsumed: () => Promise<void>;
@@ -76,12 +82,18 @@ export function TitleDetailView({
   group,
   title,
   comments,
-  currentUserId,
+  currentUserId = "",
   currentUserRole,
   isAdmin,
   currentUserName,
   currentUserEmail,
   currentUserAvatarUrl,
+  isGuest = false,
+  canViewReviews = true,
+  canViewComments = true,
+  canVote = true,
+  canComment = true,
+  canReview = true,
   onVote,
   onMarkConsumed,
   onUnmarkConsumed,
@@ -90,7 +102,8 @@ export function TitleDetailView({
   onDeleteComment,
   onFetchComments,
 }: TitleDetailViewProps) {
-  const [activeTab, setActiveTab] = useState<"discussion" | "reviews">("discussion");
+  const defaultTab = !canViewComments && canViewReviews ? "reviews" : "discussion";
+  const [activeTab, setActiveTab] = useState<"discussion" | "reviews">(defaultTab);
   const t = useTranslations();
   const locale = useLocale();
 
@@ -241,30 +254,33 @@ export function TitleDetailView({
                   <VoteControl
                     score={title.score}
                     userVote={title.userVote}
-                    onVote={onVote}
+                    disabled={!canVote}
+                    onVote={canVote ? onVote : undefined}
                   />
                 </div>
               )}
 
               {/* Status Toggle Button */}
-              {isFinished ? (
-                <MarkConsumedButton
-                  direction="unconsume"
-                  variant="outline"
-                  size="sm"
-                  showIcon={true}
-                  className="h-9 px-3.5 text-xs font-semibold border-border hover:bg-muted"
-                  onMark={onUnmarkConsumed}
-                />
-              ) : (
-                <MarkConsumedButton
-                  direction="consume"
-                  variant="default"
-                  size="sm"
-                  showIcon={true}
-                  className="h-9 px-3.5 text-xs font-semibold shadow-xs"
-                  onMark={onMarkConsumed}
-                />
+              {!isGuest && (
+                isFinished ? (
+                  <MarkConsumedButton
+                    direction="unconsume"
+                    variant="outline"
+                    size="sm"
+                    showIcon={true}
+                    className="h-9 px-3.5 text-xs font-semibold border-border hover:bg-muted"
+                    onMark={onUnmarkConsumed}
+                  />
+                ) : (
+                  <MarkConsumedButton
+                    direction="consume"
+                    variant="default"
+                    size="sm"
+                    showIcon={true}
+                    className="h-9 px-3.5 text-xs font-semibold shadow-xs"
+                    onMark={onMarkConsumed}
+                  />
+                )
               )}
 
               {/* Share / Copy Link */}
@@ -348,97 +364,103 @@ export function TitleDetailView({
       </Card>
 
       {/* Tabs & Discussion / Reviews Sections */}
-      <div className="space-y-4">
-        {/* Section Tabs Switcher */}
-        <div
-          role="tablist"
-          className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "discussion"}
-            onClick={() => setActiveTab("discussion")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-              activeTab === "discussion"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <MessageSquare className="size-3.5 text-primary" />
-            <span>{t.comments.title}</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-muted-foreground">
-              {comments.length}
-            </span>
-          </button>
+      {(canViewComments || canViewReviews) && (
+        <div className="space-y-4">
+          {/* Section Tabs Switcher */}
+          {canViewComments && canViewReviews && (
+            <div
+              role="tablist"
+              className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "discussion"}
+                onClick={() => setActiveTab("discussion")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
+                  activeTab === "discussion"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <MessageSquare className="size-3.5 text-primary" />
+                <span>{t.comments.title}</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-muted-foreground">
+                  {comments.length}
+                </span>
+              </button>
 
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "reviews"}
-            onClick={() => setActiveTab("reviews")}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-              activeTab === "reviews"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Star className="size-3.5 text-amber-500" />
-            <span>{t.reviews.groupReviews}</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-muted-foreground">
-              {reviews.length}
-            </span>
-          </button>
-        </div>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "reviews"}
+                onClick={() => setActiveTab("reviews")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
+                  activeTab === "reviews"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Star className="size-3.5 text-amber-500" />
+                <span>{t.reviews.groupReviews}</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-muted-foreground">
+                  {reviews.length}
+                </span>
+              </button>
+            </div>
+          )}
 
-        {/* Discussion Tab (Comments + Nested Replies) */}
-        {activeTab === "discussion" && (
-          <Card className="border-border/70 shadow-xs">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-base font-bold tracking-tight">
-                {t.comments.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              <CommentThread
-                titleId={title.id}
-                groupId={group.id}
-                initialComments={comments}
-                currentUserId={currentUserId}
-                currentUserRole={currentUserRole}
-                isAdmin={isAdmin}
-                currentUserName={currentUserName}
-                currentUserEmail={currentUserEmail}
-                currentUserAvatarUrl={currentUserAvatarUrl}
-                onAddComment={onAddComment}
-                onDeleteComment={onDeleteComment}
-                onFetchComments={onFetchComments}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Reviews Tab */}
-        {activeTab === "reviews" && (
-          <div className="space-y-6">
-            {/* My Review Form Card */}
+          {/* Discussion Tab (Comments + Nested Replies) */}
+          {activeTab === "discussion" && canViewComments && (
             <Card className="border-border/70 shadow-xs">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-foreground">
-                  {myReview ? t.reviews.yourRatingAndReview : t.reviews.rateThisTitle}
+              <CardHeader className="pb-3 border-b">
+                <CardTitle className="text-base font-bold tracking-tight">
+                  {t.comments.title}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ReviewForm
-                  defaultRating={myReview?.rating ?? 5}
-                  defaultText={myReview?.reviewText ?? ""}
-                  hasExisting={Boolean(myReview)}
-                  onSubmit={onSubmitReview}
+              <CardContent className="p-4 sm:p-6">
+                <CommentThread
+                  titleId={title.id}
+                  groupId={group.id}
+                  initialComments={comments}
+                  currentUserId={currentUserId}
+                  currentUserRole={currentUserRole}
+                  isAdmin={isAdmin}
+                  currentUserName={currentUserName}
+                  currentUserEmail={currentUserEmail}
+                  currentUserAvatarUrl={currentUserAvatarUrl}
+                  canComment={canComment}
+                  onAddComment={onAddComment}
+                  onDeleteComment={onDeleteComment}
+                  onFetchComments={onFetchComments}
                 />
               </CardContent>
             </Card>
+          )}
+
+          {/* Reviews Tab */}
+          {activeTab === "reviews" && canViewReviews && (
+            <div className="space-y-6">
+              {/* My Review Form Card */}
+              {canReview && (
+                <Card className="border-border/70 shadow-xs">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold text-foreground">
+                      {myReview ? t.reviews.yourRatingAndReview : t.reviews.rateThisTitle}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ReviewForm
+                      defaultRating={myReview?.rating ?? 5}
+                      defaultText={myReview?.reviewText ?? ""}
+                      hasExisting={Boolean(myReview)}
+                      onSubmit={onSubmitReview}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
             {/* Other Member Reviews */}
             <Card className="border-border/70 shadow-xs">
@@ -517,6 +539,7 @@ export function TitleDetailView({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

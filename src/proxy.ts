@@ -17,6 +17,11 @@ export default async function proxy(req: NextRequest) {
     if (req.nextUrl.pathname === "/") {
       return;
     }
+    const isPublicGroupRoute =
+      /^\/groups\/[^/]+(?:\/titles\/[^/]+)?\/?$/.test(req.nextUrl.pathname);
+    if (isPublicGroupRoute) {
+      return;
+    }
     if (req.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

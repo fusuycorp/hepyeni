@@ -38,6 +38,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          defer
+          src="https://umami.bogazici.app/script.js"
+          data-website-id="0713462a-5e79-49af-8a6c-f26365ae90ac"
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"

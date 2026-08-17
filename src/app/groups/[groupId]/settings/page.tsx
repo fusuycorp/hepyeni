@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { InlineTextForm } from "@/components/inline-text-form";
+import { GuestSettingsForm } from "./guest-settings-form";
 import {
   deleteGroup,
   leaveGroup,
@@ -148,6 +149,15 @@ export default async function GroupSettingsPage({
             )}
           </CardContent>
         </Card>
+
+        {/* Public Access & Guest Permissions (Owner only) */}
+        {isOwner && (
+          <GuestSettingsForm
+            groupId={groupId}
+            initialIsPublic={group.isPublic}
+            initialSettings={group.guestSettings}
+          />
+        )}
 
         {/* Member Management Roster */}
         <Card className="border-border/70 shadow-xs">

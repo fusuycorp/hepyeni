@@ -6,7 +6,7 @@ import { canDeleteComment, validateCommentContent } from "@/lib/comments";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, requireTitleInGroup } from "@/lib/membership";
+import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export async function addComment(
@@ -17,7 +17,10 @@ export async function addComment(
   const session = await getSession();
   if (!session) redirect("/login");
 
-  await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.canComment) {
+    throw new Error("You do not have permission to comment in this circle");
+  }
   await requireTitleInGroup(titleId, groupId);
 
   const rawContent = formData.get("content");
@@ -69,9 +72,10 @@ export async function getComments(
   groupId: string,
 ): Promise<CommentsResponse<{ user?: UsersResponse }>[]> {
   const session = await getSession();
-  if (!session) redirect("/login");
-
-  await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session?.id);
+  if (!access.canViewComments) {
+    throw new Error("You do not have permission to view comments in this circle");
+  }
   await requireTitleInGroup(titleId, groupId);
 
   const pb = await getSuperuserClient();
@@ -88,7 +92,7 @@ export async function deleteComment(commentId: string, groupId: string) {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const membership = await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
 
   const pb = await getSuperuserClient();
   let comment: CommentsResponse;
@@ -106,7 +110,7 @@ export async function deleteComment(commentId: string, groupId: string) {
   const allowed = canDeleteComment({
     commentUserId: comment.user,
     currentUserId: session.id,
-    userRole: membership.role,
+    userRole: access.isOwner ? "owner" : access.isMember ? "member" : undefined,
     isAdmin: session.isAdmin,
   });
 

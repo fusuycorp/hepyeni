@@ -363,6 +363,19 @@ export interface Translations {
     deleteAccountCardDesc: string;
     nameUpdated: string;
     nameUpdateFailed: string;
+    authMethodsTitle: string;
+    authMethodsDesc: string;
+    connected: string;
+    notConnected: string;
+    active: string;
+    googleAuth: string;
+    googleAuthDesc: string;
+    appleAuth: string;
+    appleAuthDesc: string;
+    passwordAuth: string;
+    passwordAuthDesc: string;
+    otpAuth: string;
+    otpAuthDesc: string;
   };
   admin: {
     title: string;
@@ -492,6 +505,30 @@ export interface Translations {
     mediaTypesHeadline: string;
     mediaTypesDesc: string;
     joinWithCode: string;
+  };
+  guestManagement: {
+    publicCircleTitle: string;
+    publicCircleDesc: string;
+    makePublicLabel: string;
+    makePublicDesc: string;
+    visibilityHeading: string;
+    visibilityBacklog: string;
+    visibilityFinished: string;
+    visibilityReviews: string;
+    visibilityComments: string;
+    permissionsHeading: string;
+    permVote: string;
+    permComment: string;
+    permReview: string;
+    permPropose: string;
+    guestBannerNotice: string;
+    guestBannerJoin: string;
+    settingsSaved: string;
+    settingsSaveFailed: string;
+    copyPublicLink: string;
+    publicLinkCopied: string;
+    publicBadge: string;
+    saveChanges: string;
   };
 }
 

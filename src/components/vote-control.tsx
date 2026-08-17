@@ -15,12 +15,15 @@ export function VoteControl({
   userVote,
   onVote,
   orientation = "vertical",
+  disabled = false,
 }: VoteState & {
-  onVote: (value: VoteValue) => Promise<void>;
+  onVote?: (value: VoteValue) => Promise<void>;
   orientation?: "vertical" | "horizontal";
+  disabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const t = useTranslations();
+  const effectiveDisabled = disabled || !onVote || isPending;
   const [state, applyOptimistic] = useOptimistic(
     { score, userVote } as VoteState,
     (current, value: VoteValue): VoteState => {
@@ -36,6 +39,7 @@ export function VoteControl({
   );
 
   function vote(value: VoteValue) {
+    if (!onVote || effectiveDisabled) return;
     startTransition(async () => {
       applyOptimistic(value);
       try {
@@ -58,7 +62,7 @@ export function VoteControl({
           variant="ghost"
           aria-label={t.media.upvoteAria}
           aria-pressed={isUp}
-          disabled={isPending}
+          disabled={effectiveDisabled}
           onClick={() => vote("up")}
           className={cn(
             "size-8 rounded-lg transition-all active:scale-90",
@@ -88,7 +92,7 @@ export function VoteControl({
           variant="ghost"
           aria-label={t.media.downvoteAria}
           aria-pressed={isDown}
-          disabled={isPending}
+          disabled={effectiveDisabled}
           onClick={() => vote("down")}
           className={cn(
             "size-8 rounded-lg transition-all active:scale-90",
@@ -111,7 +115,7 @@ export function VoteControl({
         variant="ghost"
         aria-label={t.media.upvoteAria}
         aria-pressed={isUp}
-        disabled={isPending}
+        disabled={effectiveDisabled}
         onClick={() => vote("up")}
         className={cn(
           "size-8 rounded-lg transition-all active:scale-90",
@@ -143,7 +147,7 @@ export function VoteControl({
         variant="ghost"
         aria-label="Eksi oy ver"
         aria-pressed={isDown}
-        disabled={isPending}
+        disabled={effectiveDisabled}
         onClick={() => vote("down")}
         className={cn(
           "size-8 rounded-lg transition-all active:scale-90",

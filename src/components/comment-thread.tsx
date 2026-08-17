@@ -42,12 +42,13 @@ export interface CommentThreadProps {
   titleId: string;
   groupId: string;
   initialComments?: DisplayComment[];
-  currentUserId: string;
+  currentUserId?: string;
   currentUserRole?: string;
   isAdmin?: boolean;
   currentUserName?: string;
   currentUserEmail?: string;
   currentUserAvatarUrl?: string;
+  canComment?: boolean;
   onAddComment?: (
     titleId: string,
     formData: FormData,
@@ -64,12 +65,13 @@ export function CommentThread({
   titleId,
   groupId,
   initialComments = [],
-  currentUserId,
+  currentUserId = "",
   currentUserRole,
   isAdmin,
   currentUserName,
   currentUserEmail,
   currentUserAvatarUrl,
+  canComment = true,
   onAddComment,
   onDeleteComment,
   onFetchComments,
@@ -264,7 +266,7 @@ export function CommentThread({
 
                     <div className="flex items-center gap-1">
                       {/* Reply Button (Only on top-level root comments for +1 depth) */}
-                      {!isPendingComment && (
+                      {!isPendingComment && Boolean(currentUserId) && canComment && (
                         <Button
                           type="button"
                           variant="ghost"
@@ -442,80 +444,82 @@ export function CommentThread({
       </div>
 
       {/* Reply Input Form */}
-      <form
-        ref={formRef}
-        onSubmit={handleAddComment}
-        className="pt-3 border-t space-y-2"
-      >
-        {replyingTo && (
-          <div className="flex items-center justify-between px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-xs">
-            <div className="flex items-center gap-1.5 text-primary font-medium">
-              <Reply className="size-3" />
-              <span>
-                {t.comments.replyingTo.replace("{name}", replyingTo.authorName)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setReplyingTo(null)}
-              className="p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
-              aria-label={t.comments.cancelReply}
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        )}
-
-        <Textarea
-          ref={textareaRef}
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          onKeyDown={handleTextareaKeyDown}
-          placeholder={
-            replyingTo
-              ? t.comments.replyPlaceholder
-              : t.comments.placeholder
-          }
-          rows={3}
-          maxLength={2000}
-          disabled={isPending}
-          className="text-xs resize-none min-h-[70px] bg-background"
-        />
-
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] text-muted-foreground">
-            {commentText.length}/2000
-          </span>
-          <div className="flex items-center gap-2">
-            {replyingTo && (
-              <Button
+      {canComment && Boolean(currentUserId) && (
+        <form
+          ref={formRef}
+          onSubmit={handleAddComment}
+          className="pt-3 border-t space-y-2"
+        >
+          {replyingTo && (
+            <div className="flex items-center justify-between px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-xs">
+              <div className="flex items-center gap-1.5 text-primary font-medium">
+                <Reply className="size-3" />
+                <span>
+                  {t.comments.replyingTo.replace("{name}", replyingTo.authorName)}
+                </span>
+              </div>
+              <button
                 type="button"
-                variant="ghost"
-                size="xs"
                 onClick={() => setReplyingTo(null)}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+                aria-label={t.comments.cancelReply}
               >
-                {t.comments.cancelReply}
+                <X className="size-3.5" />
+              </button>
+            </div>
+          )}
+
+          <Textarea
+            ref={textareaRef}
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onKeyDown={handleTextareaKeyDown}
+            placeholder={
+              replyingTo
+                ? t.comments.replyPlaceholder
+                : t.comments.placeholder
+            }
+            rows={3}
+            maxLength={2000}
+            disabled={isPending}
+            className="text-xs resize-none min-h-[70px] bg-background"
+          />
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground">
+              {commentText.length}/2000
+            </span>
+            <div className="flex items-center gap-2">
+              {replyingTo && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setReplyingTo(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {t.comments.cancelReply}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isPending || !commentText.trim()}
+                className="gap-1.5 text-xs font-semibold shadow-xs"
+              >
+                <Send className="size-3.5" />
+                <span>
+                  {isPending
+                    ? t.comments.posting
+                    : replyingTo
+                    ? t.comments.reply
+                    : t.comments.post}
+                </span>
               </Button>
-            )}
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !commentText.trim()}
-              className="gap-1.5 text-xs font-semibold shadow-xs"
-            >
-              <Send className="size-3.5" />
-              <span>
-                {isPending
-                  ? t.comments.posting
-                  : replyingTo
-                  ? t.comments.reply
-                  : t.comments.post}
-              </span>
-            </Button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

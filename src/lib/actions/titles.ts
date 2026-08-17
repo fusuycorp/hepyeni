@@ -6,7 +6,7 @@ import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
-import { requireMembership, requireTitleInGroup } from "@/lib/membership";
+import { requireMembership, requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { getProvider } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 
@@ -71,7 +71,10 @@ export async function addTitle(
   if (!session) throw new Error("Please sign in again");
   if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
 
-  await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.canPropose) {
+    throw new Error("You do not have permission to propose media in this circle");
+  }
 
   // `result` is a plain object from the client, not re-verified against a
   // live provider search — cap sizes at this trust boundary so a member
@@ -128,7 +131,10 @@ export async function addCustomTitle(
   if (!session) throw new Error("Please sign in again");
   if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
 
-  await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.canPropose) {
+    throw new Error("You do not have permission to propose media in this circle");
+  }
 
   const cleanTitle = String(data.title ?? "").slice(0, 300).trim();
   if (!cleanTitle) throw new Error("Title is required");

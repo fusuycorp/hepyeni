@@ -11,12 +11,13 @@ import { SendResetLinkButton } from "@/components/send-reset-link-button";
 import { InlineTextForm } from "@/components/inline-text-form";
 import { DiagnosticModal } from "@/components/diagnostic-modal";
 
-import { signOutAction } from "@/lib/actions/auth";
+import { signOutAction, getUserAuthMethods } from "@/lib/actions/auth";
 import { deleteAccount, updateProfileName } from "@/lib/actions/profile";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getInitials } from "@/lib/format";
 import { getServerTranslations } from "@/lib/i18n/server";
+import { AuthMethodHeaderBadges, AuthMethodsCard } from "@/components/auth-method-badges";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
 export default async function ProfilePage() {
@@ -24,8 +25,11 @@ export default async function ProfilePage() {
   if (!session) redirect("/login");
 
   const pb = await getSuperuserClient();
-  const user = await pb.collection("users").getOne<UsersResponse>(session.id);
-  const t = await getServerTranslations();
+  const [user, authMethods, t] = await Promise.all([
+    pb.collection("users").getOne<UsersResponse>(session.id),
+    getUserAuthMethods(session.id),
+    getServerTranslations(),
+  ]);
 
   const currentUser = {
     id: session.id,
@@ -72,6 +76,7 @@ export default async function ProfilePage() {
               <p className="text-xs text-muted-foreground font-mono">
                 {user.email}
               </p>
+              <AuthMethodHeaderBadges authMethods={authMethods} translations={t.profile} />
             </div>
 
             <form action={signOutAction} className="shrink-0 pt-2 sm:pt-0">
@@ -110,6 +115,9 @@ export default async function ProfilePage() {
             />
           </CardContent>
         </Card>
+
+        {/* Connected Accounts & Login Methods Card */}
+        <AuthMethodsCard authMethods={authMethods} translations={t.profile} />
 
         {/* Password & Security Card */}
         <Card className="border-border/70 shadow-xs">

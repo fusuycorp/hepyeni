@@ -8,6 +8,7 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { generateInviteCode } from "@/lib/invite-code";
 import { requireMembership, requireOwner } from "@/lib/membership";
 import type {
+  GroupGuestSettings,
   GroupMembersResponse,
   GroupsResponse,
 } from "@/types/pocketbase-types";
@@ -312,4 +313,35 @@ export async function deleteGroup(groupId: string) {
   // group_members, titles, votes, and reviews all cascade-delete from
   // groups (see pb_migrations) — one call tears down everything.
   await pb.collection("groups").delete(groupId);
+}
+
+export async function updateGroupGuestSettings(
+  groupId: string,
+  settings: GroupGuestSettings & { isPublic: boolean },
+) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireOwner(groupId, session.id);
+
+  const pb = await getSuperuserClient();
+  await pb.collection("groups").update(groupId, {
+    isPublic: Boolean(settings.isPublic),
+    guestSettings: {
+      visibility: {
+        backlog: Boolean(settings.visibility?.backlog),
+        finished: Boolean(settings.visibility?.finished),
+        reviews: Boolean(settings.visibility?.reviews),
+        comments: Boolean(settings.visibility?.comments),
+      },
+      permissions: {
+        canVote: Boolean(settings.permissions?.canVote),
+        canComment: Boolean(settings.permissions?.canComment),
+        canReview: Boolean(settings.permissions?.canReview),
+        canPropose: Boolean(settings.permissions?.canPropose),
+      },
+    },
+  });
+
+  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/settings`);
 }

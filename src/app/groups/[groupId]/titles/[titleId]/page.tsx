@@ -5,15 +5,12 @@ import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
-import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, requireTitleInGroup } from "@/lib/membership";
+import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { getServerTranslations } from "@/lib/i18n/server";
 import type {
   CommentsResponse,
-  GroupMembersResponse,
-  GroupsResponse,
   ReviewsResponse,
   TitlesResponse,
   UsersResponse,
@@ -32,35 +29,42 @@ export default async function TitleDetailPage({
   params: Promise<{ groupId: string; titleId: string }>;
 }) {
   const session = await getSession();
-  if (!session) redirect("/login");
-
   const { groupId, titleId } = await params;
-  const pb = await getSuperuserClient();
   const t = await getServerTranslations();
 
-  let membership: GroupMembersResponse;
+  let access;
   try {
-    membership = await requireMembership(groupId, session.id);
+    access = await resolveCircleAccess(groupId, session?.id);
     await requireTitleInGroup(titleId, groupId);
-  } catch (err) {
-    if (isNotFound(err)) notFound();
-    throw err;
+  } catch {
+    notFound();
   }
 
-  const [group, titleRecord, userRecord, comments] = await Promise.all([
-    pb.collection("groups").getOne<GroupsResponse>(groupId),
+  if (!access.isMember && !access.group.isPublic) {
+    if (!session) redirect("/login");
+    notFound();
+  }
+
+  const group = access.group;
+  const pb = await getSuperuserClient();
+
+  const [titleRecord, userRecord, comments] = await Promise.all([
     pb.collection("titles").getOne<TitlesResponse<TitleExpand>>(titleId, {
       expand: "addedBy,votes_via_title,reviews_via_title.user",
     }),
-    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
-    pb.collection("comments").getFullList<CommentsResponse<{ user?: UsersResponse }>>({
-      filter: pb.filter("title = {:titleId} && group = {:groupId}", {
-        titleId,
-        groupId,
-      }),
-      expand: "user",
-      sort: "createdAt",
-    }),
+    session?.id
+      ? pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null)
+      : Promise.resolve(null),
+    access.canViewComments
+      ? pb.collection("comments").getFullList<CommentsResponse<{ user?: UsersResponse }>>({
+          filter: pb.filter("title = {:titleId} && group = {:groupId}", {
+            titleId,
+            groupId,
+          }),
+          expand: "user",
+          sort: "createdAt",
+        })
+      : Promise.resolve([]),
   ]);
 
   if (titleRecord.group !== groupId) {
@@ -72,7 +76,9 @@ export default async function TitleDetailPage({
     (acc, v) => acc + (v.value === "up" ? 1 : -1),
     0,
   );
-  const userVote = votes.find((v) => v.user === session.id)?.value;
+  const userVote = session?.id
+    ? votes.find((v) => v.user === session.id)?.value
+    : undefined;
 
   const titleWithScore = {
     ...titleRecord,
@@ -80,13 +86,15 @@ export default async function TitleDetailPage({
     userVote,
   };
 
-  const currentUser = {
-    id: session.id,
-    email: session.email,
-    name: userRecord?.name,
-    avatarUrl: userRecord?.avatarUrl,
-    isAdmin: session.isAdmin,
-  };
+  const currentUser = session
+    ? {
+        id: session.id,
+        email: session.email,
+        name: userRecord?.name,
+        avatarUrl: userRecord?.avatarUrl,
+        isAdmin: session.isAdmin,
+      }
+    : null;
 
   async function handleVote(value: "up" | "down") {
     "use server";
@@ -134,12 +142,18 @@ export default async function TitleDetailPage({
         group={group}
         title={titleWithScore}
         comments={comments}
-        currentUserId={session.id}
-        currentUserRole={membership.role}
-        isAdmin={session.isAdmin}
-        currentUserName={currentUser.name}
-        currentUserEmail={currentUser.email}
-        currentUserAvatarUrl={currentUser.avatarUrl}
+        currentUserId={session?.id ?? ""}
+        currentUserRole={access.isOwner ? "owner" : access.isMember ? "member" : undefined}
+        isAdmin={session?.isAdmin}
+        currentUserName={currentUser?.name}
+        currentUserEmail={currentUser?.email}
+        currentUserAvatarUrl={currentUser?.avatarUrl}
+        isGuest={access.isGuest}
+        canViewReviews={access.canViewReviews}
+        canViewComments={access.canViewComments}
+        canVote={access.canVote}
+        canComment={access.canComment}
+        canReview={access.canReview}
         onVote={handleVote}
         onMarkConsumed={handleMarkConsumed}
         onUnmarkConsumed={handleUnmarkConsumed}

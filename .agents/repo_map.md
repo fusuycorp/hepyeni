@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 153
+Total mapped files: 158
 
-- `.agents/activity.jsonl` (10489 B)
+- `.agents/activity.jsonl` (12492 B)
 - `.agents/decisions.md` (7222 B)
-- `.agents/memory.md` (4869 B)
-- `.agents/repo_map.md` (16387 B)
+- `.agents/memory.md` (4925 B)
+- `.agents/repo_map.md` (16640 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -50,6 +50,11 @@ Total mapped files: 153
     * const existingField
     * const comments
     * const existingField
+- `pb_migrations/1755281100_group_guest_settings_schema.js` (909 B)
+    * const groups
+    * const isPublicField
+    * const guestSettingsField
+    * const groups
 - `plan.md` (3119 B)
 - `postcss.config.mjs` (94 B)
 - `public/file.svg` (391 B)
@@ -123,41 +128,48 @@ Total mapped files: 153
     * const pb
     * const userRecord
     * const currentUser
-- `src/app/groups/[groupId]/group-content-view.tsx` (31842 B)
+- `src/app/groups/[groupId]/group-content-view.tsx` (33561 B)
     * type TitleWithScore
     * interface GroupContentViewProps
     * export function GroupContentView
+    * const defaultTab
     * const t
     * const currentList
-    * const recommenderCounts
-- `src/app/groups/[groupId]/page.tsx` (8270 B)
+- `src/app/groups/[groupId]/page.tsx` (10789 B)
     * type TitleExpand
     * const session
-    * const pb
     * const t
+    * const group
+    * const pb
     * const commentCounts
-    * const currentMember
-- `src/app/groups/[groupId]/settings/page.tsx` (12021 B)
+- `src/app/groups/[groupId]/settings/guest-settings-form.tsx` (12834 B)
+    * interface GuestSettingsFormProps
+    * export function GuestSettingsForm
+    * const t
+    * const handleCopyLink
+    * const publicUrl
+    * const handleSave
+- `src/app/groups/[groupId]/settings/page.tsx` (12344 B)
     * const session
     * const pb
     * const t
     * const isOwner
     * const currentUser
     * const userName
-- `src/app/groups/[groupId]/titles/[titleId]/page.tsx` (4518 B)
+- `src/app/groups/[groupId]/titles/[titleId]/page.tsx` (4911 B)
     * type TitleExpand
     * const session
-    * const pb
     * const t
+    * const group
+    * const pb
     * const votes
-    * const score
-- `src/app/groups/[groupId]/titles/[titleId]/title-detail-view.tsx` (20084 B)
+- `src/app/groups/[groupId]/titles/[titleId]/title-detail-view.tsx` (21125 B)
     * type TitleWithScore
     * interface TitleDetailViewProps
     * export function TitleDetailView
+    * const defaultTab
     * const t
     * const locale
-    * const reviews
 - `src/app/groups/page.tsx` (7600 B)
     * const session
     * const t
@@ -195,11 +207,9 @@ Total mapped files: 153
 - `src/app/privacy/page.tsx` (10981 B)
     * export const metadata
     * const lastUpdated
-- `src/app/profile/page.tsx` (9278 B)
+- `src/app/profile/page.tsx` (9681 B)
     * const session
     * const pb
-    * const user
-    * const t
     * const currentUser
 - `src/app/reset-password/page.tsx` (4589 B)
     * const t
@@ -214,13 +224,20 @@ Total mapped files: 153
     * const isControlled
     * const open
     * const setOpen
+- `src/components/auth-method-badges.tsx` (8446 B)
+    * export function GoogleIcon
+    * export function AppleIcon
+    * export function PasswordIcon
+    * export function EmailOtpIcon
+    * export interface AuthMethodHeaderBadgesProps
+    * export function AuthMethodHeaderBadges
 - `src/components/bottom-nav.tsx` (1923 B)
     * export function BottomNav
     * const pathname
     * const t
     * const tabs
     * const active
-- `src/components/comment-thread.tsx` (20318 B)
+- `src/components/comment-thread.tsx` (20611 B)
     * export type OptimisticComment
     * export type DisplayComment
     * export interface CommentThreadProps
@@ -295,7 +312,7 @@ Total mapped files: 153
     * export function MediaBadge
     * const t
     * const Icon
-- `src/components/media-comments.tsx` (3669 B)
+- `src/components/media-comments.tsx` (3758 B)
     * interface MediaCommentsProps
     * export function MediaComments
     * const t
@@ -372,13 +389,13 @@ Total mapped files: 153
     * function TabsContent
 - `src/components/ui/textarea.tsx` (842 B)
     * function Textarea
-- `src/components/vote-control.tsx` (4895 B)
+- `src/components/vote-control.tsx` (5078 B)
     * type VoteValue
     * type VoteState
     * export function VoteControl
     * const t
+    * const effectiveDisabled
     * const delta
-    * function vote
 - `src/lib/actions/admin.ts` (4253 B)
     * const session
     * const callerId
@@ -386,23 +403,23 @@ Total mapped files: 153
     * const callerId
     * const pb
     * const pb
-- `src/lib/actions/auth.ts` (8355 B)
+- `src/lib/actions/auth.ts` (9150 B)
+    * export type UserAuthMethods
+    * const pb
+    * const externalAuths
+    * const oauthProviders
     * const pb
     * const methods
-    * const providers
-    * const pb
-    * const methods
-    * const diag
-- `src/lib/actions/comments.ts` (3716 B)
+- `src/lib/actions/comments.ts` (3993 B)
     * const session
+    * const access
     * const rawContent
     * const content
     * const pb
     * const rawParentId
-    * const cleanParentId
 - `src/lib/actions/diagnostics.ts` (429 B)
     * const session
-- `src/lib/actions/groups.ts` (9792 B)
+- `src/lib/actions/groups.ts` (10850 B)
     * const session
     * const name
     * const pb
@@ -415,22 +432,23 @@ Total mapped files: 153
     * const pb
     * const session
     * const pb
-- `src/lib/actions/reviews.ts` (1606 B)
+- `src/lib/actions/reviews.ts` (1732 B)
     * const session
+    * const access
     * const rating
     * const rawReview
     * const reviewText
     * const pb
-    * const existing
-- `src/lib/actions/titles.ts` (6414 B)
+- `src/lib/actions/titles.ts` (6699 B)
     * export type SearchTitlesResponse
     * const session
     * const cleanQuery
     * const results
     * const diag
     * const session
-- `src/lib/actions/votes.ts` (2258 B)
+- `src/lib/actions/votes.ts` (2380 B)
     * const session
+    * const access
     * const pb
     * const id
     * const existing
@@ -462,7 +480,7 @@ Total mapped files: 153
     * const t
     * const setLocale
     * export function useI18n
-- `src/lib/i18n/en.ts` (21532 B)
+- `src/lib/i18n/en.ts` (23503 B)
     * export const en
 - `src/lib/i18n/index.ts` (1744 B)
     * const dictionaries
@@ -476,9 +494,9 @@ Total mapped files: 153
     * const localeCookie
     * const locale
     * const locale
-- `src/lib/i18n/tr.ts` (23594 B)
+- `src/lib/i18n/tr.ts` (25846 B)
     * export const tr
-- `src/lib/i18n/types.ts` (12263 B)
+- `src/lib/i18n/types.ts` (13251 B)
     * export type Locale
     * export interface Translations
 - `src/lib/invite-code.ts` (263 B)
@@ -488,9 +506,12 @@ Total mapped files: 153
 - `src/lib/media-types.ts` (137 B)
     * export const MEDIA_TYPES
     * export type MediaType
-- `src/lib/membership.ts` (1933 B)
-    * const pb
-    * const membership
+- `src/lib/membership.ts` (5789 B)
+    * export interface CircleAccess
+    * export const DEFAULT_GUEST_SETTINGS
+    * export function evaluateCircleAccess
+    * const isPublic
+    * const settings
     * const pb
 - `src/lib/providers/google-books.ts` (5430 B)
     * type GoogleBooksItem
@@ -529,11 +550,12 @@ Total mapped files: 153
     * export interface MediaProvider
 - `src/lib/utils.ts` (166 B)
     * export function cn
-- `src/proxy.ts` (1200 B)
+- `src/proxy.ts` (1358 B)
     * const session
     * const origin
+    * const isPublicGroupRoute
     * export const config
-- `src/types/pocketbase-types.ts` (5811 B)
+- `src/types/pocketbase-types.ts` (6148 B)
     * export const Collections
     * export type Collections
     * export type IsoDateString
@@ -541,6 +563,13 @@ Total mapped files: 153
     * export type RecordIdString
     * export type FileNameString
 - `tasks.md` (2027 B)
+- `tests/auth-methods.test.ts` (3719 B)
+    * const authKeys
+    * function extractAuthMethods
+    * const oauthProviders
+    * const empty
+    * const googleUser
+    * const multiAuthUser
 - `tests/comments.test.ts` (7187 B)
     * const input
     * const maxContent
@@ -560,6 +589,13 @@ Total mapped files: 153
     * const entry
     * const recent
 - `tests/format.test.ts` (2015 B)
+- `tests/guest-management.test.ts` (12099 B)
+    * function createMockGroup
+    * function createMockMembership
+    * const group
+    * const membership
+    * const access
+    * const restrictedSettings
 - `tests/i18n-exhaustive.test.ts` (2306 B)
     * function compareObjects
     * const keysA
@@ -587,31 +623,3 @@ Total mapped files: 153
     * const landingKeys
     * const formattedEn
     * const formattedTr
-- `tests/media-types.test.ts` (1323 B)
-- `tests/membership.test.ts` (1541 B)
-    * const notFoundError
-    * const badRequest
-    * const serverError
-    * const genericError
-    * const uniqueError
-- `tests/origin.test.ts` (2167 B)
-    * const mockReq
-    * const origin
-    * const mockReq
-    * const origin
-    * const mockReq
-    * const origin
-- `tests/providers.test.ts` (2126 B)
-    * const types
-    * const provider
-    * const results
-    * const bookProvider
-    * const bookResults
-    * const musicProvider
-- `tests/recommender-filter.test.ts` (2428 B)
-    * const filterKeys
-    * const mockTitles
-    * const currentUserId
-    * const filterTitles
-    * const matchesType
-    * const matchesRecommender

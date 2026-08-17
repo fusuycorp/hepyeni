@@ -43,13 +43,22 @@ interface GroupContentViewProps {
   members: GroupMembersResponse<{ user?: UsersResponse }>[];
   proposed: TitleWithScore[];
   consumed: TitleWithScore[];
-  currentUserId: string;
+  currentUserId?: string;
   currentUserRole?: string;
   isAdmin?: boolean;
   currentUserName?: string;
   currentUserEmail?: string;
   currentUserAvatarUrl?: string;
   commentCounts: Record<string, number>;
+  isGuest?: boolean;
+  canViewBacklog?: boolean;
+  canViewFinished?: boolean;
+  canViewReviews?: boolean;
+  canViewComments?: boolean;
+  canVote?: boolean;
+  canComment?: boolean;
+  canReview?: boolean;
+  canPropose?: boolean;
   onVote: (titleId: string, value: "up" | "down") => Promise<void>;
   onMarkConsumed: (titleId: string) => Promise<void>;
   onUnmarkConsumed: (titleId: string) => Promise<void>;
@@ -69,13 +78,22 @@ export function GroupContentView({
   members,
   proposed,
   consumed,
-  currentUserId,
+  currentUserId = "",
   currentUserRole,
   isAdmin,
   currentUserName,
   currentUserEmail,
   currentUserAvatarUrl,
   commentCounts,
+  isGuest = false,
+  canViewBacklog = true,
+  canViewFinished = true,
+  canViewReviews = true,
+  canViewComments = true,
+  canVote = true,
+  canComment = true,
+  canReview = true,
+  canPropose = true,
   onVote,
   onMarkConsumed,
   onUnmarkConsumed,
@@ -84,7 +102,8 @@ export function GroupContentView({
   onDeleteComment,
   onFetchComments,
 }: GroupContentViewProps) {
-  const [activeTab, setActiveTab] = useState<"proposed" | "consumed">("proposed");
+  const defaultTab = !canViewBacklog && canViewFinished ? "consumed" : "proposed";
+  const [activeTab, setActiveTab] = useState<"proposed" | "consumed">(defaultTab);
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedRecommender, setSelectedRecommender] = useState<string>("all");
   const t = useTranslations();
@@ -154,67 +173,73 @@ export function GroupContentView({
         {/* Main Tabs (Up Next vs Consumed) & Media Types */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
-          <div
-            role="tablist"
-            aria-label={t.groups.contentViewAria}
-            className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
-          >
-            <button
-              type="button"
-              role="tab"
-              id="proposed-tab"
-              aria-selected={activeTab === "proposed"}
-              aria-controls="proposed-panel"
-              onClick={() => setActiveTab("proposed")}
-              className={cn(
-                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                activeTab === "proposed"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+          {(canViewBacklog || canViewFinished) && (
+            <div
+              role="tablist"
+              aria-label={t.groups.contentViewAria}
+              className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
             >
-              <Sparkles className="size-3.5 text-primary" />
-              <span>{t.media.upNext}</span>
-              <span
-                className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px]",
-                  activeTab === "proposed"
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {proposed.length}
-              </span>
-            </button>
+              {canViewBacklog && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="proposed-tab"
+                  aria-selected={activeTab === "proposed"}
+                  aria-controls="proposed-panel"
+                  onClick={() => setActiveTab("proposed")}
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    activeTab === "proposed"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Sparkles className="size-3.5 text-primary" />
+                  <span>{t.media.upNext}</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      activeTab === "proposed"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {proposed.length}
+                  </span>
+                </button>
+              )}
 
-            <button
-              type="button"
-              role="tab"
-              id="consumed-tab"
-              aria-selected={activeTab === "consumed"}
-              aria-controls="consumed-panel"
-              onClick={() => setActiveTab("consumed")}
-              className={cn(
-                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                activeTab === "consumed"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
+              {canViewFinished && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="consumed-tab"
+                  aria-selected={activeTab === "consumed"}
+                  aria-controls="consumed-panel"
+                  onClick={() => setActiveTab("consumed")}
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    activeTab === "consumed"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  <span>{t.media.finished}</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      activeTab === "consumed"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {consumed.length}
+                  </span>
+                </button>
               )}
-            >
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
-              <span>{t.media.finished}</span>
-              <span
-                className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px]",
-                  activeTab === "consumed"
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {consumed.length}
-              </span>
-            </button>
-          </div>
+            </div>
+          )}
 
           {/* Media Type Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
@@ -349,7 +374,8 @@ export function GroupContentView({
                           <VoteControl
                             score={title.score}
                             userVote={title.userVote}
-                            onVote={(val) => onVote(title.id, val)}
+                            disabled={!canVote}
+                            onVote={canVote ? (val) => onVote(title.id, val) : undefined}
                           />
                         </div>
 
@@ -402,24 +428,29 @@ export function GroupContentView({
                               </span>
                             </p>
                             <div className="flex items-center gap-1.5">
-                              <MediaComments
-                                titleId={title.id}
-                                groupId={group.id}
-                                titleName={title.title}
-                                initialCount={commentCounts[title.id] ?? 0}
-                                currentUserId={currentUserId}
-                                currentUserRole={currentUserRole}
-                                isAdmin={isAdmin}
-                                currentUserName={currentUserName}
-                                currentUserEmail={currentUserEmail}
-                                currentUserAvatarUrl={currentUserAvatarUrl}
-                                onAddComment={onAddComment}
-                                onDeleteComment={onDeleteComment}
-                                onFetchComments={onFetchComments}
-                              />
-                              <MarkConsumedButton
-                                onMark={() => onMarkConsumed(title.id)}
-                              />
+                              {canViewComments && (
+                                <MediaComments
+                                  titleId={title.id}
+                                  groupId={group.id}
+                                  titleName={title.title}
+                                  initialCount={commentCounts[title.id] ?? 0}
+                                  currentUserId={currentUserId}
+                                  currentUserRole={currentUserRole}
+                                  isAdmin={isAdmin}
+                                  currentUserName={currentUserName}
+                                  currentUserEmail={currentUserEmail}
+                                  currentUserAvatarUrl={currentUserAvatarUrl}
+                                  canComment={canComment}
+                                  onAddComment={onAddComment}
+                                  onDeleteComment={onDeleteComment}
+                                  onFetchComments={onFetchComments}
+                                />
+                              )}
+                              {!isGuest && (
+                                <MarkConsumedButton
+                                  onMark={() => onMarkConsumed(title.id)}
+                                />
+                              )}
                             </div>
                           </div>
                         </div>
@@ -464,14 +495,14 @@ export function GroupContentView({
                         <X className="size-3.5" />
                         <span>{t.groups.clearFilters}</span>
                       </Button>
-                    ) : (
+                    ) : canPropose ? (
                       <div className="mt-2">
                         <AddTitleDialog
                           groupId={group.id}
                           groupName={group.name}
                         />
                       </div>
-                    )
+                    ) : undefined
                   }
                 />
               )}
@@ -515,7 +546,7 @@ export function GroupContentView({
                               <div className="flex-1 min-w-0 space-y-1">
                                 <div className="flex items-center gap-1.5">
                                   <MediaBadge type={title.mediaType} size="sm" />
-                                  {avg !== null && (
+                                  {avg !== null && canViewReviews && (
                                     <div className="inline-flex items-center gap-1 text-xs font-semibold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                                       <Star className="size-3 fill-amber-500 text-amber-500" />
                                       <span>{avg.toFixed(1)}</span>
@@ -541,43 +572,50 @@ export function GroupContentView({
                               </div>
                             </div>
                             <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <MediaComments
-                                titleId={title.id}
-                                groupId={group.id}
-                                titleName={title.title}
-                                initialCount={commentCounts[title.id] ?? 0}
-                                currentUserId={currentUserId}
-                                currentUserRole={currentUserRole}
-                                isAdmin={isAdmin}
-                                currentUserName={currentUserName}
-                                currentUserEmail={currentUserEmail}
-                                currentUserAvatarUrl={currentUserAvatarUrl}
-                                onAddComment={onAddComment}
-                                onDeleteComment={onDeleteComment}
-                                onFetchComments={onFetchComments}
-                              />
-                              <MarkConsumedButton
-                                direction="unconsume"
-                                onMark={() => onUnmarkConsumed(title.id)}
-                              />
+                              {canViewComments && (
+                                <MediaComments
+                                  titleId={title.id}
+                                  groupId={group.id}
+                                  titleName={title.title}
+                                  initialCount={commentCounts[title.id] ?? 0}
+                                  currentUserId={currentUserId}
+                                  currentUserRole={currentUserRole}
+                                  isAdmin={isAdmin}
+                                  currentUserName={currentUserName}
+                                  currentUserEmail={currentUserEmail}
+                                  currentUserAvatarUrl={currentUserAvatarUrl}
+                                  canComment={canComment}
+                                  onAddComment={onAddComment}
+                                  onDeleteComment={onDeleteComment}
+                                  onFetchComments={onFetchComments}
+                                />
+                              )}
+                              {!isGuest && (
+                                <MarkConsumedButton
+                                  direction="unconsume"
+                                  onMark={() => onUnmarkConsumed(title.id)}
+                                />
+                              )}
                             </div>
                           </div>
 
                           {/* My Review Section */}
-                          <div className="p-3.5 rounded-xl bg-muted/30 border border-border/50">
-                            <p className="text-xs font-semibold text-foreground mb-2">
-                              {myReview ? t.reviews.yourRatingAndReview : t.reviews.rateThisTitle}
-                            </p>
-                            <ReviewForm
-                              defaultRating={myReview?.rating ?? 5}
-                              defaultText={myReview?.reviewText ?? ""}
-                              hasExisting={Boolean(myReview)}
-                              onSubmit={(formData) => onSubmitReview(title.id, formData)}
-                            />
-                          </div>
+                          {canReview && (
+                            <div className="p-3.5 rounded-xl bg-muted/30 border border-border/50">
+                              <p className="text-xs font-semibold text-foreground mb-2">
+                                {myReview ? t.reviews.yourRatingAndReview : t.reviews.rateThisTitle}
+                              </p>
+                              <ReviewForm
+                                defaultRating={myReview?.rating ?? 5}
+                                defaultText={myReview?.reviewText ?? ""}
+                                hasExisting={Boolean(myReview)}
+                                onSubmit={(formData) => onSubmitReview(title.id, formData)}
+                              />
+                            </div>
+                          )}
 
                           {/* Other Reviews */}
-                          {otherReviews.length > 0 && (
+                          {canViewReviews && otherReviews.length > 0 && (
                             <div className="space-y-2 pt-2 border-t">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 {t.reviews.groupReviews} ({otherReviews.length})
@@ -671,13 +709,15 @@ export function GroupContentView({
                     {t.groups.members} ({members.length})
                   </h3>
                 </div>
-                <Link
-                  href={`/groups/${group.id}/settings`}
-                  className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
-                >
-                  <Settings className="size-3.5" />
-                  <span>{t.common.manage}</span>
-                </Link>
+                {!isGuest && (
+                  <Link
+                    href={`/groups/${group.id}/settings`}
+                    className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
+                  >
+                    <Settings className="size-3.5" />
+                    <span>{t.common.manage}</span>
+                  </Link>
+                )}
               </div>
 
               <div className="space-y-2 pt-1">

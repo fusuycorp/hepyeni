@@ -24,12 +24,13 @@ interface MediaCommentsProps {
   groupId: string;
   titleName: string;
   initialCount: number;
-  currentUserId: string;
+  currentUserId?: string;
   currentUserRole?: string;
   isAdmin?: boolean;
   currentUserName?: string;
   currentUserEmail?: string;
   currentUserAvatarUrl?: string;
+  canComment?: boolean;
   onAddComment?: (
     titleId: string,
     formData: FormData,
@@ -46,12 +47,13 @@ export function MediaComments({
   groupId,
   titleName,
   initialCount,
-  currentUserId,
+  currentUserId = "",
   currentUserRole,
   isAdmin,
   currentUserName,
   currentUserEmail,
   currentUserAvatarUrl,
+  canComment = true,
   onAddComment,
   onDeleteComment,
   onFetchComments,
@@ -109,6 +111,7 @@ export function MediaComments({
               currentUserName={currentUserName}
               currentUserEmail={currentUserEmail}
               currentUserAvatarUrl={currentUserAvatarUrl}
+              canComment={canComment}
               onAddComment={onAddComment}
               onDeleteComment={onDeleteComment}
               onFetchComments={onFetchComments}

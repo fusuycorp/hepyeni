@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, requireTitleInGroup } from "@/lib/membership";
+import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 
 export async function submitReview(
   titleId: string,
@@ -15,7 +15,10 @@ export async function submitReview(
   const session = await getSession();
   if (!session) redirect("/login");
 
-  await requireMembership(groupId, session.id);
+  const access = await resolveCircleAccess(groupId, session.id);
+  if (!access.canReview) {
+    throw new Error("You do not have permission to review in this circle");
+  }
   await requireTitleInGroup(titleId, groupId);
 
   const rating = Number(formData.get("rating"));

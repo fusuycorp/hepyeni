@@ -1,7 +1,7 @@
 # Project Memory
 
 ## Active Epics & Tasks
-- **Current State**: Shipped patient, slow-living Public Landing Page at `/` (warm literary aesthetic, unhurried typography, interactive circle backlog card preview, public proxy routing), Recommended Title Detail Page (`/groups/[groupId]/titles/[titleId]`), nested comment replies (+1 depth max constraint with `parentId` relations and root-level attachment enforcement), modernized "Mark as Finished" / "Bitti Olarak İşaretle" consumer-grade UX copy, Custom Media recommendation mode, Recommender Filter chips, and dedicated REST search API endpoint (`GET /api/titles/search`). Full i18n parity across TR and EN maintained with 99 automated unit tests passing.
+- **Current State**: Shipped Circle Guest Management & Granular Public Access Controls (`isPublic` + `guestSettings` for visibility & permissions), Active Login Types Display on Profile (`getUserAuthMethods` with Google, Apple, Password, and Email OTP status cards), slow-living Public Landing Page at `/`, Recommended Title Detail Page (`/groups/[groupId]/titles/[titleId]`), nested comment replies (+1 depth max constraint with `parentId` relations and root-level attachment enforcement), modernized "Mark as Finished" / "Bitti Olarak İşaretle" consumer-grade UX copy, Custom Media recommendation mode, and Recommender Filter chips. Full i18n parity across TR and EN maintained with 119 automated unit tests passing.
 - **Core Stack**: Next.js (App Router, Server Actions, Route Handlers), TailwindCSS, Base UI, PocketBase (SQLite backend), Bun runtime.
 
 
