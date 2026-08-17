@@ -21,23 +21,45 @@ import { logDiagnostic } from "@/lib/errors";
 // submitReview), these two throw plain errors instead of redirecting; the
 // client is responsible for navigating on success/auth failure.
 
+export type SearchTitlesResponse = {
+  success: boolean;
+  results: NormalizedSearchResult[];
+  error?: string;
+  traceId?: string;
+};
+
 export async function searchTitles(
   mediaType: MediaType,
   query: string,
-): Promise<NormalizedSearchResult[]> {
+): Promise<SearchTitlesResponse> {
   const session = await getSession();
-  if (!session) throw new Error("Please sign in again");
+  if (!session) {
+    return { success: false, results: [], error: "Please sign in again" };
+  }
   const cleanQuery = query.trim();
-  if (!cleanQuery) return [];
-  if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
+  if (!cleanQuery) return { success: true, results: [] };
+  if (!MEDIA_TYPES.includes(mediaType)) {
+    return { success: false, results: [], error: "Invalid media type" };
+  }
 
   try {
-    return await getProvider(mediaType).search(cleanQuery);
+    const results = await getProvider(mediaType).search(cleanQuery);
+    return { success: true, results };
   } catch (err) {
-    logDiagnostic(err, { action: "searchTitles", mediaType, query: cleanQuery });
-    throw new Error("Search failed. Please try again in a few moments.");
+    const diag = logDiagnostic(err, {
+      action: "searchTitles",
+      mediaType,
+      query: cleanQuery,
+    });
+    return {
+      success: false,
+      results: [],
+      error: "Search failed. Please try again in a few moments.",
+      traceId: diag.traceId,
+    };
   }
 }
+
 
 
 export async function addTitle(

@@ -1,3 +1,4 @@
+import { logDiagnostic } from "@/lib/errors";
 import type { MediaProvider, NormalizedSearchResult } from "./types";
 
 type SpotifyAlbum = {
@@ -8,11 +9,15 @@ type SpotifyAlbum = {
   release_date?: string;
 };
 
+type ItunesAlbumResult = {
+  collectionId: number;
+  collectionName: string;
+  artistName?: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+};
+
 let cachedToken: { value: string; expiresAt: number } | null = null;
-// Caches the in-flight fetch itself (not just the resolved token) so
-// concurrent searches arriving before the first token request resolves
-// share one request instead of each firing their own against Spotify's
-// client-credentials quota.
 let pendingToken: Promise<string> | null = null;
 
 async function fetchAccessToken(): Promise<string> {
@@ -56,36 +61,85 @@ async function getAccessToken(): Promise<string> {
   return pendingToken;
 }
 
+async function searchItunesMusic(query: string): Promise<NormalizedSearchResult[]> {
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", query);
+  url.searchParams.set("media", "music");
+  url.searchParams.set("entity", "album");
+  url.searchParams.set("limit", "12");
+
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "User-Agent": "Titirek/1.0 (https://hepyeni.net)",
+    },
+    signal: AbortSignal.timeout(8000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`iTunes music search failed: ${res.status}`);
+  }
+
+  const data = (await res.json()) as { results?: ItunesAlbumResult[] };
+
+  return (data.results ?? []).map((item) => ({
+    externalId: String(item.collectionId),
+    externalSource: "itunes",
+    title: item.collectionName || "Untitled",
+    creator: item.artistName,
+    coverUrl: item.artworkUrl100?.replace("100x100", "600x600"),
+    metadata: { releaseDate: item.releaseDate },
+  }));
+}
+
 export const spotifyProvider: MediaProvider = {
   mediaType: "music",
   async search(query): Promise<NormalizedSearchResult[]> {
-    const token = await getAccessToken();
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
 
-    const url = new URL("https://api.spotify.com/v1/search");
-    url.searchParams.set("q", query);
-    url.searchParams.set("type", "album");
-    url.searchParams.set("limit", "12");
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) {
-      throw new Error(`Spotify search failed: ${res.status}`);
+    if (clientId && clientSecret) {
+      try {
+        const token = await getAccessToken();
+        const url = new URL("https://api.spotify.com/v1/search");
+        url.searchParams.set("q", cleanQuery);
+        url.searchParams.set("type", "album");
+        url.searchParams.set("limit", "12");
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (res.ok) {
+          const data = (await res.json()) as {
+            albums?: { items: SpotifyAlbum[] };
+          };
+          const results = (data.albums?.items ?? []).map((album) => ({
+            externalId: album.id,
+            externalSource: "spotify",
+            title: album.name,
+            creator: album.artists?.map((a) => a.name).join(", "),
+            coverUrl: album.images?.[0]?.url,
+            metadata: { releaseDate: album.release_date },
+          }));
+          if (results.length > 0) return results;
+        }
+      } catch (err) {
+        logDiagnostic(err, {
+          action: "spotify:search",
+          query: cleanQuery,
+          note: "Falling back to iTunes music search",
+        });
+      }
     }
 
-    const data = (await res.json()) as {
-      albums?: { items: SpotifyAlbum[] };
-    };
-
-    return (data.albums?.items ?? []).map((album) => ({
-      externalId: album.id,
-      externalSource: "spotify",
-      title: album.name,
-      creator: album.artists?.map((a) => a.name).join(", "),
-      coverUrl: album.images?.[0]?.url,
-      metadata: { releaseDate: album.release_date },
-    }));
+    // Public zero-config fallback via iTunes Music Search
+    return searchItunesMusic(cleanQuery);
   },
 };
+

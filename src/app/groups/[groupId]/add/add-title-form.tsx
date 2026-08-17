@@ -44,8 +44,13 @@ export function AddTitleForm({
 
     startSearch(async () => {
       try {
-        const data = await searchTitles(mediaType, query);
-        setResults(data);
+        const res = await searchTitles(mediaType, query);
+        if (!res.success) {
+          toast.error(res.error || t.titles.searchFailed);
+          setResults([]);
+        } else {
+          setResults(res.results);
+        }
         setHasSearched(true);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t.titles.searchFailed);
@@ -54,6 +59,7 @@ export function AddTitleForm({
       }
     });
   }
+
 
   function handleAdd(result: NormalizedSearchResult) {
     setAddingId(result.externalId);

@@ -1,3 +1,4 @@
+import { logDiagnostic } from "@/lib/errors";
 import type { MediaProvider, NormalizedSearchResult } from "./types";
 
 type TmdbResult = {
@@ -10,6 +11,55 @@ type TmdbResult = {
   poster_path?: string | null;
 };
 
+type ItunesVideoResult = {
+  trackId?: number;
+  collectionId?: number;
+  trackName?: string;
+  collectionName?: string;
+  artistName?: string;
+  artworkUrl100?: string;
+  releaseDate?: string;
+  longDescription?: string;
+  shortDescription?: string;
+};
+
+async function searchItunesVideo(
+  query: string,
+  mediaType: "movie" | "tv",
+): Promise<NormalizedSearchResult[]> {
+  const url = new URL("https://itunes.apple.com/search");
+  url.searchParams.set("term", query);
+  url.searchParams.set("media", mediaType === "movie" ? "movie" : "tvShow");
+  url.searchParams.set("entity", mediaType === "movie" ? "movie" : "tvSeason");
+  url.searchParams.set("limit", "12");
+
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "User-Agent": "Titirek/1.0 (https://hepyeni.net)",
+    },
+    signal: AbortSignal.timeout(8000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`iTunes ${mediaType} search failed with HTTP ${res.status}`);
+  }
+
+  const data = (await res.json()) as { results?: ItunesVideoResult[] };
+
+  return (data.results ?? []).map((item) => ({
+    externalId: String(item.trackId || item.collectionId || Math.random()),
+    externalSource: "itunes",
+    title: item.trackName || item.collectionName || "Untitled",
+    creator: item.artistName,
+    coverUrl: item.artworkUrl100?.replace("100x100", "600x600"),
+    metadata: {
+      overview: item.longDescription || item.shortDescription,
+      releaseDate: item.releaseDate,
+    },
+  }));
+}
+
 function makeTmdbProvider(
   endpoint: "movie" | "tv",
   mediaType: "movie" | "tv",
@@ -17,43 +67,53 @@ function makeTmdbProvider(
   return {
     mediaType,
     async search(query): Promise<NormalizedSearchResult[]> {
+      const cleanQuery = query.trim();
+      if (!cleanQuery) return [];
+
       const apiKey = process.env.TMDB_API_KEY;
-      if (!apiKey) throw new Error("TMDB_API_KEY is not configured");
+      if (apiKey) {
+        try {
+          const url = new URL(`https://api.themoviedb.org/3/search/${endpoint}`);
+          url.searchParams.set("query", cleanQuery);
+          url.searchParams.set("include_adult", "false");
 
-      const url = new URL(`https://api.themoviedb.org/3/search/${endpoint}`);
-      url.searchParams.set("query", query);
-      url.searchParams.set("include_adult", "false");
+          const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            cache: "no-store",
+            signal: AbortSignal.timeout(8000),
+          });
 
-      // Sent as a Bearer token (TMDB's v4 "API Read Access Token"), not the
-      // `?api_key=` query param — keeps the credential out of URLs that get
-      // recorded by request logging / APM tracing.
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        cache: "no-store",
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) {
-        throw new Error(`TMDB search failed: ${res.status}`);
+          if (res.ok) {
+            const data = (await res.json()) as { results?: TmdbResult[] };
+            return (data.results ?? []).map((item) => ({
+              externalId: String(item.id),
+              externalSource: "tmdb",
+              title: item.title ?? item.name ?? "Untitled",
+              creator: undefined,
+              coverUrl: item.poster_path
+                ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
+                : undefined,
+              metadata: {
+                overview: item.overview,
+                releaseDate: item.release_date ?? item.first_air_date,
+              },
+            }));
+          }
+        } catch (err) {
+          logDiagnostic(err, {
+            action: `tmdb:${endpoint}:search`,
+            query: cleanQuery,
+            note: `Falling back to iTunes ${mediaType} search`,
+          });
+        }
       }
 
-      const data = (await res.json()) as { results?: TmdbResult[] };
-
-      return (data.results ?? []).map((item) => ({
-        externalId: String(item.id),
-        externalSource: "tmdb",
-        title: item.title ?? item.name ?? "Untitled",
-        creator: undefined,
-        coverUrl: item.poster_path
-          ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
-          : undefined,
-        metadata: {
-          overview: item.overview,
-          releaseDate: item.release_date ?? item.first_air_date,
-        },
-      }));
+      // Zero-config public fallback via iTunes
+      return searchItunesVideo(cleanQuery, mediaType);
     },
   };
 }
 
 export const tmdbMovieProvider = makeTmdbProvider("movie", "movie");
 export const tmdbTvProvider = makeTmdbProvider("tv", "tv");
+

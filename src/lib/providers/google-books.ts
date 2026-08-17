@@ -29,6 +29,9 @@ async function searchOpenLibrary(query: string): Promise<NormalizedSearchResult[
 
   const res = await fetch(url, {
     cache: "no-store",
+    headers: {
+      "User-Agent": "Titirek/1.0 (https://hepyeni.net; contact@titirek.app)",
+    },
     signal: AbortSignal.timeout(8000),
   });
 
@@ -37,6 +40,7 @@ async function searchOpenLibrary(query: string): Promise<NormalizedSearchResult[
   }
 
   const data = (await res.json()) as { docs?: OpenLibraryDoc[] };
+
 
   return (data.docs ?? []).map((doc) => ({
     externalId: doc.key.replace("/works/", ""),
@@ -74,8 +78,12 @@ export const googleBooksProvider: MediaProvider = {
     try {
       const res = await fetch(url, {
         cache: "no-store",
+        headers: {
+          "User-Agent": "Titirek/1.0 (https://hepyeni.net)",
+        },
         signal: AbortSignal.timeout(8000),
       });
+
 
       if (!res.ok) {
         throw new Error(`Google Books API HTTP ${res.status}`);

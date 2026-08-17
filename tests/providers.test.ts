@@ -20,9 +20,13 @@ describe("Media Providers Registry", () => {
     expect(isProviderAvailable("podcast")).toBe(true);
   });
 
-  it("handles empty query strings cleanly", async () => {
-    // Google Books search returns empty or results structure
-    const provider = getProvider("book");
-    expect(provider.mediaType).toBe("book");
+  it("handles empty query strings cleanly across all providers", async () => {
+    const types = ["book", "movie", "tv", "music", "podcast"] as const;
+    for (const type of types) {
+      const provider = getProvider(type);
+      const results = await provider.search("   ");
+      expect(results).toEqual([]);
+    }
   });
 });
+
