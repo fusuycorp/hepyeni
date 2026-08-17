@@ -56,4 +56,6 @@ export async function voteOnTitle(
   }
 
   revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/titles/${titleId}`);
 }
+

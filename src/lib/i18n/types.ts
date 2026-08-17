@@ -20,6 +20,11 @@ export interface Translations {
     addFailed: string;
     deleted: string;
     deleteFailed: string;
+    reply: string;
+    replyingTo: string;
+    cancelReply: string;
+    repliesCount: string;
+    replyPlaceholder: string;
   };
   common: {
     appName: string;
@@ -93,6 +98,19 @@ export interface Translations {
     markConsumedFailed: string;
     unmarkConsumedFailed: string;
     pending: string;
+    viewDetails: string;
+    recommendedBy: string;
+    synopsis: string;
+    noSynopsis: string;
+    releaseDate: string;
+    publishedYear: string;
+    pageCount: string;
+    externalSource: string;
+    backToCircle: string;
+    copyMediaLink: string;
+    mediaLinkCopied: string;
+    mediaScore: string;
+    mediaStatus: string;
   };
   auth: {
     title: string;
@@ -433,6 +451,47 @@ export interface Translations {
     hideTechnicalDetails: string;
     troubleshoot: string;
     errorIdLabel: string;
+  };
+  landing: {
+    heroBadge: string;
+    heroTitle: string;
+    heroSubtitle: string;
+    getStarted: string;
+    signIn: string;
+    goToCircles: string;
+    welcomeBack: string;
+    previewTitle: string;
+    previewCreator: string;
+    previewNote: string;
+    previewBadge: string;
+    previewScore: string;
+    previewReview: string;
+    previewReviewer: string;
+    philosophyTitle: string;
+    philosophyText: string;
+    featuresHeading: string;
+    featuresSubtitle: string;
+    feature1Title: string;
+    feature1Desc: string;
+    feature2Title: string;
+    feature2Desc: string;
+    feature3Title: string;
+    feature3Desc: string;
+    feature4Title: string;
+    feature4Desc: string;
+    stepsHeading: string;
+    step1Title: string;
+    step1Desc: string;
+    step2Title: string;
+    step2Desc: string;
+    step3Title: string;
+    step3Desc: string;
+    ctaTitle: string;
+    ctaSubtitle: string;
+    ctaButton: string;
+    mediaTypesHeadline: string;
+    mediaTypesDesc: string;
+    joinWithCode: string;
   };
 }
 

@@ -354,12 +354,18 @@ export function GroupContentView({
                         </div>
 
                         {/* Cover Image */}
-                        <MediaCover
-                          src={title.coverUrl}
-                          alt={title.title}
-                          size="md"
-                          className="shrink-0 rounded-lg"
-                        />
+                        <Link
+                          href={`/groups/${group.id}/titles/${title.id}`}
+                          className="shrink-0 transition-transform hover:scale-105"
+                          aria-label={title.title}
+                        >
+                          <MediaCover
+                            src={title.coverUrl}
+                            alt={title.title}
+                            size="md"
+                            className="rounded-lg shadow-xs"
+                          />
+                        </Link>
 
                         {/* Title Details */}
                         <div className="flex-1 min-w-0 space-y-1.5">
@@ -373,9 +379,14 @@ export function GroupContentView({
                           </div>
 
                           <div>
-                            <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight leading-snug line-clamp-2">
-                              {title.title}
-                            </h3>
+                            <Link
+                              href={`/groups/${group.id}/titles/${title.id}`}
+                              className="group/title inline-block"
+                            >
+                              <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight leading-snug line-clamp-2 group-hover/title:text-primary transition-colors">
+                                {title.title}
+                              </h3>
+                            </Link>
                             {title.creator && (
                               <p className="text-xs text-muted-foreground font-medium line-clamp-1 mt-0.5">
                                 {title.creator}
@@ -489,12 +500,18 @@ export function GroupContentView({
                           {/* Title Header */}
                           <div className="flex items-start justify-between gap-3 sm:gap-4">
                             <div className="flex items-start gap-3 sm:gap-4 min-w-0">
-                              <MediaCover
-                                src={title.coverUrl}
-                                alt={title.title}
-                                size="md"
-                                className="shrink-0"
-                              />
+                              <Link
+                                href={`/groups/${group.id}/titles/${title.id}`}
+                                className="shrink-0 transition-transform hover:scale-105"
+                                aria-label={title.title}
+                              >
+                                <MediaCover
+                                  src={title.coverUrl}
+                                  alt={title.title}
+                                  size="md"
+                                  className="rounded-lg shadow-xs"
+                                />
+                              </Link>
                               <div className="flex-1 min-w-0 space-y-1">
                                 <div className="flex items-center gap-1.5">
                                   <MediaBadge type={title.mediaType} size="sm" />
@@ -508,9 +525,14 @@ export function GroupContentView({
                                     </div>
                                   )}
                                 </div>
-                                <h3 className="text-base font-semibold text-foreground tracking-tight leading-snug">
-                                  {title.title}
-                                </h3>
+                                <Link
+                                  href={`/groups/${group.id}/titles/${title.id}`}
+                                  className="group/title inline-block"
+                                >
+                                  <h3 className="text-base font-semibold text-foreground tracking-tight leading-snug group-hover/title:text-primary transition-colors">
+                                    {title.title}
+                                  </h3>
+                                </Link>
                                 {title.creator && (
                                   <p className="text-xs text-muted-foreground">
                                     {title.creator}

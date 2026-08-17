@@ -29,3 +29,45 @@ export function canDeleteComment({
   if (isAdmin === true) return true;
   return false;
 }
+
+export type CommentNode<T> = T & {
+  replies: CommentNode<T>[];
+};
+
+export function organizeCommentsTree<
+  T extends { id: string; parentId?: string | null; createdAt: string }
+>(flatComments: T[]): CommentNode<T>[] {
+  const rootComments: CommentNode<T>[] = [];
+  const rootMap = new Map<string, CommentNode<T>>();
+
+  // First pass: collect top-level comments (sorted chronologically)
+  const sorted = [...flatComments].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+
+  for (const c of sorted) {
+    if (!c.parentId) {
+      const node: CommentNode<T> = { ...c, replies: [] };
+      rootComments.push(node);
+      rootMap.set(c.id, node);
+    }
+  }
+
+  // Second pass: attach replies to their parent (enforcing +1 depth max)
+  for (const c of sorted) {
+    if (c.parentId) {
+      const parent = rootMap.get(c.parentId);
+      if (parent) {
+        parent.replies.push({ ...c, replies: [] });
+      } else {
+        // Fallback: If parent not found among roots (e.g. orphan), treat as root
+        const node: CommentNode<T> = { ...c, parentId: undefined, replies: [] };
+        rootComments.push(node);
+        rootMap.set(c.id, node);
+      }
+    }
+  }
+
+  return rootComments;
+}
+

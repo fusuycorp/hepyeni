@@ -60,6 +60,7 @@ export type CommentsRecord = {
   createdAt: IsoAutoDateString;
   group: RecordIdString;
   id: string;
+  parentId?: RecordIdString;
   title: RecordIdString;
   user: RecordIdString;
 };

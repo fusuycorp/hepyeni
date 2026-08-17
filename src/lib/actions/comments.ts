@@ -24,6 +24,26 @@ export async function addComment(
   const content = validateCommentContent(rawContent);
 
   const pb = await getSuperuserClient();
+
+  const rawParentId = formData.get("parentId");
+  let parentId: string | null = null;
+  if (rawParentId && typeof rawParentId === "string" && rawParentId.trim()) {
+    const cleanParentId = rawParentId.trim();
+    try {
+      const parent = await pb
+        .collection("comments")
+        .getOne<CommentsResponse>(cleanParentId);
+      if (parent.title !== titleId || parent.group !== groupId) {
+        throw new Error("Invalid parent comment");
+      }
+      // Enforce +1 depth max: If parent is already a reply, attach to its root parent
+      parentId = parent.parentId || parent.id;
+    } catch (err) {
+      if (isNotFound(err)) throw new Error("Parent comment not found");
+      throw err;
+    }
+  }
+
   const comment = await pb
     .collection("comments")
     .create<CommentsResponse<{ user?: UsersResponse }>>(
@@ -32,11 +52,13 @@ export async function addComment(
         user: session.id,
         group: groupId,
         content,
+        parentId,
       },
       { expand: "user" },
     );
 
   revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/titles/${titleId}`);
   revalidatePath("/activity");
 
   return comment;
@@ -95,5 +117,7 @@ export async function deleteComment(commentId: string, groupId: string) {
   await pb.collection("comments").delete(commentId);
 
   revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/titles/${comment.title}`);
   revalidatePath("/activity");
 }
+

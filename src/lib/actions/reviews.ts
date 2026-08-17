@@ -48,4 +48,6 @@ export async function submitReview(
   }
 
   revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/titles/${titleId}`);
 }
+

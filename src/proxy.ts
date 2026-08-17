@@ -14,6 +14,9 @@ export default async function proxy(req: NextRequest) {
   const origin = getRequestOrigin(req);
 
   if (!session) {
+    if (req.nextUrl.pathname === "/") {
+      return;
+    }
     if (req.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

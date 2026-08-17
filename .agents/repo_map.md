@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 145
+Total mapped files: 153
 
-- `.agents/activity.jsonl` (8587 B)
+- `.agents/activity.jsonl` (10489 B)
 - `.agents/decisions.md` (7222 B)
-- `.agents/memory.md` (4373 B)
-- `.agents/repo_map.md` (15457 B)
+- `.agents/memory.md` (4869 B)
+- `.agents/repo_map.md` (16387 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -45,6 +45,11 @@ Total mapped files: 145
     * const titles
     * const comments
     * const collection
+- `pb_migrations/1755281000_comment_replies_schema.js` (862 B)
+    * const comments
+    * const existingField
+    * const comments
+    * const existingField
 - `plan.md` (3119 B)
 - `postcss.config.mjs` (94 B)
 - `public/file.svg` (391 B)
@@ -118,7 +123,7 @@ Total mapped files: 145
     * const pb
     * const userRecord
     * const currentUser
-- `src/app/groups/[groupId]/group-content-view.tsx` (30555 B)
+- `src/app/groups/[groupId]/group-content-view.tsx` (31842 B)
     * type TitleWithScore
     * interface GroupContentViewProps
     * export function GroupContentView
@@ -139,6 +144,20 @@ Total mapped files: 145
     * const isOwner
     * const currentUser
     * const userName
+- `src/app/groups/[groupId]/titles/[titleId]/page.tsx` (4518 B)
+    * type TitleExpand
+    * const session
+    * const pb
+    * const t
+    * const votes
+    * const score
+- `src/app/groups/[groupId]/titles/[titleId]/title-detail-view.tsx` (20084 B)
+    * type TitleWithScore
+    * interface TitleDetailViewProps
+    * export function TitleDetailView
+    * const t
+    * const locale
+    * const reviews
 - `src/app/groups/page.tsx` (7600 B)
     * const session
     * const t
@@ -152,6 +171,13 @@ Total mapped files: 145
     * const t
     * const joinedId
 - `src/app/invite/[code]/page.tsx` (8639 B)
+- `src/app/landing-view.tsx` (24046 B)
+    * interface LandingViewProps
+    * export function LandingView
+    * const t
+    * const locale
+    * const mediaTypes
+    * const Icon
 - `src/app/layout.tsx` (1445 B)
     * const geistSans
     * const geistMono
@@ -162,8 +188,10 @@ Total mapped files: 145
     * const session
     * const ERROR_MESSAGES
     * const NOTICE_MESSAGES
-- `src/app/page.tsx` (223 B)
+- `src/app/page.tsx` (832 B)
     * const session
+    * const pb
+    * const currentUser
 - `src/app/privacy/page.tsx` (10981 B)
     * export const metadata
     * const lastUpdated
@@ -192,6 +220,13 @@ Total mapped files: 145
     * const t
     * const tabs
     * const active
+- `src/components/comment-thread.tsx` (20318 B)
+    * export type OptimisticComment
+    * export type DisplayComment
+    * export interface CommentThreadProps
+    * export function CommentThread
+    * const formRef
+    * const textareaRef
 - `src/components/confirm-action-button.tsx` (2931 B)
     * export function ConfirmActionButton
     * const router
@@ -247,11 +282,12 @@ Total mapped files: 145
     * const t
     * const navItems
     * const userInitials
-- `src/components/mark-consumed-button.tsx` (1117 B)
+- `src/components/mark-consumed-button.tsx` (1725 B)
     * export function MarkConsumedButton
     * const t
     * const label
     * const errorMessage
+    * const Icon
 - `src/components/media-badge.tsx` (1775 B)
     * interface MediaBadgeProps
     * const MEDIA_ICONS
@@ -259,13 +295,10 @@ Total mapped files: 145
     * export function MediaBadge
     * const t
     * const Icon
-- `src/components/media-comments.tsx` (13256 B)
-    * type OptimisticComment
-    * type DisplayComment
+- `src/components/media-comments.tsx` (3669 B)
     * interface MediaCommentsProps
     * export function MediaComments
-    * const formRef
-    * const listRef
+    * const t
 - `src/components/media-cover.tsx` (1465 B)
     * const SIZES
     * export function MediaCover
@@ -360,13 +393,13 @@ Total mapped files: 145
     * const pb
     * const methods
     * const diag
-- `src/lib/actions/comments.ts` (2863 B)
+- `src/lib/actions/comments.ts` (3716 B)
     * const session
     * const rawContent
     * const content
     * const pb
-    * const comment
-    * const session
+    * const rawParentId
+    * const cleanParentId
 - `src/lib/actions/diagnostics.ts` (429 B)
     * const session
 - `src/lib/actions/groups.ts` (9792 B)
@@ -382,21 +415,21 @@ Total mapped files: 145
     * const pb
     * const session
     * const pb
-- `src/lib/actions/reviews.ts` (1547 B)
+- `src/lib/actions/reviews.ts` (1606 B)
     * const session
     * const rating
     * const rawReview
     * const reviewText
     * const pb
     * const existing
-- `src/lib/actions/titles.ts` (6297 B)
+- `src/lib/actions/titles.ts` (6414 B)
     * export type SearchTitlesResponse
     * const session
     * const cleanQuery
     * const results
     * const diag
     * const session
-- `src/lib/actions/votes.ts` (2199 B)
+- `src/lib/actions/votes.ts` (2258 B)
     * const session
     * const pb
     * const id
@@ -404,10 +437,13 @@ Total mapped files: 145
 - `src/lib/admin.ts` (402 B)
     * const pb
     * const user
-- `src/lib/comments.ts` (805 B)
+- `src/lib/comments.ts` (2033 B)
     * export function validateCommentContent
     * const content
     * export function canDeleteComment
+    * export type CommentNode
+    * export function organizeCommentsTree
+    * const rootComments
 - `src/lib/errors/index.ts` (2397 B)
     * export type DiagnosticEntry
     * const MAX_DIAGNOSTICS
@@ -426,7 +462,7 @@ Total mapped files: 145
     * const t
     * const setLocale
     * export function useI18n
-- `src/lib/i18n/en.ts` (18069 B)
+- `src/lib/i18n/en.ts` (21532 B)
     * export const en
 - `src/lib/i18n/index.ts` (1744 B)
     * const dictionaries
@@ -440,9 +476,9 @@ Total mapped files: 145
     * const localeCookie
     * const locale
     * const locale
-- `src/lib/i18n/tr.ts` (19907 B)
+- `src/lib/i18n/tr.ts` (23594 B)
     * export const tr
-- `src/lib/i18n/types.ts` (10785 B)
+- `src/lib/i18n/types.ts` (12263 B)
     * export type Locale
     * export interface Translations
 - `src/lib/invite-code.ts` (263 B)
@@ -493,11 +529,11 @@ Total mapped files: 145
     * export interface MediaProvider
 - `src/lib/utils.ts` (166 B)
     * export function cn
-- `src/proxy.ts` (1140 B)
+- `src/proxy.ts` (1200 B)
     * const session
     * const origin
     * export const config
-- `src/types/pocketbase-types.ts` (5782 B)
+- `src/types/pocketbase-types.ts` (5811 B)
     * export const Collections
     * export type Collections
     * export type IsoDateString
@@ -505,13 +541,13 @@ Total mapped files: 145
     * export type RecordIdString
     * export type FileNameString
 - `tasks.md` (2027 B)
-- `tests/comments.test.ts` (2980 B)
+- `tests/comments.test.ts` (7187 B)
     * const input
     * const maxContent
     * const tooLong
+    * const multiline
+    * const turkishText
     * const authorId
-    * const otherUserId
-    * const ownerId
 - `tests/custom-titles.test.ts` (2073 B)
     * const customKeys
     * const getRoleLabel
@@ -524,6 +560,13 @@ Total mapped files: 145
     * const entry
     * const recent
 - `tests/format.test.ts` (2015 B)
+- `tests/i18n-exhaustive.test.ts` (2306 B)
+    * function compareObjects
+    * const keysA
+    * const keysB
+    * const currentPath
+    * const valA
+    * const valB
 - `tests/i18n.test.ts` (4730 B)
     * function secondsAgo
     * const iso
@@ -540,6 +583,10 @@ Total mapped files: 145
     * const origin
     * const expectedUrl
     * const raw
+- `tests/landing.test.ts` (1971 B)
+    * const landingKeys
+    * const formattedEn
+    * const formattedTr
 - `tests/media-types.test.ts` (1323 B)
 - `tests/membership.test.ts` (1541 B)
     * const notFoundError
@@ -568,11 +615,3 @@ Total mapped files: 145
     * const filterTitles
     * const matchesType
     * const matchesRecommender
-- `tests/vote-id.test.ts` (1142 B)
-    * const id
-    * const id1
-    * const id2
-    * const id1
-    * const id2
-    * const id3
-- `tsconfig.json` (670 B)

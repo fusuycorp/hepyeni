@@ -180,6 +180,7 @@ export async function markConsumed(titleId: string, groupId: string) {
   });
 
   revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/titles/${titleId}`);
 }
 
 export async function unmarkConsumed(titleId: string, groupId: string) {
@@ -196,4 +197,6 @@ export async function unmarkConsumed(titleId: string, groupId: string) {
   });
 
   revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}/titles/${titleId}`);
 }
+
