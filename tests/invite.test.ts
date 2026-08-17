@@ -8,7 +8,7 @@ describe("Invite System & Translations", () => {
     const trKeys = Object.keys(tr.invite).sort();
 
     expect(enKeys).toEqual(trKeys);
-    expect(enKeys.length).toBeGreaterThan(10);
+    expect(enKeys.length).toBeGreaterThan(15);
   });
 
   it("contains non-empty translation strings for all invite keys", () => {
@@ -23,6 +23,12 @@ describe("Invite System & Translations", () => {
     }
   });
 
+  it("contains enter invite code flow translation keys", () => {
+    expect(en.invite.enterCodeTitle).toBe("Enter Invite Code");
+    expect(tr.invite.enterCodeTitle).toBe("Davet Kodunu Girin");
+    expect(en.invite.continueButton).toBe("Continue to Circle");
+    expect(tr.invite.continueButton).toBe("Çembere Devam Et");
+  });
 
   it("formats invite URLs correctly with code parameter", () => {
     const code = "ABC23456";

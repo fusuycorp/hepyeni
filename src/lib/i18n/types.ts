@@ -445,6 +445,11 @@ export interface Translations {
     copyLink: string;
     linkCopied: string;
     shareLink: string;
+    enterCodeTitle: string;
+    enterCodeDesc: string;
+    codePlaceholder: string;
+    continueButton: string;
+    invalidCodeFormat: string;
   };
   diagnostics: {
     title: string;

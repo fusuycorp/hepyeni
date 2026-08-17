@@ -443,6 +443,11 @@ export const tr: Translations = {
     copyLink: "Bağlantıyı Kopyala",
     linkCopied: "Davet bağlantısı panoya kopyalandı",
     shareLink: "Davet Bağlantısını Paylaş",
+    enterCodeTitle: "Davet Kodunu Girin",
+    enterCodeDesc: "Çemberi görüntülemek ve katılmak için sizinle paylaşılan 8 haneli davet kodunu girin.",
+    codePlaceholder: "ör. CINEMA42",
+    continueButton: "Çembere Devam Et",
+    invalidCodeFormat: "Lütfen geçerli bir 8 haneli davet kodu girin.",
   },
   diagnostics: {
     title: "Teknik Tanılama & Hata Bilgileri",

@@ -445,6 +445,11 @@ export const en: Translations = {
     copyLink: "Copy Link",
     linkCopied: "Invite link copied to clipboard",
     shareLink: "Share Invite Link",
+    enterCodeTitle: "Enter Invite Code",
+    enterCodeDesc: "Enter the 8-character invite code shared with you to preview and join the circle.",
+    codePlaceholder: "e.g. CINEMA42",
+    continueButton: "Continue to Circle",
+    invalidCodeFormat: "Please enter a valid 8-character invite code.",
   },
   diagnostics: {
     title: "Technical Diagnostics",

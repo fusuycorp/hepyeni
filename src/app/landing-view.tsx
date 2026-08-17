@@ -190,7 +190,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
               </Link>
 
               <Link
-                href="/invite/SAMPLE"
+                href="/invite"
                 className={buttonVariants({
                   variant: "outline",
                   size: "lg",
