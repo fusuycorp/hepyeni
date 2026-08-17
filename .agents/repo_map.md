@@ -2,10 +2,10 @@
 
 Total mapped files: 145
 
-- `.agents/activity.jsonl` (8136 B)
+- `.agents/activity.jsonl` (8587 B)
 - `.agents/decisions.md` (7222 B)
-- `.agents/memory.md` (4619 B)
-- `.agents/repo_map.md` (15263 B)
+- `.agents/memory.md` (4373 B)
+- `.agents/repo_map.md` (15457 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)

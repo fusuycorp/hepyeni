@@ -1,8 +1,9 @@
 # Project Memory
 
 ## Active Epics & Tasks
-- **Current State**: Phase 1-6 completed (Language toggle, FAB trigger, Comments schema & actions, Media comments UI, Localization, QA test suite passing). Full i18n migration done — language toggle now affects page content everywhere, not just nav chrome (was previously cosmetic). `unmarkConsumed` shipped (a consumed title can be moved back to Up Next). Comments UI refinement shipped: lazy per-title fetch on dialog open (replaced the eager `comments_via_title.user` expand on every group page load with a cheap per-title count query), optimistic append with rollback, auto-scroll, own-comment styling, Cmd/Ctrl+Enter submit. CI: `.github/workflows/deploy.yml` actions bumped to Node 24-compatible majors (checkout@v5, docker/* actions current).
-- **Core Stack**: Next.js (App Router, Server Actions), TailwindCSS, Base UI, PocketBase (SQLite backend), Bun runtime.
+- **Current State**: Shipped Custom Media recommendation mode (manual title, author/director/artist role labels, live cover preview, `externalSource: "custom"`), Recommender Filter chips with dynamic contribution counters & quick clear actions, dedicated REST search API endpoint (`GET /api/titles/search` with iTunes/OpenLibrary multi-tier resilience), and developer diagnostics error management system. Full i18n parity across TR and EN maintained with 76 automated test checks passing.
+- **Core Stack**: Next.js (App Router, Server Actions, Route Handlers), TailwindCSS, Base UI, PocketBase (SQLite backend), Bun runtime.
+
 
 ## Core Invariants & Architecture Rules
 - **Server-Only PocketBase**: All collections have `null` API rules; mutations and queries run exclusively server-side via `getSuperuserClient()` with strict multi-tenant authorization guards (`requireMembership`, `requireTitleInGroup`, `requireOwner`).
