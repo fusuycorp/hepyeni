@@ -1,38 +1,38 @@
 import { describe, expect, it } from "bun:test";
-import { MEDIA_TYPES, MEDIA_TYPE_LABELS, MEDIA_TYPE_LABELS_TR, getMediaTypeLabel } from "@/lib/media-types";
+import { MEDIA_TYPES } from "@/lib/media-types";
+import { en } from "@/lib/i18n/en";
+import { tr } from "@/lib/i18n/tr";
 
 describe("Media Types", () => {
   it("contains all expected media types", () => {
     expect(MEDIA_TYPES).toEqual(["book", "movie", "tv", "music", "podcast"]);
   });
 
-  it("provides labels for every supported media type", () => {
+  it("provides an en/tr translation label for every supported media type", () => {
     for (const type of MEDIA_TYPES) {
-      expect(MEDIA_TYPE_LABELS[type]).toBeDefined();
-      expect(typeof MEDIA_TYPE_LABELS[type]).toBe("string");
-      expect(MEDIA_TYPE_LABELS[type].length).toBeGreaterThan(0);
-      expect(MEDIA_TYPE_LABELS_TR[type]).toBeDefined();
-      expect(typeof MEDIA_TYPE_LABELS_TR[type]).toBe("string");
-      expect(MEDIA_TYPE_LABELS_TR[type].length).toBeGreaterThan(0);
+      expect(en.media[type]).toBeDefined();
+      expect(typeof en.media[type]).toBe("string");
+      expect(en.media[type].length).toBeGreaterThan(0);
+      expect(tr.media[type]).toBeDefined();
+      expect(typeof tr.media[type]).toBe("string");
+      expect(tr.media[type].length).toBeGreaterThan(0);
     }
   });
 
-  it("has correct title casing for labels", () => {
-    expect(MEDIA_TYPE_LABELS.book).toBe("Book");
-    expect(MEDIA_TYPE_LABELS.movie).toBe("Movie");
-    expect(MEDIA_TYPE_LABELS.tv).toBe("TV Show");
-    expect(MEDIA_TYPE_LABELS.music).toBe("Music");
-    expect(MEDIA_TYPE_LABELS.podcast).toBe("Podcast");
+  it("has correct title casing for English labels", () => {
+    expect(en.media.book).toBe("Book");
+    expect(en.media.movie).toBe("Movie");
+    expect(en.media.tv).toBe("TV Show");
+    expect(en.media.music).toBe("Music");
+    expect(en.media.podcast).toBe("Podcast");
   });
 
   it("has correct Turkish translations", () => {
-    expect(MEDIA_TYPE_LABELS_TR.book).toBe("Kitap");
-    expect(MEDIA_TYPE_LABELS_TR.movie).toBe("Film");
-    expect(MEDIA_TYPE_LABELS_TR.tv).toBe("Dizi");
-    expect(MEDIA_TYPE_LABELS_TR.music).toBe("Müzik");
-    expect(MEDIA_TYPE_LABELS_TR.podcast).toBe("Podcast");
-    expect(getMediaTypeLabel("book", "tr")).toBe("Kitap");
-    expect(getMediaTypeLabel("movie", "en")).toBe("Movie");
+    expect(tr.media.book).toBe("Kitap");
+    expect(tr.media.movie).toBe("Film");
+    expect(tr.media.tv).toBe("Dizi");
+    expect(tr.media.music).toBe("Müzik");
+    expect(tr.media.podcast).toBe("Podcast");
   });
 });
 

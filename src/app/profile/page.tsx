@@ -14,6 +14,7 @@ import { deleteAccount, updateProfileName } from "@/lib/actions/profile";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getInitials } from "@/lib/format";
+import { getServerTranslations } from "@/lib/i18n/server";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
 export default async function ProfilePage() {
@@ -22,6 +23,7 @@ export default async function ProfilePage() {
 
   const pb = await getSuperuserClient();
   const user = await pb.collection("users").getOne<UsersResponse>(session.id);
+  const t = await getServerTranslations();
 
   const currentUser = {
     id: session.id,
@@ -32,14 +34,14 @@ export default async function ProfilePage() {
   };
 
   return (
-    <AppShell user={currentUser} maxWidth="default" title="Hesap Profili">
+    <AppShell user={currentUser} maxWidth="default" title={t.profile.title}>
       <div className="space-y-6">
         <div className="pb-4 border-b">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Profiliniz
+            {t.profile.title}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Kişisel bilgilerinizi, görünen adınızı ve tercihlerinizi yönetin.
+            {t.profile.subtitle}
           </p>
         </div>
 
@@ -56,12 +58,12 @@ export default async function ProfilePage() {
             <div className="flex-1 text-center sm:text-left space-y-1">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <h2 className="text-lg font-bold text-foreground">
-                  {user.name || "İsimsiz Kullanıcı"}
+                  {user.name || t.common.unnamedUser}
                 </h2>
                 {user.isAdmin && (
                   <Badge variant="default" className="text-[10px] gap-1 py-0">
                     <Shield className="size-3" />
-                    <span>Yönetici</span>
+                    <span>{t.profile.adminBadge}</span>
                   </Badge>
                 )}
               </div>
@@ -78,7 +80,7 @@ export default async function ProfilePage() {
                 className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/30"
               >
                 <LogOut className="size-3.5" />
-                <span>Çıkış Yap</span>
+                <span>{t.nav.signOut}</span>
               </Button>
             </form>
           </CardContent>
@@ -90,9 +92,9 @@ export default async function ProfilePage() {
             <div className="flex items-center gap-2">
               <User className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Görünen İsim</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t.profile.displayNameLabel}</CardTitle>
                 <CardDescription className="text-xs">
-                  Medya önerirken veya yorum yaparken grup üyelerine görünecek isim.
+                  {t.profile.displayNameDesc}
                 </CardDescription>
               </div>
             </div>
@@ -101,8 +103,8 @@ export default async function ProfilePage() {
             <InlineTextForm
               defaultValue={user.name}
               onSubmit={updateProfileName}
-              successMessage="İsim güncellendi."
-              errorMessage="İsim güncellenemedi."
+              successMessage={t.profile.nameUpdated}
+              errorMessage={t.profile.nameUpdateFailed}
             />
           </CardContent>
         </Card>
@@ -113,16 +115,18 @@ export default async function ProfilePage() {
             <div className="flex items-center gap-2">
               <KeyRound className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Şifre ve Güvenlik</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t.profile.passwordSecurityTitle}</CardTitle>
                 <CardDescription className="text-xs">
-                  Hesap şifrenizi değiştirmek veya belirlemek için sıfırlama bağlantısı isteyin.
+                  {t.profile.passwordSecurityDesc}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <p className="text-xs text-muted-foreground">
-              Güvenli sıfırlama bağlantısı <span className="font-semibold text-foreground">{user.email}</span> adresine gönderilecektir.
+              {t.profile.resetLinkWillSend.split("{email}")[0]}
+              <span className="font-semibold text-foreground">{user.email}</span>
+              {t.profile.resetLinkWillSend.split("{email}")[1]}
             </p>
             <SendResetLinkButton email={user.email} />
           </CardContent>
@@ -134,9 +138,9 @@ export default async function ProfilePage() {
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Yasal Bilgiler ve Şartlar</CardTitle>
+                <CardTitle className="text-sm font-semibold">{t.profile.legalTitle}</CardTitle>
                 <CardDescription className="text-xs">
-                  Kişisel verilerinizin nasıl korunduğunu ve platform kurallarını inceleyin.
+                  {t.profile.legalDesc}
                 </CardDescription>
               </div>
             </div>
@@ -146,14 +150,14 @@ export default async function ProfilePage() {
               href="/privacy"
               className="text-primary hover:underline underline-offset-4"
             >
-              Gizlilik Politikası (Privacy Policy)
+              {t.common.privacy}
             </Link>
             <span className="text-muted-foreground">&middot;</span>
             <Link
               href="/terms"
               className="text-primary hover:underline underline-offset-4"
             >
-              Kullanım Koşulları (Terms of Service)
+              {t.common.terms}
             </Link>
           </CardContent>
         </Card>
@@ -165,27 +169,27 @@ export default async function ProfilePage() {
               <AlertTriangle className="size-4 text-destructive" />
               <div>
                 <CardTitle className="text-sm font-semibold text-destructive">
-                  Hesabı Sil
+                  {t.profile.deleteAccountTitle}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Kullanıcı hesabınızı ve tüm kişisel aktivitelerinizi kalıcı olarak silin.
+                  {t.profile.deleteAccountCardDesc}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground max-w-md">
-              Profiliniz, oylarınız ve incelemeleriniz kalıcı olarak silinir. Hesabı silmeden önce sahip olduğunuz grupları devretmeli veya ayrılmalısınız.
+              {t.profile.deleteAccountDesc}
             </p>
             <ConfirmActionButton
-              triggerLabel="Hesabı Sil"
+              triggerLabel={t.profile.deleteAccountButton}
               triggerVariant="destructive"
               variant="destructive"
               size="sm"
-              title="Hesabınızı silmek istediğinize emin misiniz?"
-              description="Bu işlem hesabınızı ve tüm gruplardaki üyeliğinizi kalıcı olarak siler. Bu işlem geri alınamaz."
-              confirmLabel="Kalıcı Olarak Sil"
-              pendingLabel="Siliniyor…"
+              title={t.profile.deleteConfirmModalTitle}
+              description={t.profile.deleteConfirmModalDesc}
+              confirmLabel={t.common.deletePermanently}
+              pendingLabel={t.common.deleting}
               redirectTo="/login"
               onConfirm={deleteAccount}
             />

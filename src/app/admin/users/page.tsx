@@ -8,6 +8,7 @@ import { banUser, setUserAdmin, unbanUser } from "@/lib/actions/admin";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getInitials } from "@/lib/format";
+import { getServerTranslations, getLocale } from "@/lib/i18n/server";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AdminUsersPage() {
@@ -18,20 +19,22 @@ export default async function AdminUsersPage() {
   const allUsers = await pb
     .collection("users")
     .getFullList<UsersResponse>({ sort: "-created" });
+  const t = await getServerTranslations();
+  const locale = await getLocale();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between pb-2 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Kullanıcı Yönetimi
+            {t.admin.userManagement}
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Kullanıcı hesaplarını inceleyin, yönetici yetkileri atayın veya hesapları askıya alın.
+            {t.admin.userManagementDesc}
           </p>
         </div>
         <Badge variant="secondary" className="text-xs">
-          {allUsers.length} toplam kullanıcı
+          {t.admin.totalUsersCount.replace("{n}", String(allUsers.length))}
         </Badge>
       </div>
 
@@ -61,21 +64,21 @@ export default async function AdminUsersPage() {
                       {user.isAdmin && (
                         <Badge variant="default" className="text-[10px] py-0 gap-1">
                           <Shield className="size-2.5" />
-                          <span>Yönetici</span>
+                          <span>{t.admin.adminBadge}</span>
                         </Badge>
                       )}
                       {user.bannedAt && (
                         <Badge variant="destructive" className="text-[10px] py-0 gap-1">
                           <Ban className="size-2.5" />
-                          <span>Yasaklı</span>
+                          <span>{t.admin.banned}</span>
                         </Badge>
                       )}
                       {isSelf && (
-                        <span className="text-[10px] text-muted-foreground font-mono">(Mevcut Kullanıcı)</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{t.admin.currentUserTag}</span>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate font-mono">
-                      {user.email} &middot; Kayıt: {new Date(user.created).toLocaleDateString("tr-TR")}
+                      {user.email} &middot; {t.admin.registeredLabel}: {new Date(user.created).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")}
                     </p>
                   </div>
                 </div>
@@ -89,7 +92,7 @@ export default async function AdminUsersPage() {
                         size="xs"
                         className="text-xs h-7"
                       >
-                        {user.isAdmin ? "Yöneticiliği Kaldır" : "Yönetici Yap"}
+                        {user.isAdmin ? t.admin.revokeAdmin : t.admin.makeAdmin}
                       </Button>
                     </form>
 
@@ -106,7 +109,7 @@ export default async function AdminUsersPage() {
                         size="xs"
                         className="text-xs h-7"
                       >
-                        {user.bannedAt ? "Yasağı Kaldır" : "Kullanıcıyı Yasakla"}
+                        {user.bannedAt ? t.admin.unban : t.admin.ban}
                       </Button>
                     </form>
                   </div>

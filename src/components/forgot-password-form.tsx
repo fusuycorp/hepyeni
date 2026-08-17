@@ -4,15 +4,17 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestPasswordReset } from "@/lib/actions/auth";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function ForgotPasswordForm() {
   const [sent, setSent] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
 
   if (sent) {
     return (
       <p className="text-sm text-muted-foreground">
-        Bu e-posta adresine ait bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.
+        {t.auth.forgotPasswordSentNotice}
       </p>
     );
   }
@@ -28,9 +30,9 @@ export function ForgotPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <Input type="email" name="email" required placeholder="ornek@eposta.com" />
+      <Input type="email" name="email" required placeholder={t.auth.emailPlaceholder} />
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
+        {isPending ? t.auth.sendingLink : t.auth.sendResetLinkButton}
       </Button>
     </form>
   );

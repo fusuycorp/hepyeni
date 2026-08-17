@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/admin";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getServerTranslations } from "@/lib/i18n/server";
 import type {
   GroupMembersResponse,
   GroupsResponse,
@@ -35,6 +36,7 @@ export default async function AdminGroupDetailPage({
 }) {
   const { groupId } = await params;
   const pb = await getSuperuserClient();
+  const t = await getServerTranslations();
 
   let group: GroupsResponse;
   try {
@@ -66,7 +68,7 @@ export default async function AdminGroupDetailPage({
           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium"
         >
           <ArrowLeft className="size-3.5" />
-          <span>Tüm Gruplar</span>
+          <span>{t.groups.allCircles}</span>
         </Link>
       </div>
 
@@ -79,7 +81,7 @@ export default async function AdminGroupDetailPage({
             <CopyInviteButton code={group.inviteCode} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Grup Kimliği: <span className="font-mono">{group.id}</span>
+            {t.admin.groupIdLabel}: <span className="font-mono">{group.id}</span>
           </p>
         </div>
       </div>
@@ -89,7 +91,7 @@ export default async function AdminGroupDetailPage({
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Önerilen ve Tamamlanan Medyalar ({groupTitles.length})
+              {t.admin.titlesSectionTitle.replace("{n}", String(groupTitles.length))}
             </h2>
           </div>
 
@@ -110,17 +112,17 @@ export default async function AdminGroupDetailPage({
                         <div className="flex items-center gap-2">
                           <MediaBadge type={title.mediaType} size="sm" />
                           <Badge variant={title.status === "consumed" ? "secondary" : "default"} className="text-[10px] py-0">
-                            {title.status === "consumed" ? "Tamamlandı" : "Sıradaki"}
+                            {title.status === "consumed" ? t.media.consumed : t.media.pending}
                           </Badge>
                           <span className="text-xs text-muted-foreground font-mono">
-                            Puan: {score}
+                            {t.admin.scoreLabel}: {score}
                           </span>
                         </div>
                         <h3 className="text-sm font-semibold text-foreground">
                           {title.title}
                         </h3>
                         <p className="text-xs text-muted-foreground">
-                          Ekleyen: {title.expand?.addedBy?.name ?? title.expand?.addedBy?.email ?? "Bilinmiyor"}
+                          {t.media.addedBy}: {title.expand?.addedBy?.name ?? title.expand?.addedBy?.email ?? t.common.unknown}
                         </p>
                       </div>
 
@@ -132,7 +134,7 @@ export default async function AdminGroupDetailPage({
                           className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
                         >
                           <Trash2 className="size-3" />
-                          <span>Sil</span>
+                          <span>{t.common.delete}</span>
                         </Button>
                       </form>
                     </div>
@@ -140,7 +142,7 @@ export default async function AdminGroupDetailPage({
                     {reviews.length > 0 && (
                       <div className="border-t border-border/50 pt-2 space-y-1.5">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase">
-                          Değerlendirmeler ({reviews.length})
+                          {t.admin.reviewsCountLabel.replace("{n}", String(reviews.length))}
                         </p>
                         <div className="space-y-1">
                           {reviews.map((review) => (
@@ -167,7 +169,7 @@ export default async function AdminGroupDetailPage({
                                   size="xs"
                                   className="text-destructive hover:bg-destructive/10 h-6 px-1.5 text-[11px]"
                                 >
-                                  Sil
+                                  {t.common.delete}
                                 </Button>
                               </form>
                             </div>
@@ -182,7 +184,7 @@ export default async function AdminGroupDetailPage({
 
             {groupTitles.length === 0 && (
               <div className="p-8 text-center border border-dashed rounded-xl text-muted-foreground text-xs">
-                Bu gruba henüz bir medya eklenmemiş.
+                {t.admin.noTitlesYet}
               </div>
             )}
           </div>
@@ -193,7 +195,7 @@ export default async function AdminGroupDetailPage({
           <Card className="border-border/70 shadow-2xs">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">
-                Grup Üyeleri ({members.length})
+                {t.admin.groupMembersTitle} ({members.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -207,7 +209,7 @@ export default async function AdminGroupDetailPage({
                       {m.expand?.user?.name ?? m.expand?.user?.email}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase">
-                      {m.role === "owner" ? "Yönetici" : "Üye"}
+                      {m.role === "owner" ? t.groups.ownerBadge : t.groups.memberBadge}
                     </span>
                   </div>
 
@@ -219,7 +221,7 @@ export default async function AdminGroupDetailPage({
                       className="text-destructive hover:bg-destructive/10 h-7 text-xs"
                     >
                       <UserMinus className="size-3 mr-1" />
-                      <span>Çıkar</span>
+                      <span>{t.groups.removeButton}</span>
                     </Button>
                   </form>
                 </div>

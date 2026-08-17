@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useTranslations } from "@/lib/i18n/client";
 
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
@@ -19,6 +20,7 @@ export function CreateGroupCard({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,10 +29,10 @@ export function CreateGroupCard({
     startTransition(async () => {
       try {
         const groupId = await onCreate(formData);
-        toast.success("Grup başarıyla oluşturuldu!");
+        toast.success(t.groups.createSuccess);
         router.push(`/groups/${groupId}`);
       } catch (err) {
-        toast.error(errorMessage(err, "Grup oluşturulamadı."));
+        toast.error(errorMessage(err, t.groups.createError));
       }
     });
   }
@@ -43,9 +45,9 @@ export function CreateGroupCard({
             <Plus className="size-4" />
           </div>
           <div>
-            <CardTitle className="text-sm font-semibold">Grup Oluştur</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.groups.createCircle}</CardTitle>
             <CardDescription className="text-xs">
-              Kitap, film, müzik veya podcast kulübünüz için yeni bir grup başlatın.
+              {t.groups.createCircleDesc}
             </CardDescription>
           </div>
         </div>
@@ -54,7 +56,7 @@ export function CreateGroupCard({
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             name="name"
-            placeholder="Örn: Cuma Film Kulübü, Bilim Kurgu Okuma Grubu"
+            placeholder={t.groups.circleNamePlaceholder}
             required
             className="text-xs"
             disabled={isPending}
@@ -63,11 +65,11 @@ export function CreateGroupCard({
             {isPending ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                <span>Oluşturuluyor…</span>
+                <span>{t.groups.creating}</span>
               </>
             ) : (
               <>
-                <span>Oluştur</span>
+                <span>{t.groups.createButton}</span>
                 <ArrowRight className="size-3.5" />
               </>
             )}
@@ -85,6 +87,7 @@ export function JoinGroupCard({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -93,10 +96,10 @@ export function JoinGroupCard({
     startTransition(async () => {
       try {
         const groupId = await onJoin(formData);
-        toast.success("Gruba katıldınız!");
+        toast.success(t.groups.joinSuccess);
         router.push(`/groups/${groupId}`);
       } catch (err) {
-        toast.error(errorMessage(err, "Gruba katılınamadı. Davet kodunu kontrol edin."));
+        toast.error(errorMessage(err, t.groups.joinError));
       }
     });
   }
@@ -109,9 +112,9 @@ export function JoinGroupCard({
             <KeyRound className="size-4" />
           </div>
           <div>
-            <CardTitle className="text-sm font-semibold">Kod ile Katıl</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t.groups.joinCircle}</CardTitle>
             <CardDescription className="text-xs">
-              Mevcut bir gruba katılmak için 8 haneli davet kodunu girin.
+              {t.groups.joinCircleDesc}
             </CardDescription>
           </div>
         </div>
@@ -120,7 +123,7 @@ export function JoinGroupCard({
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             name="code"
-            placeholder="Örn: A1B2C3D4"
+            placeholder={t.groups.inviteCodePlaceholder}
             required
             maxLength={12}
             className="uppercase font-mono text-xs tracking-wider"
@@ -130,11 +133,11 @@ export function JoinGroupCard({
             {isPending ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                <span>Katılınıyor…</span>
+                <span>{t.groups.joining}</span>
               </>
             ) : (
               <>
-                <span>Katıl</span>
+                <span>{t.groups.joinButton}</span>
                 <ArrowRight className="size-3.5" />
               </>
             )}

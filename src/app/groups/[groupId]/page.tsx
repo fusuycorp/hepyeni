@@ -13,6 +13,7 @@ import { addComment, deleteComment } from "@/lib/actions/comments";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getServerTranslations } from "@/lib/i18n/server";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -40,6 +41,7 @@ export default async function GroupPage({
 
   const { groupId } = await params;
   const pb = await getSuperuserClient();
+  const t = await getServerTranslations();
 
   let group: GroupsResponse;
   try {
@@ -132,7 +134,7 @@ export default async function GroupPage({
       user={currentUser}
       maxWidth="wide"
       backHref="/groups"
-      backLabel="Tüm Gruplar"
+      backLabel={t.groups.allCircles}
       headerActions={
         <Link
           href={`/groups/${groupId}/settings`}
@@ -157,7 +159,7 @@ export default async function GroupPage({
               <CopyInviteButton code={group.inviteCode} />
             </div>
             <p className="text-xs text-muted-foreground">
-              {members.length} üye &middot; {proposed.length} sıradaki &middot; {consumed.length} tamamlanan
+              {members.length} {t.groups.members} &middot; {proposed.length} {t.groups.pendingCountLabel} &middot; {consumed.length} {t.groups.finishedCountLabel}
             </p>
           </div>
 
@@ -173,7 +175,7 @@ export default async function GroupPage({
               })}
             >
               <Settings className="size-4" />
-              <span className="hidden sm:inline">Ayarlar</span>
+              <span className="hidden sm:inline">{t.groups.settings}</span>
             </Link>
           </div>
         </div>
@@ -203,10 +205,10 @@ export default async function GroupPage({
               <button
                 type="button"
                 className="group flex items-center gap-2 px-4 py-3 sm:px-5 sm:py-3.5 rounded-full bg-primary text-primary-foreground font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring cursor-pointer"
-                aria-label="Medya Öner"
+                aria-label={t.groups.proposeMedia}
               >
                 <Plus className="size-4 sm:size-5 transition-transform group-hover:rotate-90" />
-                <span>Medya Öner</span>
+                <span>{t.groups.proposeMedia}</span>
               </button>
             }
           />

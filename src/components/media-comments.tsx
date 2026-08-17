@@ -30,6 +30,7 @@ import { addComment, deleteComment } from "@/lib/actions/comments";
 import { formatRelativeTime } from "@/lib/i18n";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useTranslations, useLocale } from "@/lib/i18n/client";
 import type {
   CommentsResponse,
   UsersResponse,
@@ -65,6 +66,8 @@ export function MediaComments({
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const t = useTranslations();
+  const locale = useLocale();
 
   const count = comments.length;
 
@@ -84,10 +87,10 @@ export function MediaComments({
           await addComment(titleId, groupId, formData);
         }
         setCommentText("");
-        toast.success("Yorumunuz eklendi");
+        toast.success(t.comments.added);
       } catch (err) {
         toast.error(
-          err instanceof Error ? err.message : "Yorum eklenirken bir hata oluştu",
+          err instanceof Error ? err.message : t.comments.addFailed,
         );
       }
     });
@@ -102,10 +105,10 @@ export function MediaComments({
         } else {
           await deleteComment(commentId, groupId);
         }
-        toast.success("Yorum silindi");
+        toast.success(t.comments.deleted);
       } catch (err) {
         toast.error(
-          err instanceof Error ? err.message : "Yorum silinirken bir hata oluştu",
+          err instanceof Error ? err.message : t.comments.deleteFailed,
         );
       } finally {
         setDeletingId(null);
@@ -131,10 +134,10 @@ export function MediaComments({
               count > 0 && "text-foreground font-semibold",
               triggerClassName,
             )}
-            aria-label={`${count} yorum`}
+            aria-label={`${count} ${t.comments.count}`}
           >
             <MessageSquare className="size-3.5" />
-            <span>{count > 0 ? count : "Yorum"}</span>
+            <span>{count > 0 ? count : t.comments.title}</span>
           </Button>
         }
       />
@@ -147,7 +150,7 @@ export function MediaComments({
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-bold tracking-tight">
-                Yorumlar
+                {t.comments.title}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                 {titleName}
@@ -189,7 +192,7 @@ export function MediaComments({
                         {authorName}
                       </span>
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        &middot; {formatRelativeTime(c.createdAt)}
+                        &middot; {formatRelativeTime(c.createdAt, locale)}
                       </span>
                     </div>
 
@@ -202,7 +205,7 @@ export function MediaComments({
                               variant="ghost"
                               size="icon-xs"
                               className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              aria-label="Yorumu Sil"
+                              aria-label={t.comments.delete}
                               disabled={deletingId === c.id}
                             >
                               <Trash2 className="size-3" />
@@ -211,18 +214,18 @@ export function MediaComments({
                         />
                         <AlertDialogContent size="sm">
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Yorumu Sil</AlertDialogTitle>
+                            <AlertDialogTitle>{t.comments.delete}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Bu yorumu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                              {t.comments.deleteConfirm}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                             <AlertDialogAction
                               variant="destructive"
                               onClick={() => handleDeleteComment(c.id)}
                             >
-                              Sil
+                              {t.common.delete}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -239,8 +242,7 @@ export function MediaComments({
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground space-y-2">
               <MessageSquare className="size-8 text-muted-foreground/40" />
-              <p className="text-xs">Henüz yorum yapılmamış.</p>
-              <p className="text-[11px] text-muted-foreground/70">İlk yorumu siz paylaşın!</p>
+              <p className="text-xs">{t.comments.noComments}</p>
             </div>
           )}
         </div>
@@ -254,7 +256,7 @@ export function MediaComments({
           <Textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Düşüncelerinizi paylaşın... (en fazla 2000 karakter)"
+            placeholder={t.comments.placeholder}
             rows={3}
             maxLength={2000}
             disabled={isPending}
@@ -272,7 +274,7 @@ export function MediaComments({
               className="gap-1.5 text-xs font-semibold shadow-xs"
             >
               <Send className="size-3.5" />
-              <span>{isPending ? "Paylaşılıyor…" : "Paylaş"}</span>
+              <span>{isPending ? t.comments.posting : t.comments.post}</span>
             </Button>
           </div>
         </form>

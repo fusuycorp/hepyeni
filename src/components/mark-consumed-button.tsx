@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function MarkConsumedButton({
   onMark,
@@ -10,6 +11,7 @@ export function MarkConsumedButton({
   onMark: () => Promise<void>;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
 
   return (
     <Button
@@ -23,12 +25,12 @@ export function MarkConsumedButton({
           try {
             await onMark();
           } catch {
-            toast.error("Tamamlandı olarak işaretlenemedi — lütfen tekrar deneyin.");
+            toast.error(t.media.markConsumedFailed);
           }
         })
       }
     >
-      {isPending ? "İşleniyor…" : "Tamamlandı olarak işaretle"}
+      {isPending ? t.common.working : t.media.markAsConsumed}
     </Button>
   );
 }

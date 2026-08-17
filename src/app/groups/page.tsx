@@ -10,6 +10,7 @@ import { CopyInviteButton } from "@/components/copy-invite-button";
 import { createGroup, joinGroup } from "@/lib/actions/groups";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getServerTranslations } from "@/lib/i18n/server";
 import type {
   GroupMembersResponse,
   GroupsResponse,
@@ -21,6 +22,7 @@ export default async function GroupsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const t = await getServerTranslations();
   const pb = await getSuperuserClient();
   let memberships: GroupMembersResponse<{ group?: GroupsResponse }>[] = [];
   let userRecord: UsersResponse | null = null;
@@ -76,21 +78,21 @@ export default async function GroupsPage() {
   };
 
   return (
-    <AppShell user={currentUser} maxWidth="wide" title="Gruplarınız">
+    <AppShell user={currentUser} maxWidth="wide" title={t.groups.title}>
       <div className="flex flex-col gap-8">
         {/* Header Hero */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Medya Gruplarınız
+              {t.groups.yourCircles}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Okuma ve izleme kulüplerinizle önerileri ve listeleri birlikte takip edin.
+              {t.groups.subtitle}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full border">
-              {memberships.length} grup
+              {t.groups.groupCount.replace("{n}", String(memberships.length))}
             </span>
           </div>
         </div>
@@ -120,11 +122,11 @@ export default async function GroupsPage() {
                           variant={isOwner ? "default" : "secondary"}
                           className="shrink-0 text-[10px] uppercase tracking-wider font-semibold"
                         >
-                          {isOwner ? "Yönetici" : "Üye"}
+                          {isOwner ? t.groups.ownerBadge : t.groups.memberBadge}
                         </Badge>
                       </div>
                       <CardDescription className="text-xs flex items-center gap-2 mt-1">
-                        <span>Kod:</span>
+                        <span>{t.groups.codeLabel}:</span>
                         <CopyInviteButton code={group.inviteCode} />
                       </CardDescription>
                     </CardHeader>
@@ -133,15 +135,15 @@ export default async function GroupsPage() {
                       <div className="flex items-center justify-between border-t border-border/50 pt-3 text-xs text-muted-foreground">
                         <div className="flex items-center gap-3">
                           <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                            <span className="text-primary font-bold">{stats.proposed}</span> Sıradakiler
+                            <span className="text-primary font-bold">{stats.proposed}</span> {t.media.upNext}
                           </span>
                           <span>&middot;</span>
                           <span className="font-medium text-muted-foreground">
-                            {stats.consumed} Tamamlandı
+                            {stats.consumed} {t.media.consumed}
                           </span>
                         </div>
                         <div className="flex items-center gap-1 text-muted-foreground group-hover:text-primary transition-colors font-medium">
-                          <span>Aç</span>
+                          <span>{t.common.open}</span>
                           <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                         </div>
                       </div>
@@ -154,15 +156,15 @@ export default async function GroupsPage() {
         ) : (
           <EmptyState
             icon={Users}
-            title="Henüz bir gruba üye değilsiniz"
-            description="Arkadaşlarınız veya kulübünüz için yeni bir grup oluşturun ya da davet koduyla mevcut bir gruba katılın."
+            title={t.groups.noCirclesTitle}
+            description={t.groups.noCirclesDesc}
           />
         )}
 
         {/* Create & Join Actions Section */}
         <div className="space-y-3 pt-4 border-t">
           <h2 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">
-            Grup Oluştur veya Katıl
+            {t.groups.createOrJoin}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <CreateGroupCard onCreate={createGroup} />

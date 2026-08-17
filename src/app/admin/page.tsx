@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Users, Ban, Layers, Sparkles, CheckCircle2, ThumbsUp, Star, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getServerTranslations } from "@/lib/i18n/server";
 import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AdminDashboardPage() {
   const pb = await getSuperuserClient();
+  const t = await getServerTranslations();
 
   const [
     usersCount,
@@ -43,23 +45,23 @@ export default async function AdminDashboardPage() {
   ]);
 
   const stats = [
-    { label: "Toplam Kullanıcı", value: usersCount, icon: Users, color: "text-blue-500 bg-blue-500/10" },
-    { label: "Yasaklı Kullanıcı", value: bannedCount, icon: Ban, color: "text-rose-500 bg-rose-500/10" },
-    { label: "Aktif Gruplar", value: groupsCount, icon: Layers, color: "text-purple-500 bg-purple-500/10" },
-    { label: "Önerilen Medyalar", value: proposedCount, icon: Sparkles, color: "text-amber-500 bg-amber-500/10" },
-    { label: "Tamamlanan Medyalar", value: consumedCount, icon: CheckCircle2, color: "text-emerald-500 bg-emerald-500/10" },
-    { label: "Toplam Oy", value: votesCount, icon: ThumbsUp, color: "text-indigo-500 bg-indigo-500/10" },
-    { label: "Toplam Değerlendirme", value: reviewsCount, icon: Star, color: "text-amber-400 bg-amber-400/10" },
+    { label: t.admin.stats.totalUsers, value: usersCount, icon: Users, color: "text-blue-500 bg-blue-500/10" },
+    { label: t.admin.stats.bannedUsers, value: bannedCount, icon: Ban, color: "text-rose-500 bg-rose-500/10" },
+    { label: t.admin.stats.activeCircles, value: groupsCount, icon: Layers, color: "text-purple-500 bg-purple-500/10" },
+    { label: t.admin.stats.proposedMedia, value: proposedCount, icon: Sparkles, color: "text-amber-500 bg-amber-500/10" },
+    { label: t.admin.stats.consumedMedia, value: consumedCount, icon: CheckCircle2, color: "text-emerald-500 bg-emerald-500/10" },
+    { label: t.admin.stats.totalVotes, value: votesCount, icon: ThumbsUp, color: "text-indigo-500 bg-indigo-500/10" },
+    { label: t.admin.stats.totalReviews, value: reviewsCount, icon: Star, color: "text-amber-400 bg-amber-400/10" },
   ];
 
   return (
     <div className="space-y-8">
       <div className="pb-2 border-b">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Platform Genel Bakışı
+          {t.admin.dashboardTitle}
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Sistem analitiği, etkileşim metrikleri ve yönetimsel durum.
+          {t.admin.subtitle}
         </p>
       </div>
 
@@ -91,13 +93,13 @@ export default async function AdminDashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Son Oluşturulan Gruplar
+            {t.admin.recentCircles}
           </h2>
           <Link
             href="/admin/groups"
             className="text-xs font-medium text-primary hover:underline"
           >
-            Tüm grupları görüntüle
+            {t.admin.viewAllCircles}
           </Link>
         </div>
 
@@ -110,9 +112,9 @@ export default async function AdminDashboardPage() {
                     {group.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Oluşturan:{" "}
+                    {t.admin.createdBy}:{" "}
                     <span className="font-medium text-foreground">
-                      {group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Bilinmiyor"}
+                      {group.expand?.createdBy?.name || group.expand?.createdBy?.email || t.common.unknown}
                     </span>
                   </p>
                 </div>
@@ -123,7 +125,7 @@ export default async function AdminDashboardPage() {
 
           {recentGroups.length === 0 && (
             <p className="text-xs text-muted-foreground p-4 text-center border border-dashed rounded-lg">
-              Henüz oluşturulmuş bir grup yok.
+              {t.admin.noCirclesYet}
             </p>
           )}
         </div>

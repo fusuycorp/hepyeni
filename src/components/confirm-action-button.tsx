@@ -15,13 +15,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function ConfirmActionButton({
   triggerLabel,
   title,
   description,
-  confirmLabel = "Onayla",
-  pendingLabel = "İşleniyor…",
+  confirmLabel,
+  pendingLabel,
   variant = "destructive",
   triggerVariant = variant,
   size = "sm",
@@ -46,6 +47,9 @@ export function ConfirmActionButton({
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const t = useTranslations();
+  const resolvedConfirmLabel = confirmLabel ?? t.common.confirm;
+  const resolvedPendingLabel = pendingLabel ?? t.common.working;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -62,7 +66,7 @@ export function ConfirmActionButton({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>İptal</AlertDialogCancel>
+          <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
           <AlertDialogAction
             variant={variant}
             disabled={isPending}
@@ -79,13 +83,13 @@ export function ConfirmActionButton({
                   toast.error(
                     err instanceof Error
                       ? err.message
-                      : "Bir sorun oluştu — lütfen tekrar deneyin.",
+                      : t.auth.errors.default,
                   );
                 }
               })
             }
           >
-            {isPending ? pendingLabel : confirmLabel}
+            {isPending ? resolvedPendingLabel : resolvedConfirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

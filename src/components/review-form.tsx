@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function ReviewForm({
   defaultRating,
@@ -21,6 +22,7 @@ export function ReviewForm({
   const [rating, setRating] = useState(defaultRating);
   const [hovered, setHovered] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,9 +30,9 @@ export function ReviewForm({
     startTransition(async () => {
       try {
         await onSubmit(formData);
-        toast.success("Değerlendirme kaydedildi.");
+        toast.success(t.reviews.reviewSaved);
       } catch {
-        toast.error("Değerlendirme kaydedilemedi — lütfen tekrar deneyin.");
+        toast.error(t.reviews.reviewSaveFailed);
       }
     });
   }
@@ -48,7 +50,7 @@ export function ReviewForm({
           <button
             key={n}
             type="button"
-            aria-label={`5 üzerinden ${n} yıldız ver`}
+            aria-label={t.reviews.starAriaLabel.replace("{n}", String(n))}
             aria-pressed={rating === n}
             onMouseEnter={() => setHovered(n)}
             onClick={() => setRating(n)}
@@ -68,7 +70,7 @@ export function ReviewForm({
       <Textarea
         name="reviewText"
         defaultValue={defaultText}
-        placeholder="Grup ile düşüncelerinizi paylaşın (isteğe bağlı)..."
+        placeholder={t.reviews.notesPlaceholder}
         rows={2}
         className="text-xs resize-y min-h-[60px]"
       />
@@ -79,7 +81,7 @@ export function ReviewForm({
         className="self-start font-medium"
         disabled={isPending}
       >
-        {isPending ? "Kaydediliyor…" : hasExisting ? "Değerlendirmeyi güncelle" : "Değerlendirmeyi kaydet"}
+        {isPending ? t.common.saving : hasExisting ? t.reviews.updateReview : t.reviews.saveReview}
       </Button>
     </form>
   );

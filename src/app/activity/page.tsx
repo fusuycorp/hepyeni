@@ -12,6 +12,7 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { formatRelativeTime } from "@/lib/i18n";
 import { getDisplayName, getInitials } from "@/lib/format";
+import { getServerTranslations, getLocale } from "@/lib/i18n/server";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -49,6 +50,8 @@ export default async function ActivityPage() {
   if (!session) redirect("/login");
 
   const pb = await getSuperuserClient();
+  const t = await getServerTranslations();
+  const locale = await getLocale();
 
   const [memberships, userRecord] = await Promise.all([
     pb.collection("group_members").getFullList<GroupMembersResponse>({
@@ -137,14 +140,14 @@ export default async function ActivityPage() {
   };
 
   return (
-    <AppShell user={currentUser} maxWidth="wide" title="Son Aktiviteler">
+    <AppShell user={currentUser} maxWidth="wide" title={t.activity.title}>
       <div className="flex flex-col gap-6">
         <div className="pb-4 border-b">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Aktivite Akışı
+            {t.activity.title}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Üyesi olduğunuz tüm gruplardaki güncel öneriler, oylar ve üye değerlendirmeleri.
+            {t.activity.subtitle}
           </p>
         </div>
 
@@ -175,7 +178,7 @@ export default async function ActivityPage() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span className="font-semibold text-foreground">{authorName}</span>
-                              <span>yeni bir medya önerdi</span>
+                              <span>{t.activity.proposed}</span>
                               {group && (
                                 <>
                                   <span>&middot;</span>
@@ -186,7 +189,7 @@ export default async function ActivityPage() {
                               )}
                             </div>
                             <span className="text-[11px] text-muted-foreground font-mono">
-                              {formatRelativeTime(title.createdAt)}
+                              {formatRelativeTime(title.createdAt, locale)}
                             </span>
                           </div>
 
@@ -241,7 +244,7 @@ export default async function ActivityPage() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span className="font-semibold text-foreground">{reviewerName}</span>
-                              <span>değerlendirdi:</span>
+                              <span>{t.activity.reviewed}:</span>
                               <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
                               {group && (
                                 <>
@@ -253,7 +256,7 @@ export default async function ActivityPage() {
                               )}
                             </div>
                             <span className="text-[11px] text-muted-foreground font-mono">
-                              {formatRelativeTime(review.createdAt)}
+                              {formatRelativeTime(review.createdAt, locale)}
                             </span>
                           </div>
 
@@ -308,7 +311,7 @@ export default async function ActivityPage() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span className="font-semibold text-foreground">{commenterName}</span>
-                              <span>yorum yaptı:</span>
+                              <span>{t.activity.commented}:</span>
                               <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
                               {group && (
                                 <>
@@ -320,14 +323,14 @@ export default async function ActivityPage() {
                               )}
                             </div>
                             <span className="text-[11px] text-muted-foreground font-mono">
-                              {formatRelativeTime(comment.createdAt)}
+                              {formatRelativeTime(comment.createdAt, locale)}
                             </span>
                           </div>
 
                           <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-1.5 text-primary text-xs font-medium">
                               <MessageSquare className="size-3.5" />
-                              <span>Yorum</span>
+                              <span>{t.comments.title}</span>
                             </div>
                             <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap line-clamp-3">
                               {comment.content}
@@ -345,8 +348,8 @@ export default async function ActivityPage() {
         ) : (
           <EmptyState
             icon={Rss}
-            title="Henüz aktivite yok"
-            description="Gruplarınızdaki üyeler medya önerdiğinde veya değerlendirme yazdığında kronolojik olarak burada görünecektir."
+            title={t.activity.noActivity}
+            description={t.activity.noActivityDesc}
           />
         )}
       </div>

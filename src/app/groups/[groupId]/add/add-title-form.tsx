@@ -10,11 +10,12 @@ import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
-import { MEDIA_TYPES, MEDIA_TYPE_LABELS_TR, type MediaType } from "@/lib/media-types";
+import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { addTitle, searchTitles } from "@/lib/actions/titles";
 import { isProviderAvailable } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface AddTitleFormProps {
   groupId: string;
@@ -28,6 +29,7 @@ export function AddTitleForm({
   isModal = false,
 }: AddTitleFormProps) {
   const router = useRouter();
+  const t = useTranslations();
   const [mediaType, setMediaType] = useState<MediaType>("book");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NormalizedSearchResult[]>([]);
@@ -46,7 +48,7 @@ export function AddTitleForm({
         setResults(data);
         setHasSearched(true);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Arama başarısız oldu");
+        toast.error(err instanceof Error ? err.message : t.titles.searchFailed);
         setResults([]);
         setHasSearched(true);
       }
@@ -58,14 +60,14 @@ export function AddTitleForm({
     startAdd(async () => {
       try {
         await addTitle(groupId, mediaType, result);
-        toast.success(`"${result.title}" sıradakilere eklendi!`);
+        toast.success(t.titles.addedToBacklog.replace("{title}", result.title));
         if (onSuccess) {
           onSuccess();
         } else {
           router.push(`/groups/${groupId}`);
         }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Medya eklenemedi");
+        toast.error(err instanceof Error ? err.message : t.titles.addFailed);
         setAddingId(null);
       }
     });
@@ -102,7 +104,7 @@ export function AddTitleForm({
                 size="sm"
                 className="bg-transparent border-0 p-0 text-inherit"
               />
-              {!available && <span className="text-[10px] opacity-70">(yakında)</span>}
+              {!available && <span className="text-[10px] opacity-70">{t.media.comingSoon}</span>}
             </button>
           );
         })}
@@ -115,7 +117,7 @@ export function AddTitleForm({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`${MEDIA_TYPE_LABELS_TR[mediaType]} başlığı, yazar veya sanatçı ara…`}
+            placeholder={t.titles.searchPlaceholder}
             className="pl-9 text-xs sm:text-sm h-10"
           />
         </div>
@@ -128,11 +130,11 @@ export function AddTitleForm({
           {isSearching ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              <span>Aranıyor…</span>
+              <span>{t.titles.searching}</span>
             </>
           ) : (
             <>
-              <span>Ara</span>
+              <span>{t.common.search}</span>
             </>
           )}
         </Button>
@@ -143,7 +145,7 @@ export function AddTitleForm({
         {results.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{results.length} sonuç bulundu</span>
+              <span>{results.length} {t.titles.resultsFound}</span>
               <MediaBadge type={mediaType} size="sm" />
             </div>
 
@@ -185,12 +187,12 @@ export function AddTitleForm({
                           {isItemAdding ? (
                             <>
                               <Loader2 className="size-3 animate-spin" />
-                              <span>Ekleniyor…</span>
+                              <span>{t.titles.adding}</span>
                             </>
                           ) : (
                             <>
                               <Plus className="size-3" />
-                              <span>Listeye Ekle</span>
+                              <span>{t.titles.addToCircle}</span>
                             </>
                           )}
                         </Button>
@@ -206,16 +208,16 @@ export function AddTitleForm({
         {!isSearching && hasSearched && results.length === 0 && (
           <EmptyState
             icon={Search}
-            title="Eşleşen medya bulunamadı"
-            description={`${MEDIA_TYPE_LABELS_TR[mediaType]} için arama terimlerinizi değiştirerek tekrar deneyin.`}
+            title={t.titles.noResultsTitle}
+            description={t.titles.noResultsDesc.replace("{type}", t.media[mediaType])}
           />
         )}
 
         {!hasSearched && (
           <EmptyState
             icon={Sparkles}
-            title="Medya Arayın ve Önerin"
-            description="Grubunuzun oylama sırasına eklemek için Google Books, TMDB, Spotify veya Podcasts üzerinden arama yapın."
+            title={t.titles.proposeTitle}
+            description={t.titles.proposeSubtitle}
           />
         )}
       </div>

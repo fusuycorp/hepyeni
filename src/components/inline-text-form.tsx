@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function InlineTextForm({
   defaultValue,
@@ -11,8 +12,8 @@ export function InlineTextForm({
   onSubmit,
   successMessage,
   errorMessage,
-  submitLabel = "Kaydet",
-  pendingLabel = "Kaydediliyor…",
+  submitLabel,
+  pendingLabel,
 }: {
   defaultValue: string;
   fieldName?: string;
@@ -23,6 +24,9 @@ export function InlineTextForm({
   pendingLabel?: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
+  const resolvedSubmitLabel = submitLabel ?? t.common.save;
+  const resolvedPendingLabel = pendingLabel ?? t.common.saving;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,7 +45,7 @@ export function InlineTextForm({
     <form onSubmit={handleSubmit} className="flex gap-2">
       <Input name={fieldName} defaultValue={defaultValue} required maxLength={200} />
       <Button type="submit" variant="outline" disabled={isPending}>
-        {isPending ? pendingLabel : submitLabel}
+        {isPending ? resolvedPendingLabel : resolvedSubmitLabel}
       </Button>
     </form>
   );

@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/admin";
 import { getSession } from "@/lib/pocketbase/session";
+import { getServerTranslations } from "@/lib/i18n/server";
 
 export default async function AdminLayout({
   children,
@@ -15,6 +16,7 @@ export default async function AdminLayout({
   const session = await getSession();
   if (!session) redirect("/login");
   await requireAdmin(session.id);
+  const t = await getServerTranslations();
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -26,7 +28,7 @@ export default async function AdminLayout({
               <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Shield className="size-4" />
               </div>
-              <span>Yönetici Portalı</span>
+              <span>{t.admin.title}</span>
             </Link>
 
             <nav className="flex items-center gap-1 text-xs font-medium">
@@ -34,19 +36,19 @@ export default async function AdminLayout({
                 href="/admin"
                 className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                Genel Bakış
+                {t.admin.dashboard}
               </Link>
               <Link
                 href="/admin/users"
                 className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                Kullanıcılar
+                {t.admin.users}
               </Link>
               <Link
                 href="/admin/groups"
                 className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                Gruplar
+                {t.admin.groups}
               </Link>
             </nav>
           </div>
@@ -63,7 +65,7 @@ export default async function AdminLayout({
               })}
             >
               <ArrowLeft className="size-3.5" />
-              <span>Uygulamaya Dön</span>
+              <span>{t.nav.backToApp}</span>
             </Link>
           </div>
         </div>

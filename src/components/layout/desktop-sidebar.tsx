@@ -109,11 +109,11 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
         {/* Legal Links */}
         <div className="px-2 pt-6 flex items-center gap-2 text-[10px] text-muted-foreground">
           <Link href="/privacy" className="hover:text-foreground transition-colors">
-            Gizlilik
+            {t.common.privacy}
           </Link>
           <span>&middot;</span>
           <Link href="/terms" className="hover:text-foreground transition-colors">
-            Şartlar
+            {t.common.terms}
           </Link>
           <span>&middot;</span>
           <span>hepyeni.net</span>

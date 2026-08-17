@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function CopyInviteButton({
   code,
@@ -16,6 +17,7 @@ export function CopyInviteButton({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const t = useTranslations();
 
   async function copy(e: React.MouseEvent) {
     e.preventDefault();
@@ -23,11 +25,11 @@ export function CopyInviteButton({
     try {
       await navigator.clipboard.writeText(code);
     } catch {
-      toast.error("Kod kopyalanamadı");
+      toast.error(t.common.error);
       return;
     }
     setCopied(true);
-    toast.success(`Davet kodu kopyalandı: ${code}`);
+    toast.success(`${t.common.copied} ${code}`);
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -39,8 +41,8 @@ export function CopyInviteButton({
         size="icon-xs"
         className={cn("size-6 text-muted-foreground hover:text-foreground", className)}
         onClick={copy}
-        title="Davet kodunu kopyala"
-        aria-label="Davet kodunu kopyala"
+        title={t.groups.copyInviteCode}
+        aria-label={t.groups.copyInviteCode}
       >
         {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
       </Button>
@@ -59,12 +61,12 @@ export function CopyInviteButton({
         {copied ? (
           <>
             <Check className="size-3.5 text-emerald-500" />
-            <span>Kopyalandı!</span>
+            <span>{t.common.copied}</span>
           </>
         ) : (
           <>
             <Copy className="size-3.5" />
-            <span>Kod: {code}</span>
+            <span>{t.groups.codeLabel}: {code}</span>
           </>
         )}
       </Button>
@@ -80,7 +82,7 @@ export function CopyInviteButton({
         "bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60",
         className
       )}
-      title="Davet kodunu kopyalamak için tıklayın"
+      title={t.groups.copyInviteCode}
     >
       <span>{code}</span>
       {copied ? (

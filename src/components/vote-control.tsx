@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type VoteValue = "up" | "down";
 type VoteState = { score: number; userVote?: VoteValue };
@@ -19,6 +20,7 @@ export function VoteControl({
   orientation?: "vertical" | "horizontal";
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useTranslations();
   const [state, applyOptimistic] = useOptimistic(
     { score, userVote } as VoteState,
     (current, value: VoteValue): VoteState => {
@@ -39,7 +41,7 @@ export function VoteControl({
       try {
         await onVote(value);
       } catch {
-        toast.error("Oyunuz kaydedilemedi — lütfen tekrar deneyin.");
+        toast.error(t.media.voteFailed);
       }
     });
   }
@@ -54,7 +56,7 @@ export function VoteControl({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Artı oy ver"
+          aria-label={t.media.upvoteAria}
           aria-pressed={isUp}
           disabled={isPending}
           onClick={() => vote("up")}
@@ -84,7 +86,7 @@ export function VoteControl({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Eksi oy ver"
+          aria-label={t.media.downvoteAria}
           aria-pressed={isDown}
           disabled={isPending}
           onClick={() => vote("down")}
@@ -107,7 +109,7 @@ export function VoteControl({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label="Artı oy ver"
+        aria-label={t.media.upvoteAria}
         aria-pressed={isUp}
         disabled={isPending}
         onClick={() => vote("up")}

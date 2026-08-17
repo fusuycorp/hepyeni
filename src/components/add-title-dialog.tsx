@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AddTitleForm } from "@/app/groups/[groupId]/add/add-title-form";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface AddTitleDialogProps {
   groupId: string;
@@ -29,6 +30,7 @@ export function AddTitleDialog({
   onOpenChange: controlledOnOpenChange,
 }: AddTitleDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const t = useTranslations();
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? (controlledOnOpenChange ?? (() => {})) : setInternalOpen;
@@ -46,7 +48,7 @@ export function AddTitleDialog({
           render={
             <Button size="sm" className="gap-1.5 font-medium shadow-xs">
               <Plus className="size-4" />
-              <span>Medya Öner</span>
+              <span>{t.groups.proposeMedia}</span>
             </Button>
           }
         />
@@ -55,11 +57,10 @@ export function AddTitleDialog({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-2 border-b">
           <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight">
-            Medya Öner
+            {t.groups.proposeMedia}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            {groupName ? `${groupName} listesine ` : "Grubunuza "}
-            eklemek için kitap, film, dizi, müzik veya podcast arayın.
+            {t.titles.addToGroupDesc.replace("{group}", groupName || t.titles.yourCircleGeneric)}
           </DialogDescription>
         </DialogHeader>
 

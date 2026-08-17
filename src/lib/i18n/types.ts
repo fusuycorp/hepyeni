@@ -16,6 +16,10 @@ export interface Translations {
     deleteConfirm: string;
     delete: string;
     count: string;
+    added: string;
+    addFailed: string;
+    deleted: string;
+    deleteFailed: string;
   };
   common: {
     appName: string;
@@ -39,6 +43,15 @@ export interface Translations {
     optional: string;
     working: string;
     noItemsFound: string;
+    privacy: string;
+    terms: string;
+    unnamedUser: string;
+    unknown: string;
+    deletePermanently: string;
+    deleting: string;
+    open: string;
+    saving: string;
+    manage: string;
   };
   nav: {
     menu: string;
@@ -73,6 +86,12 @@ export interface Translations {
     unknownAuthor: string;
     reviewsCount: string;
     noReviews: string;
+    comingSoon: string;
+    upvoteAria: string;
+    downvoteAria: string;
+    voteFailed: string;
+    markConsumedFailed: string;
+    pending: string;
   };
   auth: {
     title: string;
@@ -118,12 +137,27 @@ export interface Translations {
       session_expired: string;
       oauth_failed: string;
       account_deleted: string;
+      invalid_password_length: string;
+      signup_failed: string;
+      invalid_reset_link: string;
     };
     notices: {
       password_reset_sent: string;
       password_reset_success: string;
       email_verified: string;
     };
+    verifyCodeTitle: string;
+    otpCodeSentTo: string;
+    orContinueWith: string;
+    forgotPasswordDialogTitle: string;
+    forgotPasswordDialogDesc: string;
+    resetPasswordTagline: string;
+    resetPasswordHint: string;
+    resetTokenMissing: string;
+    forgotPasswordSentNotice: string;
+    sendingLink: string;
+    sendResetLinkButton: string;
+    resetLinkSentTag: string;
   };
   groups: {
     title: string;
@@ -166,6 +200,38 @@ export interface Translations {
     dangerZone: string;
     ownerBadge: string;
     youBadge: string;
+    subtitle: string;
+    groupCount: string;
+    memberBadge: string;
+    codeLabel: string;
+    createOrJoin: string;
+    createSuccess: string;
+    createError: string;
+    creating: string;
+    joinSuccess: string;
+    joinError: string;
+    joining: string;
+    nameUpdated: string;
+    nameUpdateFailed: string;
+    settingsSubtitle: string;
+    groupNameSectionDesc: string;
+    inviteCodeSectionDesc: string;
+    regenerateConfirm: string;
+    regenerating: string;
+    membersSectionDesc: string;
+    youParen: string;
+    removeButton: string;
+    removing: string;
+    removeMemberConfirmTitle: string;
+    dangerZoneDesc: string;
+    leaveOwnerBlocked: string;
+    leaving: string;
+    deleteConfirmTitle: string;
+    allCircles: string;
+    pendingCountLabel: string;
+    finishedCountLabel: string;
+    contentViewAria: string;
+    emptyBacklogFilteredTitle: string;
   };
   titles: {
     proposeTitle: string;
@@ -179,6 +245,14 @@ export interface Translations {
     removeTitleConfirm: string;
     removeFromBacklog: string;
     externalLink: string;
+    addToGroupDesc: string;
+    yourCircleGeneric: string;
+    searchFailed: string;
+    addedToBacklog: string;
+    addFailed: string;
+    adding: string;
+    noResultsTitle: string;
+    noResultsDesc: string;
   };
   reviews: {
     groupReviews: string;
@@ -190,6 +264,12 @@ export interface Translations {
     saveReview: string;
     noReviewsYet: string;
     yourRating: string;
+    reviewSaved: string;
+    reviewSaveFailed: string;
+    starAriaLabel: string;
+    updateReview: string;
+    yourRatingAndReview: string;
+    rateThisTitle: string;
   };
   activity: {
     title: string;
@@ -198,6 +278,7 @@ export interface Translations {
     noActivityDesc: string;
     proposed: string;
     reviewed: string;
+    commented: string;
     consumed: string;
     joined: string;
     created: string;
@@ -221,6 +302,17 @@ export interface Translations {
     deleteAccountButton: string;
     deleteConfirmModalTitle: string;
     deleteConfirmModalDesc: string;
+    subtitle: string;
+    adminBadge: string;
+    displayNameDesc: string;
+    passwordSecurityTitle: string;
+    passwordSecurityDesc: string;
+    resetLinkWillSend: string;
+    legalTitle: string;
+    legalDesc: string;
+    deleteAccountCardDesc: string;
+    nameUpdated: string;
+    nameUpdateFailed: string;
   };
   admin: {
     title: string;
@@ -233,6 +325,11 @@ export interface Translations {
       totalCircles: string;
       totalMedia: string;
       totalReviews: string;
+      bannedUsers: string;
+      activeCircles: string;
+      proposedMedia: string;
+      consumedMedia: string;
+      totalVotes: string;
     };
     recentCircles: string;
     userManagement: string;
@@ -246,5 +343,22 @@ export interface Translations {
     makeAdmin: string;
     revokeAdmin: string;
     deleteItem: string;
+    dashboardTitle: string;
+    viewAllCircles: string;
+    createdBy: string;
+    noCirclesYet: string;
+    userManagementDesc: string;
+    totalUsersCount: string;
+    adminBadge: string;
+    currentUserTag: string;
+    registeredLabel: string;
+    circleManagementDesc: string;
+    mediaCountLabel: string;
+    groupIdLabel: string;
+    titlesSectionTitle: string;
+    scoreLabel: string;
+    reviewsCountLabel: string;
+    noTitlesYet: string;
+    groupMembersTitle: string;
   };
 }
