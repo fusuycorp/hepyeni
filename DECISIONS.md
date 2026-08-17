@@ -50,3 +50,13 @@ This document records the major architectural pivots, design decisions, and secu
   - Wrapped all external API calls in `AbortSignal.timeout(8000)` to prevent hanging requests from exhausting connection pools.
   - Standardized cover art rendering via `<MediaCover />` with `aspect-[2/3]` containers and generic fallback icons, bypassing Next.js remote allowlist constraints for varied third-party image domains.
 - **Consequences**: Pluggable provider architecture with predictable timeout behavior and zero layout shift (CLS).
+
+---
+
+## ADR-005: Single Merged Deploy Workflow with Explicit Build-Before-Redeploy Ordering
+- **Status**: Accepted & Implemented (2026-08-17)
+- **Context**: `deploy.yml` (app image build/push + Dokploy redeploy trigger) and `deploy-pocketbase.yml` (PocketBase image build/push) were separate workflows, both triggered independently on push to `main`. A commit touching only `pb_migrations/**` could fire `deploy.yml`'s redeploy before `deploy-pocketbase.yml`'s image push finished, leaving the running `pocketbase` service on stale migrations — masked in practice only by the app image's slower build time, never actually enforced.
+- **Decision**:
+  - Merged into a single `deploy.yml` with four jobs: `changes` (diffs the pushed commit range to detect `pb_migrations/**`/`Dockerfile.pocketbase` changes) → `build-app` (always runs) + `build-pocketbase` (conditional on the `changes` output) → `deploy` (`needs: [build-app, build-pocketbase]`, explicitly tolerating a skipped `build-pocketbase` but not a failed one).
+  - Deleted the standalone `deploy-pocketbase.yml`.
+- **Consequences**: Redeploy ordering is now enforced by GitHub Actions' `needs` dependency graph instead of being incidental to build-time differences between the two images. Tradeoff accepted: the old workflow's ability to manually `workflow_dispatch` a PocketBase-image-only rebuild (without also rebuilding the app image and triggering a redeploy) was lost — not worth a separate dispatch-input mechanism unless it's actually needed later.

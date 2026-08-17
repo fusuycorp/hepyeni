@@ -1,0 +1,17 @@
+# Project Memory
+
+## Active Epics & Tasks
+- **Current State**: Phase 1-6 completed (Language toggle, FAB trigger, Comments schema & actions, Media comments UI, Localization, QA test suite passing). Full i18n migration done — language toggle now affects page content everywhere, not just nav chrome (was previously cosmetic). `unmarkConsumed` shipped (a consumed title can be moved back to Up Next). Comments UI refinement shipped: lazy per-title fetch on dialog open (replaced the eager `comments_via_title.user` expand on every group page load with a cheap per-title count query), optimistic append with rollback, auto-scroll, own-comment styling, Cmd/Ctrl+Enter submit. CI: `.github/workflows/deploy.yml` actions bumped to Node 24-compatible majors (checkout@v5, docker/* actions current).
+- **Core Stack**: Next.js (App Router, Server Actions), TailwindCSS, Base UI, PocketBase (SQLite backend), Bun runtime.
+
+## Core Invariants & Architecture Rules
+- **Server-Only PocketBase**: All collections have `null` API rules; mutations and queries run exclusively server-side via `getSuperuserClient()` with strict multi-tenant authorization guards (`requireMembership`, `requireTitleInGroup`, `requireOwner`).
+- **Deterministic Record IDs**: Atomic vote toggles use base36 SHA-256 hash of `titleId:userId` for conflict resolution.
+- **Provider Resilience**: External media providers implement `MediaProvider` with 8s timeout wrapper (`AbortSignal.timeout(8000)`).
+- **i18n Localization**: Cookie synchronization uses `NEXT_LOCALE` / `locale` with dictionary support for TR and EN. `Translations` (`src/lib/i18n/types.ts`) is a fully-required interface (no optional fields) so `en.ts`/`tr.ts` structural parity is compile-time enforced — a new UI string always gets added to `types.ts` + `en.ts` + `tr.ts` together, never one at a time. No component should hardcode a string or import `en`/`tr` directly — always `useTranslations()` (client) / `getServerTranslations()` (server).
+
+## Domain Vocabulary & Gotchas
+- **Circles / Groups**: Media consumption circles where members add, vote on, review, and comment on media titles.
+- **Media Types**: `book`, `movie`, `tv`, `music`, `podcast` (repo_map/typegen elsewhere may list `tv_series`/`game` — the actual `MEDIA_TYPES` const in `src/lib/media-types.ts` is `["book", "movie", "tv", "music", "podcast"]`; trust that file over this note if they ever disagree).
+- **Title Status**: `proposed` (a.k.a. "Up Next"/backlog) vs `consumed` (a.k.a. "Finished", completed with reviews/ratings) — bidirectional as of `unmarkConsumed`, a consumed title can be moved back to `proposed`.
+- **Drift-prone logic**: anything copy-pasted across files (display-name fallbacks, initials, relative-time formatting) has already silently diverged once in this codebase (see ADR history / git log around `refactor: centralize initials/display-name/relative-time helpers`) — prefer a shared helper in `src/lib/` over inlining the same small transform twice.
