@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import PocketBase from "pocketbase";
 import {
   consumeOAuth2StateCookie,
+  getPbUrl,
   getRequestOrigin,
   oauth2RedirectUrl,
   setSessionCookie,
@@ -38,7 +39,8 @@ async function handleCallback(
     );
   }
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
+
   try {
     const { token, record } = await pb
       .collection("users")

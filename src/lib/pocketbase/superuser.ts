@@ -1,4 +1,5 @@
 import PocketBase from "pocketbase";
+import { getPbUrl } from "@/lib/pocketbase/session";
 
 // This app never has client-side JS talking to PocketBase — every
 // collection's API rules are superuser-only (see pb_migrations), and all
@@ -11,7 +12,7 @@ declare global {
 }
 
 function createClient(): PocketBase {
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   // Without this, concurrent requests from different users on this shared
   // singleton would cancel each other's in-flight calls.
   pb.autoCancellation(false);
@@ -28,10 +29,11 @@ async function ensureAuthenticated(): Promise<void> {
   const password = process.env.PB_SUPERUSER_PASSWORD;
 
   if (!email || !password) {
-    const errorMsg = `[PocketBase Superuser] Missing credentials: PB_SUPERUSER_EMAIL or PB_SUPERUSER_PASSWORD is not set in the environment. PB_URL=${process.env.PB_URL ?? "http://localhost:8090"}`;
+    const errorMsg = `[PocketBase Superuser] Missing credentials: PB_SUPERUSER_EMAIL or PB_SUPERUSER_PASSWORD is not set in the environment. PB_URL=${getPbUrl()}`;
     console.error(errorMsg);
     throw new Error(errorMsg);
   }
+
 
   globalThis.__pbSuperuserAuth ??= (async () => {
     try {

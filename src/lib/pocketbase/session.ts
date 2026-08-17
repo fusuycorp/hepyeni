@@ -13,6 +13,16 @@ export type Session = {
   email: string;
 };
 
+export function getPbUrl(): string {
+  return (
+    process.env.PB_URL ||
+    process.env.POCKETBASE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "http://pocketbase:8090"
+      : "http://127.0.0.1:8090")
+  );
+}
+
 // Re-verifies the token against PocketBase on every call (authRefresh both
 // checks the signature/expiry server-side and returns the live record, not
 // a decoded stale JWT payload) — this is what makes a ban take effect on
@@ -23,8 +33,9 @@ export async function getSessionFromToken(
 ): Promise<Session | null> {
   if (!token) return null;
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   pb.authStore.save(token, null);
+
 
   try {
     const { record } = await pb

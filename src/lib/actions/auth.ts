@@ -7,11 +7,13 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import {
   clearSessionCookie,
   consumeOtpCookie,
+  getPbUrl,
   oauth2RedirectUrl,
   setOAuth2StateCookie,
   setOtpCookie,
   setSessionCookie,
 } from "@/lib/pocketbase/session";
+
 import { autoJoinPendingInvite } from "@/lib/actions/groups";
 import { logDiagnostic } from "@/lib/errors";
 import type { UsersResponse } from "@/types/pocketbase-types";
@@ -21,7 +23,7 @@ export async function getAvailableAuthProviders(): Promise<{
   apple: boolean;
 }> {
   try {
-    const pb = new PocketBase(process.env.PB_URL);
+    const pb = new PocketBase(getPbUrl());
     const methods = await pb.collection("users").listAuthMethods();
     const providers = methods.oauth2?.providers ?? [];
     return {
@@ -35,7 +37,7 @@ export async function getAvailableAuthProviders(): Promise<{
 }
 
 async function signInWithOAuth2(provider: "google" | "apple") {
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   let method:
     | { authURL: string; state: string; codeVerifier: string }
     | undefined;
@@ -110,7 +112,7 @@ export async function signInWithEmail(formData: FormData) {
     });
   }
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   const { otpId } = await pb.collection("users").requestOTP(email);
   await setOtpCookie({ email, otpId });
 
@@ -127,7 +129,7 @@ export async function verifyEmailCode(formData: FormData) {
   // redirect() throws a special error that must propagate un-caught, so the
   // fallible OTP exchange is isolated in its own try/catch and every
   // redirect() call happens outside of it.
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   let record: UsersResponse;
   let token: string;
   try {
@@ -152,7 +154,7 @@ export async function signInWithPassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   if (!email || !password) redirect("/login?error=InvalidCredentials");
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   let record: UsersResponse;
   let token: string;
   try {
@@ -198,7 +200,7 @@ export async function signUpWithPassword(formData: FormData) {
     redirect("/login?error=SignupFailed");
   }
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   const { token, record } = await pb
     .collection("users")
     .authWithPassword<UsersResponse>(email, password);
@@ -217,7 +219,7 @@ export async function requestPasswordReset(formData: FormData) {
     .toLowerCase();
   if (!email) return;
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   try {
     // Anti-enumeration by design on PocketBase's side: this resolves the
     // same way whether or not the email exists — callers should always
@@ -240,7 +242,7 @@ export async function confirmPasswordReset(formData: FormData) {
     redirect(`/reset-password?token=${encodeURIComponent(token)}&error=Mismatch`);
   }
 
-  const pb = new PocketBase(process.env.PB_URL);
+  const pb = new PocketBase(getPbUrl());
   try {
     await pb
       .collection("users")
