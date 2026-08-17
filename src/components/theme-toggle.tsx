@@ -21,7 +21,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         variant="ghost"
         size="icon"
         className={className}
-        aria-label="Toggle theme"
+        aria-label="Temayı değiştir"
         disabled
       >
         <Sun className="size-4 opacity-50" />
@@ -37,8 +37,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       size="icon"
       className={className}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
-      title={`Switch to ${isDark ? "light" : "dark"} theme`}
+      aria-label={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
+      title={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
     >
       {isDark ? (
         <Sun className="size-4 text-amber-400 transition-transform hover:rotate-45" />

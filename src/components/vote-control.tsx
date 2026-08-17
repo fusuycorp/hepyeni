@@ -39,7 +39,7 @@ export function VoteControl({
       try {
         await onVote(value);
       } catch {
-        toast.error("Couldn't record your vote — try again.");
+        toast.error("Oyunuz kaydedilemedi — lütfen tekrar deneyin.");
       }
     });
   }
@@ -54,7 +54,7 @@ export function VoteControl({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Upvote"
+          aria-label="Artı oy ver"
           aria-pressed={isUp}
           disabled={isPending}
           onClick={() => vote("up")}
@@ -84,7 +84,7 @@ export function VoteControl({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="Downvote"
+          aria-label="Eksi oy ver"
           aria-pressed={isDown}
           disabled={isPending}
           onClick={() => vote("down")}
@@ -107,7 +107,7 @@ export function VoteControl({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label="Upvote"
+        aria-label="Artı oy ver"
         aria-pressed={isUp}
         disabled={isPending}
         onClick={() => vote("up")}
@@ -139,7 +139,7 @@ export function VoteControl({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label="Downvote"
+        aria-label="Eksi oy ver"
         aria-pressed={isDown}
         disabled={isPending}
         onClick={() => vote("down")}

@@ -23,7 +23,7 @@ export function SendResetLinkButton({ email }: { email: string }) {
         })
       }
     >
-      {sent ? "Reset link sent" : isPending ? "Sending…" : "Send reset link"}
+      {sent ? "Sıfırlama bağlantısı gönderildi" : isPending ? "Gönderiliyor…" : "Şifre sıfırlama bağlantısı gönder"}
     </Button>
   );
 }

@@ -43,23 +43,23 @@ export default async function AdminDashboardPage() {
   ]);
 
   const stats = [
-    { label: "Total Users", value: usersCount, icon: Users, color: "text-blue-500 bg-blue-500/10" },
-    { label: "Banned Users", value: bannedCount, icon: Ban, color: "text-rose-500 bg-rose-500/10" },
-    { label: "Active Groups", value: groupsCount, icon: Layers, color: "text-purple-500 bg-purple-500/10" },
-    { label: "Proposed Titles", value: proposedCount, icon: Sparkles, color: "text-amber-500 bg-amber-500/10" },
-    { label: "Consumed Titles", value: consumedCount, icon: CheckCircle2, color: "text-emerald-500 bg-emerald-500/10" },
-    { label: "Total Votes", value: votesCount, icon: ThumbsUp, color: "text-indigo-500 bg-indigo-500/10" },
-    { label: "Total Reviews", value: reviewsCount, icon: Star, color: "text-amber-400 bg-amber-400/10" },
+    { label: "Toplam Kullanıcı", value: usersCount, icon: Users, color: "text-blue-500 bg-blue-500/10" },
+    { label: "Yasaklı Kullanıcı", value: bannedCount, icon: Ban, color: "text-rose-500 bg-rose-500/10" },
+    { label: "Aktif Gruplar", value: groupsCount, icon: Layers, color: "text-purple-500 bg-purple-500/10" },
+    { label: "Önerilen Medyalar", value: proposedCount, icon: Sparkles, color: "text-amber-500 bg-amber-500/10" },
+    { label: "Tamamlanan Medyalar", value: consumedCount, icon: CheckCircle2, color: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Toplam Oy", value: votesCount, icon: ThumbsUp, color: "text-indigo-500 bg-indigo-500/10" },
+    { label: "Toplam Değerlendirme", value: reviewsCount, icon: Star, color: "text-amber-400 bg-amber-400/10" },
   ];
 
   return (
     <div className="space-y-8">
       <div className="pb-2 border-b">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Platform Overview
+          Platform Genel Bakışı
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          System analytics, engagement metrics, and administrative status.
+          Sistem analitiği, etkileşim metrikleri ve yönetimsel durum.
         </p>
       </div>
 
@@ -91,13 +91,13 @@ export default async function AdminDashboardPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Recently Created Circles
+            Son Oluşturulan Gruplar
           </h2>
           <Link
             href="/admin/groups"
             className="text-xs font-medium text-primary hover:underline"
           >
-            View all groups
+            Tüm grupları görüntüle
           </Link>
         </div>
 
@@ -110,9 +110,9 @@ export default async function AdminDashboardPage() {
                     {group.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    by{" "}
+                    Oluşturan:{" "}
                     <span className="font-medium text-foreground">
-                      {group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Unknown"}
+                      {group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Bilinmiyor"}
                     </span>
                   </p>
                 </div>
@@ -123,7 +123,7 @@ export default async function AdminDashboardPage() {
 
           {recentGroups.length === 0 && (
             <p className="text-xs text-muted-foreground p-4 text-center border border-dashed rounded-lg">
-              No groups have been created yet.
+              Henüz oluşturulmuş bir grup yok.
             </p>
           )}
         </div>

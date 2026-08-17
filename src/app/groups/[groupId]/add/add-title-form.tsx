@@ -10,13 +10,23 @@ import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
-import { MEDIA_TYPES, MEDIA_TYPE_LABELS, type MediaType } from "@/lib/media-types";
+import { MEDIA_TYPES, MEDIA_TYPE_LABELS_TR, type MediaType } from "@/lib/media-types";
 import { addTitle, searchTitles } from "@/lib/actions/titles";
 import { isProviderAvailable } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 import { cn } from "@/lib/utils";
 
-export function AddTitleForm({ groupId }: { groupId: string }) {
+interface AddTitleFormProps {
+  groupId: string;
+  onSuccess?: () => void;
+  isModal?: boolean;
+}
+
+export function AddTitleForm({
+  groupId,
+  onSuccess,
+  isModal = false,
+}: AddTitleFormProps) {
   const router = useRouter();
   const [mediaType, setMediaType] = useState<MediaType>("book");
   const [query, setQuery] = useState("");
@@ -36,7 +46,7 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
         setResults(data);
         setHasSearched(true);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Search failed");
+        toast.error(err instanceof Error ? err.message : "Arama başarısız oldu");
         setResults([]);
         setHasSearched(true);
       }
@@ -48,17 +58,21 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
     startAdd(async () => {
       try {
         await addTitle(groupId, mediaType, result);
-        toast.success(`Added "${result.title}" to backlog!`);
-        router.push(`/groups/${groupId}`);
+        toast.success(`"${result.title}" sıradakilere eklendi!`);
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push(`/groups/${groupId}`);
+        }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Couldn't add title");
+        toast.error(err instanceof Error ? err.message : "Medya eklenemedi");
         setAddingId(null);
       }
     });
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={cn("flex flex-col gap-5", isModal && "gap-4")}>
       {/* Media Type Selector Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {MEDIA_TYPES.map((type) => {
@@ -88,7 +102,7 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
                 size="sm"
                 className="bg-transparent border-0 p-0 text-inherit"
               />
-              {!available && <span className="text-[10px] opacity-70">(soon)</span>}
+              {!available && <span className="text-[10px] opacity-70">(yakında)</span>}
             </button>
           );
         })}
@@ -101,7 +115,7 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${MEDIA_TYPE_LABELS[mediaType].toLowerCase()}s by title, author, artist…`}
+            placeholder={`${MEDIA_TYPE_LABELS_TR[mediaType]} başlığı, yazar veya sanatçı ara…`}
             className="pl-9 text-xs sm:text-sm h-10"
           />
         </div>
@@ -114,22 +128,22 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
           {isSearching ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              <span>Searching…</span>
+              <span>Aranıyor…</span>
             </>
           ) : (
             <>
-              <span>Search</span>
+              <span>Ara</span>
             </>
           )}
         </Button>
       </form>
 
       {/* Results Section */}
-      <div>
+      <div className={cn(isModal && "max-h-[50vh] sm:max-h-[55vh] overflow-y-auto pr-1 -mr-1")}>
         {results.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Found {results.length} results</span>
+              <span>{results.length} sonuç bulundu</span>
               <MediaBadge type={mediaType} size="sm" />
             </div>
 
@@ -171,12 +185,12 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
                           {isItemAdding ? (
                             <>
                               <Loader2 className="size-3 animate-spin" />
-                              <span>Adding…</span>
+                              <span>Ekleniyor…</span>
                             </>
                           ) : (
                             <>
                               <Plus className="size-3" />
-                              <span>Add to Backlog</span>
+                              <span>Listeye Ekle</span>
                             </>
                           )}
                         </Button>
@@ -192,16 +206,16 @@ export function AddTitleForm({ groupId }: { groupId: string }) {
         {!isSearching && hasSearched && results.length === 0 && (
           <EmptyState
             icon={Search}
-            title="No matching titles found"
-            description={`Try adjusting your search keywords for ${MEDIA_TYPE_LABELS[mediaType].toLowerCase()}s.`}
+            title="Eşleşen medya bulunamadı"
+            description={`${MEDIA_TYPE_LABELS_TR[mediaType]} için arama terimlerinizi değiştirerek tekrar deneyin.`}
           />
         )}
 
         {!hasSearched && (
           <EmptyState
             icon={Sparkles}
-            title="Find & Propose Media"
-            description={`Search Google Books, TMDB, Spotify, or Podcasts to add titles to this circle's voting queue.`}
+            title="Medya Arayın ve Önerin"
+            description="Grubunuzun oylama sırasına eklemek için Google Books, TMDB, Spotify veya Podcasts üzerinden arama yapın."
           />
         )}
       </div>

@@ -41,14 +41,14 @@ export default async function AdminGroupsPage() {
       <div className="flex items-center justify-between pb-2 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Circle Management
+            Grup Yönetimi
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Browse all user-created circles, view content stats, or remove inactive/violating groups.
+            Kullanıcı gruplarını listeleyin, içerik istatistiklerini görün veya uygunsuz grupları kaldırın.
           </p>
         </div>
         <Badge variant="secondary" className="text-xs">
-          {groups.length} circles
+          {groups.length} grup
         </Badge>
       </div>
 
@@ -56,7 +56,7 @@ export default async function AdminGroupsPage() {
         {groups.map((group) => {
           const memberCount = membersPerGroup.get(group.id) ?? 0;
           const titleCount = titlesPerGroup.get(group.id) ?? 0;
-          const creatorName = group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Unknown";
+          const creatorName = group.expand?.createdBy?.name || group.expand?.createdBy?.email || "Bilinmiyor";
 
           return (
             <Card
@@ -73,7 +73,7 @@ export default async function AdminGroupsPage() {
                       {group.name}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      Created by <span className="font-medium text-foreground">{creatorName}</span>
+                      Oluşturan: <span className="font-medium text-foreground">{creatorName}</span>
                     </p>
                   </div>
                   <CopyInviteButton code={group.inviteCode} />
@@ -83,12 +83,12 @@ export default async function AdminGroupsPage() {
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <Users className="size-3.5" />
-                      <span>{memberCount}</span>
+                      <span>{memberCount} üye</span>
                     </span>
                     <span>&middot;</span>
                     <span className="inline-flex items-center gap-1">
                       <Sparkles className="size-3.5" />
-                      <span>{titleCount}</span>
+                      <span>{titleCount} medya</span>
                     </span>
                   </div>
 
@@ -97,7 +97,7 @@ export default async function AdminGroupsPage() {
                       href={`/admin/groups/${group.id}`}
                       className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
                     >
-                      <span>Manage</span>
+                      <span>Yönet</span>
                       <ArrowRight className="size-3" />
                     </Link>
 
@@ -107,7 +107,7 @@ export default async function AdminGroupsPage() {
                         variant="ghost"
                         size="icon-xs"
                         className="text-destructive hover:bg-destructive/10 size-7"
-                        title="Delete Group"
+                        title="Grubu Sil"
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
@@ -121,7 +121,7 @@ export default async function AdminGroupsPage() {
 
         {groups.length === 0 && (
           <div className="col-span-full p-8 text-center border border-dashed rounded-xl text-muted-foreground text-xs">
-            No circles have been created yet.
+            Henüz oluşturulmuş bir grup yok.
           </div>
         )}
       </div>

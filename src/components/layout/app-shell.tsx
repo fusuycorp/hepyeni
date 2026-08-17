@@ -27,7 +27,7 @@ export function AppShell({
   children,
   user,
   backHref,
-  backLabel = "Back",
+  backLabel = "Geri",
   title,
   headerActions,
   maxWidth = "default",
@@ -90,6 +90,22 @@ export function AppShell({
             widthClasses[maxWidth]
           )}
         >
+          {backHref && (
+            <div className="hidden md:flex items-center gap-2 mb-4">
+              <Link
+                href={backHref}
+                className={buttonVariants({
+                  variant: "ghost",
+                  size: "sm",
+                  className:
+                    "-ml-2.5 h-8 px-2.5 text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs font-medium",
+                })}
+              >
+                <ChevronLeft className="size-4" />
+                <span>{backLabel}</span>
+              </Link>
+            </div>
+          )}
           {children}
         </div>
       </main>

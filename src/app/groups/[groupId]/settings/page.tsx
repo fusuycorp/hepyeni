@@ -78,15 +78,15 @@ export default async function GroupSettingsPage({
       maxWidth="default"
       backHref={`/groups/${groupId}`}
       backLabel={group.name}
-      title={`${group.name} Settings`}
+      title={`${group.name} Ayarları`}
     >
       <div className="space-y-6">
         <div className="pb-4 border-b">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Circle Settings
+            Grup Ayarları
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Manage circle name, invite codes, member access, and permissions.
+            Grup adını, davet kodunu, üye erişimini ve yetkilerini yönetin.
           </p>
         </div>
 
@@ -94,9 +94,9 @@ export default async function GroupSettingsPage({
         {isOwner && (
           <Card className="border-border/70 shadow-xs">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Circle Name</CardTitle>
+              <CardTitle className="text-sm font-semibold">Grup Adı</CardTitle>
               <CardDescription className="text-xs">
-                Update how this circle appears to members.
+                Bu grubun üyelere nasıl görüneceğini güncelleyin.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -114,9 +114,9 @@ export default async function GroupSettingsPage({
             <div className="flex items-center gap-2">
               <KeyRound className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Invite Code</CardTitle>
+                <CardTitle className="text-sm font-semibold">Davet Kodu</CardTitle>
                 <CardDescription className="text-xs">
-                  Share this code with friends to let them join this circle.
+                  Arkadaşlarınızın bu gruba katılabilmesi için bu kodu paylaşın.
                 </CardDescription>
               </div>
             </div>
@@ -128,14 +128,14 @@ export default async function GroupSettingsPage({
 
             {isOwner && (
               <ConfirmActionButton
-                triggerLabel="Regenerate Code"
+                triggerLabel="Yeni Kod Üret"
                 triggerVariant="outline"
                 variant="default"
                 size="sm"
-                title="Regenerate the invite code?"
-                description="The current code will stop working immediately — anyone who hasn't joined yet will need the new one."
-                confirmLabel="Regenerate"
-                pendingLabel="Regenerating…"
+                title="Davet kodunu yenilemek istiyor musunuz?"
+                description="Mevcut kod derhal geçerliliğini yitirecektir — henüz katılmamış olanların yeni koda ihtiyacı olacaktır."
+                confirmLabel="Yenile"
+                pendingLabel="Yenileniyor…"
                 onConfirm={regenerateInviteCode.bind(null, groupId)}
               />
             )}
@@ -148,9 +148,9 @@ export default async function GroupSettingsPage({
             <div className="flex items-center gap-2">
               <Users className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Members ({members.length})</CardTitle>
+                <CardTitle className="text-sm font-semibold">Üyeler ({members.length})</CardTitle>
                 <CardDescription className="text-xs">
-                  All active participants in this circle.
+                  Bu gruptaki tüm aktif katılımcılar.
                 </CardDescription>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default async function GroupSettingsPage({
           <CardContent>
             <div className="divide-y divide-border/50">
               {members.map((m) => {
-                const userName = m.expand?.user?.name || m.expand?.user?.email || "Member";
+                const userName = m.expand?.user?.name || m.expand?.user?.email || "Üye";
                 const userEmail = m.expand?.user?.email;
                 const initials = userName.slice(0, 2).toUpperCase();
                 const isMemberOwner = m.role === "owner";
@@ -182,7 +182,7 @@ export default async function GroupSettingsPage({
                             {userName}
                           </span>
                           {isSelf && (
-                            <span className="text-[10px] text-muted-foreground font-normal">(you)</span>
+                            <span className="text-[10px] text-muted-foreground font-normal">(sen)</span>
                           )}
                         </div>
                         {userEmail && (
@@ -196,23 +196,23 @@ export default async function GroupSettingsPage({
                     <div className="flex items-center gap-2">
                       {isMemberOwner ? (
                         <Badge variant="default" className="text-[10px] uppercase tracking-wider font-semibold">
-                          Owner
+                          Yönetici
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-medium">
-                          Member
+                          Üye
                         </Badge>
                       )}
 
                       {isOwner && !isSelf && (
                         <ConfirmActionButton
-                          triggerLabel="Remove"
+                          triggerLabel="Çıkar"
                           triggerVariant="ghost"
                           size="xs"
-                          title={`Remove ${userName}?`}
-                          description="They will immediately lose access and need a new invite code to rejoin."
-                          confirmLabel="Remove"
-                          pendingLabel="Removing…"
+                          title={`${userName} üyesini çıkarmak istiyor musunuz?`}
+                          description="Gruptan derhal çıkarılacak ve tekrar katılmak için yeni bir davet koduna ihtiyaç duyacaktır."
+                          confirmLabel="Çıkar"
+                          pendingLabel="Çıkarılıyor…"
                           onConfirm={removeMember.bind(null, groupId, m.id)}
                         />
                       )}
@@ -231,10 +231,10 @@ export default async function GroupSettingsPage({
               <AlertTriangle className="size-4 text-destructive" />
               <div>
                 <CardTitle className="text-sm font-semibold text-destructive">
-                  Danger Zone
+                  Tehlikeli Bölge
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Irreversible actions for this circle.
+                  Bu grup için geri alınamaz işlemler.
                 </CardDescription>
               </div>
             </div>
@@ -242,22 +242,22 @@ export default async function GroupSettingsPage({
           <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-card border border-destructive/20">
               <div>
-                <p className="text-xs font-semibold text-foreground">Leave Circle</p>
+                <p className="text-xs font-semibold text-foreground">Gruptan Ayrıl</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {isOwner && members.length > 1
-                    ? "Remove all other members first — owners cannot leave an active circle with remaining members."
-                    : "You will leave this circle. You will need an invite code to rejoin."}
+                    ? "Önce diğer tüm üyeleri çıkarmalısınız — yöneticiler başka üyeler varken gruptan ayrılamaz."
+                    : "Bu gruptan ayrılacaksınız. Tekrar katılmak için bir davet koduna ihtiyacınız olacak."}
                 </p>
               </div>
               <ConfirmActionButton
-                triggerLabel="Leave Circle"
+                triggerLabel="Gruptan Ayrıl"
                 triggerVariant="outline"
                 variant="destructive"
                 size="sm"
-                title="Leave this circle?"
-                description="You'll need a valid invite code to rejoin."
-                confirmLabel="Leave"
-                pendingLabel="Leaving…"
+                title="Bu gruptan ayrılmak istiyor musunuz?"
+                description="Tekrar katılmak için geçerli bir davet koduna ihtiyacınız olacak."
+                confirmLabel="Ayrıl"
+                pendingLabel="Ayrılınıyor…"
                 redirectTo="/groups"
                 onConfirm={leaveGroup.bind(null, groupId)}
               />
@@ -266,20 +266,20 @@ export default async function GroupSettingsPage({
             {isOwner && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-card border border-destructive/20">
                 <div>
-                  <p className="text-xs font-semibold text-destructive">Delete Circle</p>
+                  <p className="text-xs font-semibold text-destructive">Grubu Sil</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Permanently delete this circle, all proposed media, votes, and member records.
+                    Bu grubu, tüm önerilen medyaları, oyları ve üyelik kayıtlarını kalıcı olarak silin.
                   </p>
                 </div>
                 <ConfirmActionButton
-                  triggerLabel="Delete Circle"
+                  triggerLabel="Grubu Sil"
                   triggerVariant="destructive"
                   variant="destructive"
                   size="sm"
-                  title={`Delete "${group.name}"?`}
-                  description="This action cannot be undone. All media, votes, and discussion records will be permanently erased."
-                  confirmLabel="Permanently Delete"
-                  pendingLabel="Deleting…"
+                  title={`"${group.name}" grubunu silmek istiyor musunuz?`}
+                  description="Bu işlem geri alınamaz. Tüm medyalar, oylar ve tartışma kayıtları kalıcı olarak silinecektir."
+                  confirmLabel="Kalıcı Olarak Sil"
+                  pendingLabel="Siliniyor…"
                   redirectTo="/groups"
                   onConfirm={deleteGroup.bind(null, groupId)}
                 />

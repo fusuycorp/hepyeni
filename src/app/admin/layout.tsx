@@ -25,7 +25,7 @@ export default async function AdminLayout({
               <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Shield className="size-4" />
               </div>
-              <span>Admin Portal</span>
+              <span>Yönetici Portalı</span>
             </Link>
 
             <nav className="flex items-center gap-1 text-xs font-medium">
@@ -33,19 +33,19 @@ export default async function AdminLayout({
                 href="/admin"
                 className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                Dashboard
+                Genel Bakış
               </Link>
               <Link
                 href="/admin/users"
                 className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                Users
+                Kullanıcılar
               </Link>
               <Link
                 href="/admin/groups"
                 className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                Groups
+                Gruplar
               </Link>
             </nav>
           </div>
@@ -61,7 +61,7 @@ export default async function AdminLayout({
               })}
             >
               <ArrowLeft className="size-3.5" />
-              <span>Back to App</span>
+              <span>Uygulamaya Dön</span>
             </Link>
           </div>
         </div>

@@ -28,9 +28,9 @@ export function ReviewForm({
     startTransition(async () => {
       try {
         await onSubmit(formData);
-        toast.success("Review saved.");
+        toast.success("Değerlendirme kaydedildi.");
       } catch {
-        toast.error("Couldn't save your review — try again.");
+        toast.error("Değerlendirme kaydedilemedi — lütfen tekrar deneyin.");
       }
     });
   }
@@ -48,7 +48,7 @@ export function ReviewForm({
           <button
             key={n}
             type="button"
-            aria-label={`Rate ${n} out of 5 stars`}
+            aria-label={`5 üzerinden ${n} yıldız ver`}
             aria-pressed={rating === n}
             onMouseEnter={() => setHovered(n)}
             onClick={() => setRating(n)}
@@ -68,7 +68,7 @@ export function ReviewForm({
       <Textarea
         name="reviewText"
         defaultValue={defaultText}
-        placeholder="Share your thoughts with the group (optional)..."
+        placeholder="Grup ile düşüncelerinizi paylaşın (isteğe bağlı)..."
         rows={2}
         className="text-xs resize-y min-h-[60px]"
       />
@@ -79,7 +79,7 @@ export function ReviewForm({
         className="self-start font-medium"
         disabled={isPending}
       >
-        {isPending ? "Saving…" : hasExisting ? "Update review" : "Save review"}
+        {isPending ? "Kaydediliyor…" : hasExisting ? "Değerlendirmeyi güncelle" : "Değerlendirmeyi kaydet"}
       </Button>
     </form>
   );

@@ -23,12 +23,12 @@ export function MarkConsumedButton({
           try {
             await onMark();
           } catch {
-            toast.error("Couldn't mark this as consumed — try again.");
+            toast.error("Tamamlandı olarak işaretlenemedi — lütfen tekrar deneyin.");
           }
         })
       }
     >
-      {isPending ? "Marking…" : "Mark as consumed"}
+      {isPending ? "İşleniyor…" : "Tamamlandı olarak işaretle"}
     </Button>
   );
 }

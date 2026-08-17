@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Titirek",
-  description: "Vote on what your group reads, watches, and listens to next.",
+  title: "Titirek — Medya Takip ve Oylama",
+  description: "Arkadaşlarınızla ve kulüplerinizle kitap, film, dizi, müzik ve podcast takip edin.",
 };
 
 export const viewport = {
@@ -27,7 +27,7 @@ export const viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="tr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >

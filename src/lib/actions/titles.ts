@@ -75,6 +75,7 @@ export async function addTitle(
       status: "proposed",
       addedBy: session.id,
     });
+    revalidatePath(`/groups/${groupId}`);
   } catch (err) {
     if (!isValidationNotUnique(err)) throw err;
   }

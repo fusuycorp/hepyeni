@@ -22,7 +22,7 @@ export function CopyInviteButton({
     e.stopPropagation();
     navigator.clipboard.writeText(code);
     setCopied(true);
-    toast.success(`Invite code copied: ${code}`);
+    toast.success(`Davet kodu kopyalandı: ${code}`);
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -34,8 +34,8 @@ export function CopyInviteButton({
         size="icon-xs"
         className={cn("size-6 text-muted-foreground hover:text-foreground", className)}
         onClick={copy}
-        title="Copy invite code"
-        aria-label="Copy invite code"
+        title="Davet kodunu kopyala"
+        aria-label="Davet kodunu kopyala"
       >
         {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
       </Button>
@@ -54,12 +54,12 @@ export function CopyInviteButton({
         {copied ? (
           <>
             <Check className="size-3.5 text-emerald-500" />
-            <span>Copied!</span>
+            <span>Kopyalandı!</span>
           </>
         ) : (
           <>
             <Copy className="size-3.5" />
-            <span>Code: {code}</span>
+            <span>Kod: {code}</span>
           </>
         )}
       </Button>
@@ -75,7 +75,7 @@ export function CopyInviteButton({
         "bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60",
         className
       )}
-      title="Click to copy invite code"
+      title="Davet kodunu kopyalamak için tıklayın"
     >
       <span>{code}</span>
       {copied ? (

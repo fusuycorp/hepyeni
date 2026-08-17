@@ -20,9 +20,9 @@ export function UpdateNameForm({
     startTransition(async () => {
       try {
         await onUpdate(formData);
-        toast.success("Name updated.");
+        toast.success("İsim güncellendi.");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Couldn't update your name.");
+        toast.error(err instanceof Error ? err.message : "İsim güncellenemedi.");
       }
     });
   }
@@ -31,7 +31,7 @@ export function UpdateNameForm({
     <form onSubmit={handleSubmit} className="flex gap-2">
       <Input name="name" defaultValue={defaultName} required maxLength={200} />
       <Button type="submit" variant="outline" disabled={isPending}>
-        {isPending ? "Saving…" : "Save"}
+        {isPending ? "Kaydediliyor…" : "Kaydet"}
       </Button>
     </form>
   );

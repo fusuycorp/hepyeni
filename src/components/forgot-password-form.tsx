@@ -12,7 +12,7 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <p className="text-sm text-muted-foreground">
-        If that email has an account, a reset link is on its way.
+        Bu e-posta adresine ait bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.
       </p>
     );
   }
@@ -28,9 +28,9 @@ export function ForgotPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <Input type="email" name="email" required placeholder="you@example.com" />
+      <Input type="email" name="email" required placeholder="ornek@eposta.com" />
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Sending…" : "Send reset link"}
+        {isPending ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
       </Button>
     </form>
   );

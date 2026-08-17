@@ -66,7 +66,7 @@ export default async function AdminGroupDetailPage({
           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium"
         >
           <ArrowLeft className="size-3.5" />
-          <span>All Circles</span>
+          <span>Tüm Gruplar</span>
         </Link>
       </div>
 
@@ -79,7 +79,7 @@ export default async function AdminGroupDetailPage({
             <CopyInviteButton code={group.inviteCode} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Circle ID: <span className="font-mono">{group.id}</span>
+            Grup Kimliği: <span className="font-mono">{group.id}</span>
           </p>
         </div>
       </div>
@@ -89,7 +89,7 @@ export default async function AdminGroupDetailPage({
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Proposed & Consumed Titles ({groupTitles.length})
+              Önerilen ve Tamamlanan Medyalar ({groupTitles.length})
             </h2>
           </div>
 
@@ -110,17 +110,17 @@ export default async function AdminGroupDetailPage({
                         <div className="flex items-center gap-2">
                           <MediaBadge type={title.mediaType} size="sm" />
                           <Badge variant={title.status === "consumed" ? "secondary" : "default"} className="text-[10px] py-0">
-                            {title.status}
+                            {title.status === "consumed" ? "Tamamlandı" : "Sıradaki"}
                           </Badge>
                           <span className="text-xs text-muted-foreground font-mono">
-                            Score: {score}
+                            Puan: {score}
                           </span>
                         </div>
                         <h3 className="text-sm font-semibold text-foreground">
                           {title.title}
                         </h3>
                         <p className="text-xs text-muted-foreground">
-                          Added by {title.expand?.addedBy?.name ?? title.expand?.addedBy?.email ?? "Unknown"}
+                          Ekleyen: {title.expand?.addedBy?.name ?? title.expand?.addedBy?.email ?? "Bilinmiyor"}
                         </p>
                       </div>
 
@@ -132,7 +132,7 @@ export default async function AdminGroupDetailPage({
                           className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
                         >
                           <Trash2 className="size-3" />
-                          <span>Delete</span>
+                          <span>Sil</span>
                         </Button>
                       </form>
                     </div>
@@ -140,7 +140,7 @@ export default async function AdminGroupDetailPage({
                     {reviews.length > 0 && (
                       <div className="border-t border-border/50 pt-2 space-y-1.5">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase">
-                          Reviews ({reviews.length})
+                          Değerlendirmeler ({reviews.length})
                         </p>
                         <div className="space-y-1">
                           {reviews.map((review) => (
@@ -167,7 +167,7 @@ export default async function AdminGroupDetailPage({
                                   size="xs"
                                   className="text-destructive hover:bg-destructive/10 h-6 px-1.5 text-[11px]"
                                 >
-                                  Delete
+                                  Sil
                                 </Button>
                               </form>
                             </div>
@@ -182,7 +182,7 @@ export default async function AdminGroupDetailPage({
 
             {groupTitles.length === 0 && (
               <div className="p-8 text-center border border-dashed rounded-xl text-muted-foreground text-xs">
-                No titles have been added to this circle yet.
+                Bu gruba henüz bir medya eklenmemiş.
               </div>
             )}
           </div>
@@ -193,7 +193,7 @@ export default async function AdminGroupDetailPage({
           <Card className="border-border/70 shadow-2xs">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">
-                Circle Members ({members.length})
+                Grup Üyeleri ({members.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -207,7 +207,7 @@ export default async function AdminGroupDetailPage({
                       {m.expand?.user?.name ?? m.expand?.user?.email}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase">
-                      {m.role}
+                      {m.role === "owner" ? "Yönetici" : "Üye"}
                     </span>
                   </div>
 
@@ -219,7 +219,7 @@ export default async function AdminGroupDetailPage({
                       className="text-destructive hover:bg-destructive/10 h-7 text-xs"
                     >
                       <UserMinus className="size-3 mr-1" />
-                      <span>Remove</span>
+                      <span>Çıkar</span>
                     </Button>
                   </form>
                 </div>

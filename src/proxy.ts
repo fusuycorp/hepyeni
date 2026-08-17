@@ -20,6 +20,6 @@ export const config = {
   // a future route that merely starts with one of these words — e.g.
   // /reset-password-request — doesn't silently become public too.
   matcher: [
-    "/((?!(?:api/auth|login|reset-password|_next/static|_next/image|favicon\\.ico)(?:/|$)).*)",
+    "/((?!(?:api/auth|login|reset-password|privacy|terms|_next/static|_next/image|favicon\\.ico)(?:/|$)).*)",
   ],
 };

@@ -63,21 +63,21 @@ export default async function GroupsPage() {
   };
 
   return (
-    <AppShell user={currentUser} maxWidth="wide" title="Your Groups">
+    <AppShell user={currentUser} maxWidth="wide" title="Gruplarınız">
       <div className="flex flex-col gap-8">
         {/* Header Hero */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Your Circles
+              Medya Gruplarınız
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Collaborate and track recommendations with your reading & watching clubs.
+              Okuma ve izleme kulüplerinizle önerileri ve listeleri birlikte takip edin.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full border">
-              {memberships.length} {memberships.length === 1 ? "group" : "groups"}
+              {memberships.length} {memberships.length === 1 ? "grup" : "grup"}
             </span>
           </div>
         </div>
@@ -107,11 +107,11 @@ export default async function GroupsPage() {
                           variant={isOwner ? "default" : "secondary"}
                           className="shrink-0 text-[10px] uppercase tracking-wider font-semibold"
                         >
-                          {membership.role}
+                          {isOwner ? "Yönetici" : "Üye"}
                         </Badge>
                       </div>
                       <CardDescription className="text-xs flex items-center gap-2 mt-1">
-                        <span>Code:</span>
+                        <span>Kod:</span>
                         <CopyInviteButton code={group.inviteCode} />
                       </CardDescription>
                     </CardHeader>
@@ -120,15 +120,15 @@ export default async function GroupsPage() {
                       <div className="flex items-center justify-between border-t border-border/50 pt-3 text-xs text-muted-foreground">
                         <div className="flex items-center gap-3">
                           <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                            <span className="text-primary font-bold">{stats.proposed}</span> Up Next
+                            <span className="text-primary font-bold">{stats.proposed}</span> Sıradakiler
                           </span>
                           <span>&middot;</span>
                           <span className="font-medium text-muted-foreground">
-                            {stats.consumed} Done
+                            {stats.consumed} Tamamlandı
                           </span>
                         </div>
                         <div className="flex items-center gap-1 text-muted-foreground group-hover:text-primary transition-colors font-medium">
-                          <span>Open</span>
+                          <span>Aç</span>
                           <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                         </div>
                       </div>
@@ -141,15 +141,15 @@ export default async function GroupsPage() {
         ) : (
           <EmptyState
             icon={Users}
-            title="You're not in any groups yet"
-            description="Create a new circle for your friends or book club, or join an existing one using an invite code."
+            title="Henüz bir gruba üye değilsiniz"
+            description="Arkadaşlarınız veya kulübünüz için yeni bir grup oluşturun ya da davet koduyla mevcut bir gruba katılın."
           />
         )}
 
         {/* Create & Join Actions Section */}
         <div className="space-y-3 pt-4 border-t">
           <h2 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">
-            Add or Join Circles
+            Grup Oluştur veya Katıl
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <CreateGroupCard onCreate={createGroup} />

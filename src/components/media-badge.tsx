@@ -1,6 +1,6 @@
 import { BookOpen, Film, Tv, Disc3, Mic } from "lucide-react";
 import type { MediaType } from "@/lib/media-types";
-import { MEDIA_TYPE_LABELS } from "@/lib/media-types";
+import { MEDIA_TYPE_LABELS, MEDIA_TYPE_LABELS_TR } from "@/lib/media-types";
 import { cn } from "@/lib/utils";
 
 interface MediaBadgeProps {
@@ -33,7 +33,7 @@ export function MediaBadge({
   showIcon = true,
 }: MediaBadgeProps) {
   const Icon = MEDIA_ICONS[type as MediaType] ?? BookOpen;
-  const label = MEDIA_TYPE_LABELS[type as MediaType] ?? type;
+  const label = (MEDIA_TYPE_LABELS_TR as Record<string, string>)[type] ?? MEDIA_TYPE_LABELS[type as MediaType] ?? type;
   const style = MEDIA_STYLES[type] ?? "bg-muted text-muted-foreground border-border";
 
   return (

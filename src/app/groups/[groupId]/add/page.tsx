@@ -49,15 +49,15 @@ export default async function AddTitlePage({
       maxWidth="wide"
       backHref={`/groups/${groupId}`}
       backLabel={group.name}
-      title={`Propose Media · ${group.name}`}
+      title={`Medya Öner · ${group.name}`}
     >
       <div className="flex flex-col gap-6">
         <div className="pb-4 border-b">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Propose Media
+            Medya Öner
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Search books, movies, TV shows, music, or podcasts to add to {group.name}&apos;s backlog.
+            {group.name} istek listesine eklemek için kitap, film, dizi, müzik veya podcast arayın.
           </p>
         </div>
 

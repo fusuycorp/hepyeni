@@ -25,19 +25,19 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const navItems = [
     {
       href: "/groups",
-      label: "Groups",
+      label: "Gruplar",
       icon: Users,
       active: pathname === "/groups" || (pathname.startsWith("/groups") && !pathname.includes("/admin")),
     },
     {
       href: "/activity",
-      label: "Activity",
+      label: "Aktivite",
       icon: Rss,
       active: pathname === "/activity",
     },
     {
       href: "/profile",
-      label: "Profile",
+      label: "Profil",
       icon: User,
       active: pathname === "/profile",
     },
@@ -46,7 +46,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   if (user?.isAdmin) {
     navItems.push({
       href: "/admin",
-      label: "Admin Portal",
+      label: "Yönetici Paneli",
       icon: Shield,
       active: pathname.startsWith("/admin"),
     });
@@ -67,7 +67,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
               Titirek
             </span>
             <span className="text-[11px] text-muted-foreground tracking-tight mt-0.5">
-              Media Tracker
+              Medya Takibi
             </span>
           </div>
         </Link>
@@ -77,7 +77,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
       {/* Main Nav Links */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
         <div className="px-2 mb-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Menu
+          Menü
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -98,6 +98,19 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
             </Link>
           );
         })}
+
+        {/* Legal Links */}
+        <div className="px-2 pt-6 flex items-center gap-2 text-[10px] text-muted-foreground">
+          <Link href="/privacy" className="hover:text-foreground transition-colors">
+            Gizlilik
+          </Link>
+          <span>&middot;</span>
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            Şartlar
+          </Link>
+          <span>&middot;</span>
+          <span>hepyeni.net</span>
+        </div>
       </div>
 
       {/* User Footer */}
@@ -114,7 +127,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold truncate leading-tight">
-                  {user.name || "User"}
+                  {user.name || "Kullanıcı"}
                 </span>
                 <span className="text-[11px] text-muted-foreground truncate leading-tight">
                   {user.email}
@@ -128,8 +141,8 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
                 variant="ghost"
                 size="icon-sm"
                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                title="Sign out"
-                aria-label="Sign out"
+                title="Çıkış Yap"
+                aria-label="Çıkış Yap"
               >
                 <LogOut className="size-4" />
               </Button>

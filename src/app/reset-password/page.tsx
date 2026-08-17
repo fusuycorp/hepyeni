@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,9 +7,9 @@ import { BookmarkCheck, AlertCircle, KeyRound } from "lucide-react";
 import { confirmPasswordReset } from "@/lib/actions/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  WeakPassword: "Password must be at least 8 characters long.",
-  Mismatch: "The passwords entered do not match.",
-  Invalid: "This reset link is invalid or has expired — please request a new one.",
+  WeakPassword: "Şifre en az 8 karakter uzunluğunda olmalıdır.",
+  Mismatch: "Girilen şifreler birbiriyle eşleşmiyor.",
+  Invalid: "Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş — lütfen yeniden istekte bulunun.",
 };
 
 export default async function ResetPasswordPage({
@@ -31,7 +32,7 @@ export default async function ResetPasswordPage({
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Titirek</h1>
           <p className="text-xs text-muted-foreground">
-            Account Password Reset
+            Hesap Şifresi Sıfırlama
           </p>
         </div>
 
@@ -40,9 +41,9 @@ export default async function ResetPasswordPage({
             <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-1">
               <KeyRound className="size-4.5" />
             </div>
-            <CardTitle className="text-base font-semibold">Set New Password</CardTitle>
+            <CardTitle className="text-base font-semibold">Yeni Şifre Belirleyin</CardTitle>
             <CardDescription className="text-xs">
-              Choose a strong password with at least 8 characters.
+              En az 8 karakterden oluşan güçlü bir şifre seçin.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
@@ -50,7 +51,7 @@ export default async function ResetPasswordPage({
               <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs text-left">
                 <AlertCircle className="size-4 shrink-0" />
                 <span>
-                  This reset link is missing its verification token. Please request a new link from the login screen.
+                  Bu sıfırlama bağlantısında doğrulama jetonu eksik. Lütfen giriş ekranından yeni bir bağlantı talep edin.
                 </span>
               </div>
             ) : (
@@ -69,7 +70,7 @@ export default async function ResetPasswordPage({
                     name="password"
                     required
                     minLength={8}
-                    placeholder="New password (min 8 chars)"
+                    placeholder="Yeni şifre (en az 8 karakter)"
                     className="h-10 text-xs"
                   />
                   <Input
@@ -77,17 +78,28 @@ export default async function ResetPasswordPage({
                     name="passwordConfirm"
                     required
                     minLength={8}
-                    placeholder="Confirm new password"
+                    placeholder="Yeni şifreyi onaylayın"
                     className="h-10 text-xs"
                   />
                   <Button type="submit" className="w-full font-semibold h-10 mt-1">
-                    Update Password
+                    Şifreyi Güncelle
                   </Button>
                 </form>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Footer Legal Links */}
+        <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground">
+          <Link href="/privacy" className="hover:text-foreground underline underline-offset-4 transition-colors">
+            Gizlilik Politikası
+          </Link>
+          <span>&middot;</span>
+          <Link href="/terms" className="hover:text-foreground underline underline-offset-4 transition-colors">
+            Kullanım Koşulları
+          </Link>
+        </div>
       </div>
     </div>
   );

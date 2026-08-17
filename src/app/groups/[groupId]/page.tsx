@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Plus, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { AddTitleDialog } from "@/components/add-title-dialog";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { buttonVariants } from "@/components/ui/button";
 import { GroupContentView } from "./group-content-view";
@@ -115,7 +116,7 @@ export default async function GroupPage({
       user={currentUser}
       maxWidth="wide"
       backHref="/groups"
-      backLabel="All Circles"
+      backLabel="Tüm Gruplar"
       headerActions={
         <Link
           href={`/groups/${groupId}/settings`}
@@ -140,22 +141,12 @@ export default async function GroupPage({
               <CopyInviteButton code={group.inviteCode} />
             </div>
             <p className="text-xs text-muted-foreground">
-              {members.length} {members.length === 1 ? "member" : "members"} &middot; {proposed.length} up next &middot; {consumed.length} finished
+              {members.length} üye &middot; {proposed.length} sıradaki &middot; {consumed.length} tamamlanan
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href={`/groups/${groupId}/add`}
-              className={buttonVariants({
-                variant: "default",
-                size: "sm",
-                className: "gap-1.5 font-medium shadow-xs",
-              })}
-            >
-              <Plus className="size-4" />
-              <span>Propose Media</span>
-            </Link>
+            <AddTitleDialog groupId={groupId} groupName={group.name} />
 
             <Link
               href={`/groups/${groupId}/settings`}
@@ -166,7 +157,7 @@ export default async function GroupPage({
               })}
             >
               <Settings className="size-4" />
-              <span className="hidden sm:inline">Settings</span>
+              <span className="hidden sm:inline">Ayarlar</span>
             </Link>
           </div>
         </div>

@@ -36,16 +36,16 @@ type ActivityItem =
 function formatRelativeTime(dateString: string) {
   const date = new Date(dateString);
   const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
 
-  if (diffSec < 60) return "just now";
+  if (diffSec < 60) return "az önce";
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return `${diffMin} dk önce`;
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return `${diffHours} sa önce`;
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (diffDays < 7) return `${diffDays} gün önce`;
+  return date.toLocaleDateString("tr-TR", { month: "short", day: "numeric" });
 }
 
 export default async function ActivityPage() {
@@ -120,14 +120,14 @@ export default async function ActivityPage() {
   };
 
   return (
-    <AppShell user={currentUser} maxWidth="wide" title="Recent Activity">
+    <AppShell user={currentUser} maxWidth="wide" title="Son Aktiviteler">
       <div className="flex flex-col gap-6">
         <div className="pb-4 border-b">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Activity Feed
+            Aktivite Akışı
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time proposals, votes, and member reviews across all your circles.
+            Üyesi olduğunuz tüm gruplardaki güncel öneriler, oylar ve üye değerlendirmeleri.
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export default async function ActivityPage() {
                 const { title } = item;
                 const group = title.expand?.group;
                 const author = title.expand?.addedBy;
-                const authorName = author?.name || author?.email || "Member";
+                const authorName = author?.name || author?.email || "Üye";
                 const initials = authorName.slice(0, 2).toUpperCase();
 
                 return (
@@ -158,10 +158,10 @@ export default async function ActivityPage() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span className="font-semibold text-foreground">{authorName}</span>
-                              <span>proposed a new title</span>
+                              <span>yeni bir medya önerdi</span>
                               {group && (
                                 <>
-                                  <span>in</span>
+                                  <span>&middot;</span>
                                   <Badge variant="secondary" className="text-[10px] font-medium py-0">
                                     {group.name}
                                   </Badge>
@@ -205,7 +205,7 @@ export default async function ActivityPage() {
               const title = review.expand?.title;
               const group = title?.expand?.group;
               const reviewer = review.expand?.user;
-              const reviewerName = reviewer?.name || reviewer?.email || "Member";
+              const reviewerName = reviewer?.name || reviewer?.email || "Üye";
               const initials = reviewerName.slice(0, 2).toUpperCase();
 
               return (
@@ -225,11 +225,11 @@ export default async function ActivityPage() {
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="font-semibold text-foreground">{reviewerName}</span>
-                            <span>reviewed</span>
+                            <span>değerlendirdi:</span>
                             <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
                             {group && (
                               <>
-                                <span>in</span>
+                                <span>&middot;</span>
                                 <Badge variant="secondary" className="text-[10px] font-medium py-0">
                                   {group.name}
                                 </Badge>
@@ -272,8 +272,8 @@ export default async function ActivityPage() {
         ) : (
           <EmptyState
             icon={Rss}
-            title="No activity yet"
-            description="When members in your circles propose titles or write reviews, they will appear here in chronological order."
+            title="Henüz aktivite yok"
+            description="Gruplarınızdaki üyeler medya önerdiğinde veya değerlendirme yazdığında kronolojik olarak burada görünecektir."
           />
         )}
       </div>

@@ -27,10 +27,10 @@ export function CreateGroupCard({
     startTransition(async () => {
       try {
         const groupId = await onCreate(formData);
-        toast.success("Group created successfully!");
+        toast.success("Grup başarıyla oluşturuldu!");
         router.push(`/groups/${groupId}`);
       } catch (err) {
-        toast.error(errorMessage(err, "Couldn't create the group."));
+        toast.error(errorMessage(err, "Grup oluşturulamadı."));
       }
     });
   }
@@ -43,9 +43,9 @@ export function CreateGroupCard({
             <Plus className="size-4" />
           </div>
           <div>
-            <CardTitle className="text-sm font-semibold">Create a Group</CardTitle>
+            <CardTitle className="text-sm font-semibold">Grup Oluştur</CardTitle>
             <CardDescription className="text-xs">
-              Start a new circle for books, movies, music, or podcasts.
+              Kitap, film, müzik veya podcast kulübünüz için yeni bir grup başlatın.
             </CardDescription>
           </div>
         </div>
@@ -54,7 +54,7 @@ export function CreateGroupCard({
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             name="name"
-            placeholder="e.g. Friday Film Club, Sci-Fi Book Circle"
+            placeholder="Örn: Cuma Film Kulübü, Bilim Kurgu Okuma Grubu"
             required
             className="text-xs"
             disabled={isPending}
@@ -63,11 +63,11 @@ export function CreateGroupCard({
             {isPending ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                <span>Creating…</span>
+                <span>Oluşturuluyor…</span>
               </>
             ) : (
               <>
-                <span>Create</span>
+                <span>Oluştur</span>
                 <ArrowRight className="size-3.5" />
               </>
             )}
@@ -93,10 +93,10 @@ export function JoinGroupCard({
     startTransition(async () => {
       try {
         const groupId = await onJoin(formData);
-        toast.success("Joined group!");
+        toast.success("Gruba katıldınız!");
         router.push(`/groups/${groupId}`);
       } catch (err) {
-        toast.error(errorMessage(err, "Couldn't join that group. Check the invite code."));
+        toast.error(errorMessage(err, "Gruba katılınamadı. Davet kodunu kontrol edin."));
       }
     });
   }
@@ -109,9 +109,9 @@ export function JoinGroupCard({
             <KeyRound className="size-4" />
           </div>
           <div>
-            <CardTitle className="text-sm font-semibold">Join with Code</CardTitle>
+            <CardTitle className="text-sm font-semibold">Kod ile Katıl</CardTitle>
             <CardDescription className="text-xs">
-              Enter an 8-character invite code to join an existing circle.
+              Mevcut bir gruba katılmak için 8 haneli davet kodunu girin.
             </CardDescription>
           </div>
         </div>
@@ -120,7 +120,7 @@ export function JoinGroupCard({
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
             name="code"
-            placeholder="e.g. A1B2C3D4"
+            placeholder="Örn: A1B2C3D4"
             required
             maxLength={12}
             className="uppercase font-mono text-xs tracking-wider"
@@ -130,11 +130,11 @@ export function JoinGroupCard({
             {isPending ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                <span>Joining…</span>
+                <span>Katılınıyor…</span>
               </>
             ) : (
               <>
-                <span>Join</span>
+                <span>Katıl</span>
                 <ArrowRight className="size-3.5" />
               </>
             )}

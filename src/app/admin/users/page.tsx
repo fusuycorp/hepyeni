@@ -28,14 +28,14 @@ export default async function AdminUsersPage() {
       <div className="flex items-center justify-between pb-2 border-b">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            User Management
+            Kullanıcı Yönetimi
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Oversee user accounts, grant administrative permissions, and enforce moderation bans.
+            Kullanıcı hesaplarını inceleyin, yönetici yetkileri atayın veya hesapları askıya alın.
           </p>
         </div>
         <Badge variant="secondary" className="text-xs">
-          {allUsers.length} total users
+          {allUsers.length} toplam kullanıcı
         </Badge>
       </div>
 
@@ -65,21 +65,21 @@ export default async function AdminUsersPage() {
                       {user.isAdmin && (
                         <Badge variant="default" className="text-[10px] py-0 gap-1">
                           <Shield className="size-2.5" />
-                          <span>Admin</span>
+                          <span>Yönetici</span>
                         </Badge>
                       )}
                       {user.bannedAt && (
                         <Badge variant="destructive" className="text-[10px] py-0 gap-1">
                           <Ban className="size-2.5" />
-                          <span>Banned</span>
+                          <span>Yasaklı</span>
                         </Badge>
                       )}
                       {isSelf && (
-                        <span className="text-[10px] text-muted-foreground font-mono">(Current User)</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">(Mevcut Kullanıcı)</span>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate font-mono">
-                      {user.email} &middot; Joined {new Date(user.created).toLocaleDateString()}
+                      {user.email} &middot; Kayıt: {new Date(user.created).toLocaleDateString("tr-TR")}
                     </p>
                   </div>
                 </div>
@@ -93,7 +93,7 @@ export default async function AdminUsersPage() {
                         size="xs"
                         className="text-xs h-7"
                       >
-                        {user.isAdmin ? "Revoke Admin" : "Make Admin"}
+                        {user.isAdmin ? "Yöneticiliği Kaldır" : "Yönetici Yap"}
                       </Button>
                     </form>
 
@@ -110,7 +110,7 @@ export default async function AdminUsersPage() {
                         size="xs"
                         className="text-xs h-7"
                       >
-                        {user.bannedAt ? "Unban Account" : "Ban User"}
+                        {user.bannedAt ? "Yasağı Kaldır" : "Kullanıcıyı Yasakla"}
                       </Button>
                     </form>
                   </div>

@@ -6,10 +6,11 @@ import { Users, Rss, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/groups", label: "Groups", icon: Users },
-  { href: "/activity", label: "Activity", icon: Rss },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/groups", label: "Gruplar", icon: Users },
+  { href: "/activity", label: "Aktivite", icon: Rss },
+  { href: "/profile", label: "Profil", icon: User },
 ] as const;
+
 
 export function BottomNav() {
   const pathname = usePathname();

@@ -20,9 +20,9 @@ export function RenameGroupForm({
     startTransition(async () => {
       try {
         await onRename(formData);
-        toast.success("Group renamed.");
+        toast.success("Grup adı güncellendi.");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Couldn't rename the group.");
+        toast.error(err instanceof Error ? err.message : "Grup adı güncellenemedi.");
       }
     });
   }
@@ -31,7 +31,7 @@ export function RenameGroupForm({
     <form onSubmit={handleSubmit} className="flex gap-2">
       <Input name="name" defaultValue={defaultName} required maxLength={200} />
       <Button type="submit" variant="outline" disabled={isPending}>
-        {isPending ? "Saving…" : "Save"}
+        {isPending ? "Kaydediliyor…" : "Kaydet"}
       </Button>
     </form>
   );

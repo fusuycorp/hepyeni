@@ -20,8 +20,8 @@ export function ConfirmActionButton({
   triggerLabel,
   title,
   description,
-  confirmLabel = "Confirm",
-  pendingLabel = "Working…",
+  confirmLabel = "Onayla",
+  pendingLabel = "İşleniyor…",
   variant = "destructive",
   triggerVariant = variant,
   size = "sm",
@@ -62,7 +62,7 @@ export function ConfirmActionButton({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>İptal</AlertDialogCancel>
           <AlertDialogAction
             variant={variant}
             disabled={isPending}
@@ -79,7 +79,7 @@ export function ConfirmActionButton({
                   toast.error(
                     err instanceof Error
                       ? err.message
-                      : "Something went wrong — try again.",
+                      : "Bir sorun oluştu — lütfen tekrar deneyin.",
                   );
                 }
               })

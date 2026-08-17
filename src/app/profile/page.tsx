@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { User, KeyRound, AlertTriangle, Shield, LogOut } from "lucide-react";
+import { User, KeyRound, AlertTriangle, Shield, LogOut, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -35,14 +36,14 @@ export default async function ProfilePage() {
   };
 
   return (
-    <AppShell user={currentUser} maxWidth="default" title="Account Profile">
+    <AppShell user={currentUser} maxWidth="default" title="Hesap Profili">
       <div className="space-y-6">
         <div className="pb-4 border-b">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Your Profile
+            Profiliniz
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Manage your personal credentials, display name, and preferences.
+            Kişisel bilgilerinizi, görünen adınızı ve tercihlerinizi yönetin.
           </p>
         </div>
 
@@ -59,12 +60,12 @@ export default async function ProfilePage() {
             <div className="flex-1 text-center sm:text-left space-y-1">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <h2 className="text-lg font-bold text-foreground">
-                  {user.name || "Unnamed User"}
+                  {user.name || "İsimsiz Kullanıcı"}
                 </h2>
                 {user.isAdmin && (
                   <Badge variant="default" className="text-[10px] gap-1 py-0">
                     <Shield className="size-3" />
-                    <span>Administrator</span>
+                    <span>Yönetici</span>
                   </Badge>
                 )}
               </div>
@@ -81,7 +82,7 @@ export default async function ProfilePage() {
                 className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/30"
               >
                 <LogOut className="size-3.5" />
-                <span>Sign out</span>
+                <span>Çıkış Yap</span>
               </Button>
             </form>
           </CardContent>
@@ -93,9 +94,9 @@ export default async function ProfilePage() {
             <div className="flex items-center gap-2">
               <User className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Display Name</CardTitle>
+                <CardTitle className="text-sm font-semibold">Görünen İsim</CardTitle>
                 <CardDescription className="text-xs">
-                  This is the name visible to fellow group members when proposing or reviewing media.
+                  Medya önerirken veya yorum yaparken grup üyelerine görünecek isim.
                 </CardDescription>
               </div>
             </div>
@@ -114,18 +115,48 @@ export default async function ProfilePage() {
             <div className="flex items-center gap-2">
               <KeyRound className="size-4 text-primary" />
               <div>
-                <CardTitle className="text-sm font-semibold">Password & Authentication</CardTitle>
+                <CardTitle className="text-sm font-semibold">Şifre ve Güvenlik</CardTitle>
                 <CardDescription className="text-xs">
-                  Need to change or set your account password? Request a secure reset email.
+                  Hesap şifrenizi değiştirmek veya belirlemek için sıfırlama bağlantısı isteyin.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <p className="text-xs text-muted-foreground">
-              A secure link will be sent to <span className="font-semibold text-foreground">{user.email}</span>.
+              Güvenli sıfırlama bağlantısı <span className="font-semibold text-foreground">{user.email}</span> adresine gönderilecektir.
             </p>
             <SendResetLinkButton email={user.email} />
+          </CardContent>
+        </Card>
+
+        {/* Legal & Policies */}
+        <Card className="border-border/70 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-primary" />
+              <div>
+                <CardTitle className="text-sm font-semibold">Yasal Bilgiler ve Şartlar</CardTitle>
+                <CardDescription className="text-xs">
+                  Kişisel verilerinizin nasıl korunduğunu ve platform kurallarını inceleyin.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-4 text-xs font-medium pt-1">
+            <Link
+              href="/privacy"
+              className="text-primary hover:underline underline-offset-4"
+            >
+              Gizlilik Politikası (Privacy Policy)
+            </Link>
+            <span className="text-muted-foreground">&middot;</span>
+            <Link
+              href="/terms"
+              className="text-primary hover:underline underline-offset-4"
+            >
+              Kullanım Koşulları (Terms of Service)
+            </Link>
           </CardContent>
         </Card>
 
@@ -136,27 +167,27 @@ export default async function ProfilePage() {
               <AlertTriangle className="size-4 text-destructive" />
               <div>
                 <CardTitle className="text-sm font-semibold text-destructive">
-                  Delete Account
+                  Hesabı Sil
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Permanently delete your user account and all personal activity.
+                  Kullanıcı hesabınızı ve tüm kişisel aktivitelerinizi kalıcı olarak silin.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground max-w-md">
-              Permanently deletes your profile, votes, and reviews. You must transfer or leave any circles you own before deleting.
+              Profiliniz, oylarınız ve incelemeleriniz kalıcı olarak silinir. Hesabı silmeden önce sahip olduğunuz grupları devretmeli veya ayrılmalısınız.
             </p>
             <ConfirmActionButton
-              triggerLabel="Delete Account"
+              triggerLabel="Hesabı Sil"
               triggerVariant="destructive"
               variant="destructive"
               size="sm"
-              title="Delete your account?"
-              description="This permanently deletes your account and removes you from every circle. This action is irreversible."
-              confirmLabel="Permanently Delete"
-              pendingLabel="Deleting…"
+              title="Hesabınızı silmek istediğinize emin misiniz?"
+              description="Bu işlem hesabınızı ve tüm gruplardaki üyeliğinizi kalıcı olarak siler. Bu işlem geri alınamaz."
+              confirmLabel="Kalıcı Olarak Sil"
+              pendingLabel="Siliniyor…"
               redirectTo="/login"
               onConfirm={deleteAccount}
             />

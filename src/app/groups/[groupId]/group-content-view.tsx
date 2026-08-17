@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, CheckCircle2, Sparkles, Star, Users, Settings } from "lucide-react";
+import { CheckCircle2, Sparkles, Star, Users, Settings } from "lucide-react";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
 import { VoteControl } from "@/components/vote-control";
 import { MarkConsumedButton } from "@/components/mark-consumed-button";
 import { ReviewForm } from "@/components/review-form";
 import { EmptyState } from "@/components/empty-state";
-import { buttonVariants } from "@/components/ui/button";
+import { AddTitleDialog } from "@/components/add-title-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,7 @@ export function GroupContentView({
             )}
           >
             <Sparkles className="size-3.5 text-primary" />
-            <span>Up Next</span>
+            <span>Sıradakiler</span>
             <span className={cn(
               "px-1.5 py-0.2 rounded-full text-[10px]",
               activeTab === "proposed" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
@@ -102,7 +102,7 @@ export function GroupContentView({
             )}
           >
             <CheckCircle2 className="size-3.5 text-emerald-500" />
-            <span>Finished</span>
+            <span>Bitenler</span>
             <span className={cn(
               "px-1.5 py-0.2 rounded-full text-[10px]",
               activeTab === "consumed" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"
@@ -124,7 +124,7 @@ export function GroupContentView({
                 : "bg-background text-muted-foreground border-border hover:bg-muted"
             )}
           >
-            All Types
+            Tüm Türler
           </button>
           {MEDIA_TYPES.map((type) => (
             <button
@@ -181,7 +181,7 @@ export function GroupContentView({
                             <MediaBadge type={title.mediaType} size="sm" />
                             {index === 0 && title.score > 0 && (
                               <Badge variant="default" className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
-                                #1 Top Pick
+                                #1 Top Öneri
                               </Badge>
                             )}
                           </div>
@@ -199,9 +199,9 @@ export function GroupContentView({
 
                           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                             <p className="text-[11px] text-muted-foreground">
-                              Added by{" "}
+                              Ekleyen:{" "}
                               <span className="font-medium text-foreground">
-                                {title.expand?.addedBy?.name || title.expand?.addedBy?.email || "member"}
+                                {title.expand?.addedBy?.name || title.expand?.addedBy?.email || "üye"}
                               </span>
                             </p>
                             <MarkConsumedButton
@@ -216,16 +216,12 @@ export function GroupContentView({
               ) : (
                 <EmptyState
                   icon={Sparkles}
-                  title={selectedMediaType === "all" ? "Nothing in backlog yet" : `No ${selectedMediaType}s in backlog`}
-                  description="Propose something for the group to vote on."
+                  title={selectedMediaType === "all" ? "İstek listesinde henüz bir şey yok" : `İstek listesinde ${selectedMediaType} türünde öğe yok`}
+                  description="Grubun oylaması için ilk medyayı önerin."
                   action={
-                    <Link
-                      href={`/groups/${group.id}/add`}
-                      className={buttonVariants({ size: "sm", className: "gap-1.5 mt-2" })}
-                    >
-                      <Plus className="size-3.5" />
-                      <span>Propose Media</span>
-                    </Link>
+                    <div className="mt-2">
+                      <AddTitleDialog groupId={group.id} groupName={group.name} />
+                    </div>
                   }
                 />
               )}
@@ -266,7 +262,7 @@ export function GroupContentView({
                                     <Star className="size-3 fill-amber-500 text-amber-500" />
                                     <span>{avg.toFixed(1)}</span>
                                     <span className="text-muted-foreground text-[10px] font-normal">
-                                      ({reviews.length})
+                                      ({reviews.length} değerlendirme)
                                     </span>
                                   </div>
                                 )}
@@ -285,7 +281,7 @@ export function GroupContentView({
                           {/* My Review Section */}
                           <div className="p-3.5 rounded-xl bg-muted/30 border border-border/50">
                             <p className="text-xs font-semibold text-foreground mb-2">
-                              {myReview ? "Your Rating & Review" : "Rate & Review this title"}
+                              {myReview ? "Puanınız ve Değerlendirmeniz" : "Bu Medyayı Puanlayın ve Değerlendirin"}
                             </p>
                             <ReviewForm
                               defaultRating={myReview?.rating ?? 5}
@@ -299,7 +295,7 @@ export function GroupContentView({
                           {otherReviews.length > 0 && (
                             <div className="space-y-2 pt-2 border-t">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                Group Reviews ({otherReviews.length})
+                                Grup Değerlendirmeleri ({otherReviews.length})
                               </p>
                               <div className="space-y-2">
                                 {otherReviews.map((r) => (
@@ -309,7 +305,7 @@ export function GroupContentView({
                                   >
                                     <div className="flex items-center justify-between">
                                       <span className="font-semibold text-foreground">
-                                        {r.expand?.user?.name || r.expand?.user?.email || "Member"}
+                                        {r.expand?.user?.name || r.expand?.user?.email || "Üye"}
                                       </span>
                                       <div className="flex items-center gap-0.5 text-amber-400">
                                         {Array.from({ length: r.rating }).map((_, i) => (
@@ -335,8 +331,8 @@ export function GroupContentView({
               ) : (
                 <EmptyState
                   icon={CheckCircle2}
-                  title="No completed titles yet"
-                  description="When you finish reading, watching, or listening to a title, mark it as consumed to leave reviews."
+                  title="Henüz tamamlanan medya yok"
+                  description="Bir kitabı, filmi veya podcast'i bitirdiğinizde tamamlandı olarak işaretleyerek değerlendirme yapabilirsiniz."
                 />
               )}
             </>
@@ -352,7 +348,7 @@ export function GroupContentView({
                 <div className="flex items-center gap-2">
                   <Users className="size-4 text-primary" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Members ({members.length})
+                    Üyeler ({members.length})
                   </h3>
                 </div>
                 <Link
@@ -360,13 +356,13 @@ export function GroupContentView({
                   className="text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1"
                 >
                   <Settings className="size-3.5" />
-                  <span>Manage</span>
+                  <span>Yönet</span>
                 </Link>
               </div>
 
               <div className="space-y-2 pt-1">
                 {members.map((m) => {
-                  const userName = m.expand?.user?.name || m.expand?.user?.email || "Member";
+                  const userName = m.expand?.user?.name || m.expand?.user?.email || "Üye";
                   const userEmail = m.expand?.user?.email;
                   const initials = userName.slice(0, 2).toUpperCase();
                   const isOwner = m.role === "owner";
@@ -400,7 +396,7 @@ export function GroupContentView({
                           variant="secondary"
                           className="text-[9px] uppercase tracking-wider font-semibold py-0"
                         >
-                          Owner
+                          Yönetici
                         </Badge>
                       )}
                     </div>
