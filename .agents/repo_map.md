@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 143
+Total mapped files: 144
 
-- `.agents/activity.jsonl` (7215 B)
+- `.agents/activity.jsonl` (7655 B)
 - `.agents/decisions.md` (7222 B)
 - `.agents/memory.md` (4619 B)
-- `.agents/repo_map.md` (14921 B)
+- `.agents/repo_map.md` (15156 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -106,7 +106,7 @@ Total mapped files: 143
 - `src/app/favicon.ico` (25931 B)
 - `src/app/global-error.tsx` (1829 B)
 - `src/app/globals.css` (4355 B)
-- `src/app/groups/[groupId]/add/add-title-form.tsx` (8752 B)
+- `src/app/groups/[groupId]/add/add-title-form.tsx` (18845 B)
     * interface AddTitleFormProps
     * export function AddTitleForm
     * const router
@@ -389,7 +389,7 @@ Total mapped files: 143
     * const reviewText
     * const pb
     * const existing
-- `src/lib/actions/titles.ts` (4861 B)
+- `src/lib/actions/titles.ts` (6297 B)
     * export type SearchTitlesResponse
     * const session
     * const cleanQuery
@@ -426,7 +426,7 @@ Total mapped files: 143
     * const t
     * const setLocale
     * export function useI18n
-- `src/lib/i18n/en.ts` (16918 B)
+- `src/lib/i18n/en.ts` (17794 B)
     * export const en
 - `src/lib/i18n/index.ts` (1744 B)
     * const dictionaries
@@ -440,9 +440,9 @@ Total mapped files: 143
     * const localeCookie
     * const locale
     * const locale
-- `src/lib/i18n/tr.ts` (18658 B)
+- `src/lib/i18n/tr.ts` (19620 B)
     * export const tr
-- `src/lib/i18n/types.ts` (10079 B)
+- `src/lib/i18n/types.ts` (10597 B)
     * export type Locale
     * export interface Translations
 - `src/lib/invite-code.ts` (263 B)
@@ -512,6 +512,10 @@ Total mapped files: 143
     * const authorId
     * const otherUserId
     * const ownerId
+- `tests/custom-titles.test.ts` (2073 B)
+    * const customKeys
+    * const getRoleLabel
+    * const dict
 - `tests/errors.test.ts` (1618 B)
     * const id1
     * const id2

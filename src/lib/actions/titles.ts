@@ -112,6 +112,60 @@ export async function addTitle(
   }
 }
 
+export type CustomTitleInput = {
+  title: string;
+  creator?: string;
+  coverUrl?: string;
+  description?: string;
+};
+
+export async function addCustomTitle(
+  groupId: string,
+  mediaType: MediaType,
+  data: CustomTitleInput,
+) {
+  const session = await getSession();
+  if (!session) throw new Error("Please sign in again");
+  if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
+
+  await requireMembership(groupId, session.id);
+
+  const cleanTitle = String(data.title ?? "").slice(0, 300).trim();
+  if (!cleanTitle) throw new Error("Title is required");
+
+  const cleanCreator = data.creator
+    ? String(data.creator).slice(0, 300).trim() || null
+    : null;
+  const cleanCover =
+    data.coverUrl && /^https?:\/\//i.test(data.coverUrl.trim())
+      ? data.coverUrl.trim().slice(0, 2000)
+      : null;
+  const cleanDesc = data.description
+    ? String(data.description).slice(0, 1000).trim()
+    : undefined;
+
+  const customId = `custom_${crypto.randomUUID()}`;
+
+  const pb = await getSuperuserClient();
+  await pb.collection("titles").create({
+    group: groupId,
+    mediaType,
+    externalSource: "custom",
+    externalId: customId,
+    title: cleanTitle,
+    creator: cleanCreator,
+    coverUrl: cleanCover,
+    metadata: cleanDesc
+      ? { description: cleanDesc, custom: true }
+      : { custom: true },
+    status: "proposed",
+    addedBy: session.id,
+  });
+
+  revalidatePath(`/groups/${groupId}`);
+}
+
+
 export async function markConsumed(titleId: string, groupId: string) {
   const session = await getSession();
   if (!session) redirect("/login");

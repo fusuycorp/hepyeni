@@ -257,7 +257,27 @@ export interface Translations {
     adding: string;
     noResultsTitle: string;
     noResultsDesc: string;
+
+    addCustomTitle: string;
+    cantFindMedia: string;
+    cantFindMediaDesc: string;
+    customTitleName: string;
+    customTitlePlaceholder: string;
+    customCreatorLabel: string;
+    authorLabel: string;
+    directorLabel: string;
+    artistLabel: string;
+    hostLabel: string;
+    coverUrlLabel: string;
+    coverUrlPlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    addCustomButton: string;
+    addingCustom: string;
+    backToSearch: string;
+    previewCover: string;
   };
+
   reviews: {
     groupReviews: string;
     addReview: string;
