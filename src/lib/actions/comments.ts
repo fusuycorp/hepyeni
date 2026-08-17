@@ -7,13 +7,13 @@ import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireMembership, requireTitleInGroup } from "@/lib/membership";
-import type { CommentsResponse } from "@/types/pocketbase-types";
+import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export async function addComment(
   titleId: string,
   groupId: string,
   formData: FormData,
-) {
+): Promise<CommentsResponse<{ user?: UsersResponse }>> {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -24,15 +24,42 @@ export async function addComment(
   const content = validateCommentContent(rawContent);
 
   const pb = await getSuperuserClient();
-  await pb.collection("comments").create({
-    title: titleId,
-    user: session.id,
-    group: groupId,
-    content,
-  });
+  const comment = await pb
+    .collection("comments")
+    .create<CommentsResponse<{ user?: UsersResponse }>>(
+      {
+        title: titleId,
+        user: session.id,
+        group: groupId,
+        content,
+      },
+      { expand: "user" },
+    );
 
   revalidatePath(`/groups/${groupId}`);
   revalidatePath("/activity");
+
+  return comment;
+}
+
+export async function getComments(
+  titleId: string,
+  groupId: string,
+): Promise<CommentsResponse<{ user?: UsersResponse }>[]> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  await requireMembership(groupId, session.id);
+  await requireTitleInGroup(titleId, groupId);
+
+  const pb = await getSuperuserClient();
+  return await pb
+    .collection("comments")
+    .getFullList<CommentsResponse<{ user?: UsersResponse }>>({
+      filter: pb.filter("title = {:t}", { t: titleId }),
+      sort: "createdAt",
+      expand: "user",
+    });
 }
 
 export async function deleteComment(commentId: string, groupId: string) {

@@ -32,7 +32,6 @@ type TitleWithScore = TitlesResponse<{
   addedBy?: UsersResponse;
   votes_via_title?: VotesResponse[];
   reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
-  comments_via_title?: CommentsResponse<{ user?: UsersResponse }>[];
 }> & {
   score: number;
   userVote?: "up" | "down";
@@ -46,12 +45,22 @@ interface GroupContentViewProps {
   currentUserId: string;
   currentUserRole?: string;
   isAdmin?: boolean;
+  currentUserName?: string;
+  currentUserEmail?: string;
+  currentUserAvatarUrl?: string;
+  commentCounts: Record<string, number>;
   onVote: (titleId: string, value: "up" | "down") => Promise<void>;
   onMarkConsumed: (titleId: string) => Promise<void>;
   onUnmarkConsumed: (titleId: string) => Promise<void>;
   onSubmitReview: (titleId: string, formData: FormData) => Promise<void>;
-  onAddComment?: (titleId: string, formData: FormData) => Promise<void>;
+  onAddComment?: (
+    titleId: string,
+    formData: FormData,
+  ) => Promise<CommentsResponse<{ user?: UsersResponse }>>;
   onDeleteComment?: (commentId: string) => Promise<void>;
+  onFetchComments?: (
+    titleId: string,
+  ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
 }
 
 export function GroupContentView({
@@ -62,12 +71,17 @@ export function GroupContentView({
   currentUserId,
   currentUserRole,
   isAdmin,
+  currentUserName,
+  currentUserEmail,
+  currentUserAvatarUrl,
+  commentCounts,
   onVote,
   onMarkConsumed,
   onUnmarkConsumed,
   onSubmitReview,
   onAddComment,
   onDeleteComment,
+  onFetchComments,
 }: GroupContentViewProps) {
   const [activeTab, setActiveTab] = useState<"proposed" | "consumed">("proposed");
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
@@ -239,12 +253,16 @@ export function GroupContentView({
                                 titleId={title.id}
                                 groupId={group.id}
                                 titleName={title.title}
-                                comments={title.expand?.comments_via_title ?? []}
+                                initialCount={commentCounts[title.id] ?? 0}
                                 currentUserId={currentUserId}
                                 currentUserRole={currentUserRole}
                                 isAdmin={isAdmin}
+                                currentUserName={currentUserName}
+                                currentUserEmail={currentUserEmail}
+                                currentUserAvatarUrl={currentUserAvatarUrl}
                                 onAddComment={onAddComment}
                                 onDeleteComment={onDeleteComment}
+                                onFetchComments={onFetchComments}
                               />
                               <MarkConsumedButton
                                 onMark={() => onMarkConsumed(title.id)}
@@ -333,12 +351,16 @@ export function GroupContentView({
                                 titleId={title.id}
                                 groupId={group.id}
                                 titleName={title.title}
-                                comments={title.expand?.comments_via_title ?? []}
+                                initialCount={commentCounts[title.id] ?? 0}
                                 currentUserId={currentUserId}
                                 currentUserRole={currentUserRole}
                                 isAdmin={isAdmin}
+                                currentUserName={currentUserName}
+                                currentUserEmail={currentUserEmail}
+                                currentUserAvatarUrl={currentUserAvatarUrl}
                                 onAddComment={onAddComment}
                                 onDeleteComment={onDeleteComment}
+                                onFetchComments={onFetchComments}
                               />
                               <MarkConsumedButton
                                 direction="unconsume"

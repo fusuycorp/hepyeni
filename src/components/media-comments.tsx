@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
-import { MessageSquare, Send, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Loader2, MessageSquare, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { canDeleteComment } from "@/lib/comments";
-import { addComment, deleteComment } from "@/lib/actions/comments";
+import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
 import { formatRelativeTime } from "@/lib/i18n";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -36,16 +36,35 @@ import type {
   UsersResponse,
 } from "@/types/pocketbase-types";
 
+type OptimisticComment = {
+  id: string;
+  content: string;
+  createdAt: string;
+  pending: true;
+  author: { name?: string; email?: string; avatarUrl?: string };
+};
+
+type DisplayComment = CommentsResponse<{ user?: UsersResponse }> | OptimisticComment;
+
 interface MediaCommentsProps {
   titleId: string;
   groupId: string;
   titleName: string;
-  comments: CommentsResponse<{ user?: UsersResponse }>[];
+  initialCount: number;
   currentUserId: string;
   currentUserRole?: string;
   isAdmin?: boolean;
-  onAddComment?: (titleId: string, formData: FormData) => Promise<void>;
+  currentUserName?: string;
+  currentUserEmail?: string;
+  currentUserAvatarUrl?: string;
+  onAddComment?: (
+    titleId: string,
+    formData: FormData,
+  ) => Promise<CommentsResponse<{ user?: UsersResponse }>>;
   onDeleteComment?: (commentId: string) => Promise<void>;
+  onFetchComments?: (
+    titleId: string,
+  ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
   triggerClassName?: string;
 }
 
@@ -53,42 +72,94 @@ export function MediaComments({
   titleId,
   groupId,
   titleName,
-  comments = [],
+  initialCount,
   currentUserId,
   currentUserRole,
   isAdmin,
+  currentUserName,
+  currentUserEmail,
+  currentUserAvatarUrl,
   onAddComment,
   onDeleteComment,
+  onFetchComments,
   triggerClassName,
 }: MediaCommentsProps) {
   const [open, setOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [comments, setComments] = useState<DisplayComment[]>([]);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const t = useTranslations();
   const locale = useLocale();
 
-  const count = comments.length;
+  const count = hasFetchedOnce ? comments.length : initialCount;
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [comments.length]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) return;
+
+    setLoading(true);
+    (async () => {
+      try {
+        const fetched = onFetchComments
+          ? await onFetchComments(titleId)
+          : await getComments(titleId, groupId);
+        setComments(fetched);
+        setHasFetchedOnce(true);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t.common.error);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }
 
   async function handleAddComment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const text = commentText.trim();
     if (!text) return;
 
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: OptimisticComment = {
+      id: tempId,
+      content: text,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      author: {
+        name: currentUserName,
+        email: currentUserEmail,
+        avatarUrl: currentUserAvatarUrl,
+      },
+    };
+
+    setComments((prev) => [...prev, optimistic]);
+    setCommentText("");
+
     const formData = new FormData();
     formData.append("content", text);
 
     startTransition(async () => {
       try {
-        if (onAddComment) {
-          await onAddComment(titleId, formData);
-        } else {
-          await addComment(titleId, groupId, formData);
-        }
-        setCommentText("");
+        const created = onAddComment
+          ? await onAddComment(titleId, formData)
+          : await addComment(titleId, groupId, formData);
+        setComments((prev) =>
+          prev.map((c) => (c.id === tempId ? created : c)),
+        );
         toast.success(t.comments.added);
       } catch (err) {
+        setComments((prev) => prev.filter((c) => c.id !== tempId));
+        setCommentText(text);
         toast.error(
           err instanceof Error ? err.message : t.comments.addFailed,
         );
@@ -105,6 +176,7 @@ export function MediaComments({
         } else {
           await deleteComment(commentId, groupId);
         }
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
         toast.success(t.comments.deleted);
       } catch (err) {
         toast.error(
@@ -116,13 +188,20 @@ export function MediaComments({
     });
   }
 
+  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      formRef.current?.requestSubmit();
+    }
+  }
+
   // Sort comments chronologically (oldest to newest)
   const sortedComments = [...comments].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button
@@ -160,13 +239,23 @@ export function MediaComments({
         </DialogHeader>
 
         {/* Comments List */}
-        <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1 min-h-[140px] max-h-[40vh]">
-          {sortedComments.length > 0 ? (
+        <div
+          ref={listRef}
+          className="flex-1 overflow-y-auto space-y-3 py-2 pr-1 min-h-[140px] max-h-[40vh]"
+        >
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground space-y-2">
+              <Loader2 className="size-5 animate-spin" />
+              <p className="text-xs">{t.common.loading}</p>
+            </div>
+          ) : sortedComments.length > 0 ? (
             sortedComments.map((c) => {
-              const author = c.expand?.user;
+              const isPendingComment = "pending" in c;
+              const author = isPendingComment ? c.author : c.expand?.user;
               const authorName = getDisplayName(author);
               const initials = getInitials(author?.name, author?.email);
-              const canDelete = canDeleteComment({
+              const isOwn = isPendingComment || c.user === currentUserId;
+              const canDelete = !isPendingComment && canDeleteComment({
                 commentUserId: c.user,
                 currentUserId,
                 userRole: currentUserRole,
@@ -176,7 +265,13 @@ export function MediaComments({
               return (
                 <div
                   key={c.id}
-                  className="p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1.5 text-xs transition-colors hover:bg-muted/60"
+                  className={cn(
+                    "p-3 rounded-xl border space-y-1.5 text-xs transition-colors",
+                    isOwn
+                      ? "bg-primary/5 border-primary/20 hover:bg-primary/10"
+                      : "bg-muted/40 border-border/50 hover:bg-muted/60",
+                    isPendingComment && "opacity-60",
+                  )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -191,9 +286,11 @@ export function MediaComments({
                       <span className="font-semibold text-foreground truncate">
                         {authorName}
                       </span>
-                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        &middot; {formatRelativeTime(c.createdAt, locale)}
-                      </span>
+                      {!isPendingComment && (
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          &middot; {formatRelativeTime(c.createdAt, locale)}
+                        </span>
+                      )}
                     </div>
 
                     {canDelete && (
@@ -256,6 +353,7 @@ export function MediaComments({
           <Textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
+            onKeyDown={handleTextareaKeyDown}
             placeholder={t.comments.placeholder}
             rows={3}
             maxLength={2000}

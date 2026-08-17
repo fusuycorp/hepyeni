@@ -9,7 +9,7 @@ import { GroupContentView } from "./group-content-view";
 import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
-import { addComment, deleteComment } from "@/lib/actions/comments";
+import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
@@ -28,7 +28,6 @@ type TitleExpand = {
   addedBy?: UsersResponse;
   votes_via_title?: VotesResponse[];
   reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
-  comments_via_title?: CommentsResponse<{ user?: UsersResponse }>[];
 };
 
 export default async function GroupPage({
@@ -59,7 +58,7 @@ export default async function GroupPage({
     throw err;
   }
 
-  const [members, groupTitles, userRecord] = await Promise.all([
+  const [members, groupTitles, userRecord, commentRows] = await Promise.all([
     pb
       .collection("group_members")
       .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
@@ -68,11 +67,20 @@ export default async function GroupPage({
       }),
     pb.collection("titles").getFullList<TitlesResponse<TitleExpand>>({
       filter: pb.filter("group = {:groupId}", { groupId }),
-      expand: "addedBy,votes_via_title,reviews_via_title.user,comments_via_title.user",
+      expand: "addedBy,votes_via_title,reviews_via_title.user",
       sort: "-createdAt",
     }),
     pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
+    pb.collection("comments").getFullList<CommentsResponse>({
+      filter: pb.filter("group = {:groupId}", { groupId }),
+      fields: "id,title",
+    }),
   ]);
+
+  const commentCounts: Record<string, number> = {};
+  for (const c of commentRows) {
+    commentCounts[c.title] = (commentCounts[c.title] ?? 0) + 1;
+  }
 
   const currentMember = members.find((m) => m.user === session.id);
   const currentUserRole = currentMember?.role;
@@ -126,12 +134,17 @@ export default async function GroupPage({
 
   async function handleAddComment(titleId: string, formData: FormData) {
     "use server";
-    await addComment(titleId, groupId, formData);
+    return await addComment(titleId, groupId, formData);
   }
 
   async function handleDeleteComment(commentId: string) {
     "use server";
     await deleteComment(commentId, groupId);
+  }
+
+  async function handleGetComments(titleId: string) {
+    "use server";
+    return await getComments(titleId, groupId);
   }
 
   return (
@@ -194,12 +207,17 @@ export default async function GroupPage({
           currentUserId={session.id}
           currentUserRole={currentUserRole}
           isAdmin={session.isAdmin}
+          currentUserName={currentUser.name}
+          currentUserEmail={currentUser.email}
+          currentUserAvatarUrl={currentUser.avatarUrl}
+          commentCounts={commentCounts}
           onVote={handleVote}
           onMarkConsumed={handleMarkConsumed}
           onUnmarkConsumed={handleUnmarkConsumed}
           onSubmitReview={handleSubmitReview}
           onAddComment={handleAddComment}
           onDeleteComment={handleDeleteComment}
+          onFetchComments={handleGetComments}
         />
 
         {/* Floating Action Button (Bottom Right FAB) */}
