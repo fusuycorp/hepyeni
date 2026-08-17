@@ -31,6 +31,7 @@ import { getDisplayName, getInitials } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useTranslations, useLocale } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 import type { TitleMemberProgressItem } from "@/lib/actions/progress";
 import type {
   CommentsResponse,
@@ -67,15 +68,15 @@ interface TitleDetailViewProps {
   canVote?: boolean;
   canComment?: boolean;
   canReview?: boolean;
-  onVote: (value: "up" | "down") => Promise<void>;
-  onMarkConsumed: () => Promise<void>;
-  onUnmarkConsumed: () => Promise<void>;
-  onSubmitReview: (formData: FormData) => Promise<void>;
+  onVote: (value: "up" | "down") => Promise<ActionResult<void> | void>;
+  onMarkConsumed: () => Promise<ActionResult<void> | void>;
+  onUnmarkConsumed: () => Promise<ActionResult<void> | void>;
+  onSubmitReview: (formData: FormData) => Promise<ActionResult<void> | void>;
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>>;
-  onDeleteComment?: (commentId: string) => Promise<void>;
+  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
   onFetchComments?: (
     titleId: string,
   ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;

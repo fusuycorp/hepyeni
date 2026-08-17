@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 
 export function ReviewForm({
   defaultRating,
@@ -17,7 +18,7 @@ export function ReviewForm({
   defaultRating: number;
   defaultText: string;
   hasExisting: boolean;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData) => Promise<ActionResult<void> | void>;
 }) {
   const [rating, setRating] = useState(defaultRating);
   const [hovered, setHovered] = useState<number | null>(null);
@@ -29,7 +30,13 @@ export function ReviewForm({
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await onSubmit(formData);
+        const res = await onSubmit(formData);
+        if (res && typeof res === "object" && "success" in res && !res.success) {
+          toast.error(res.error || t.reviews.reviewSaveFailed, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+          return;
+        }
         toast.success(t.reviews.reviewSaved);
       } catch {
         toast.error(t.reviews.reviewSaveFailed);

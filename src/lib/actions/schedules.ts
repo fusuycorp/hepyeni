@@ -3,8 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, resolveCircleAccess } from "@/lib/membership";
+import {
+  requireMembership,
+  requireMilestoneInGroup,
+  requireScheduleInGroup,
+  requireTitleInGroup,
+  resolveCircleAccess,
+} from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
+import type { ActionResult } from "@/types/actions";
 import type {
   GroupSchedulesRecord,
   GroupSchedulesResponse,
@@ -16,9 +23,7 @@ import type {
   UsersResponse,
 } from "@/types/pocketbase-types";
 
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string; traceId?: string; details?: Record<string, unknown> };
+export type { ActionResult };
 
 function toIsoDate(val?: string | null): string | null {
   if (!val || typeof val !== "string" || !val.trim()) return null;
@@ -184,7 +189,12 @@ export async function createGroupSchedule(
 
   // Only assign relation/date if valid non-empty
   if (input.titleId && input.titleId.trim()) {
-    scheduleData.title = input.titleId.trim();
+    try {
+      await requireTitleInGroup(input.titleId.trim(), groupId);
+      scheduleData.title = input.titleId.trim();
+    } catch (err) {
+      return { success: false, error: "Seçilen medya bu çembere ait değil." };
+    }
   }
   const parsedStartDate = toIsoDate(input.startDate);
   if (parsedStartDate) {
@@ -242,6 +252,7 @@ export async function updateGroupScheduleStatus(
   }
 
   try {
+    await requireScheduleInGroup(scheduleId, groupId);
     const pb = await getSuperuserClient();
     await pb.collection("group_schedules").update(scheduleId, { status });
     revalidatePath(`/groups/${groupId}`);
@@ -266,6 +277,7 @@ export async function deleteGroupSchedule(
   }
 
   try {
+    await requireScheduleInGroup(scheduleId, groupId);
     const pb = await getSuperuserClient();
     await pb.collection("group_schedules").delete(scheduleId);
     revalidatePath(`/groups/${groupId}`);
@@ -287,6 +299,7 @@ export async function toggleMilestoneCheckin(
 
   try {
     await requireMembership(groupId, session.id);
+    await requireMilestoneInGroup(milestoneId, groupId);
     const pb = await getSuperuserClient();
 
     const existing = await pb

@@ -1,66 +1,62 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { generateInviteCode } from "@/lib/invite-code";
 import { requireMembership, requireOwner } from "@/lib/membership";
+import { logDiagnostic } from "@/lib/errors";
+import type { ActionResult } from "@/types/actions";
 import type {
   GroupGuestSettings,
   GroupMembersResponse,
   GroupsResponse,
 } from "@/types/pocketbase-types";
 
-// createGroup/joinGroup/leaveGroup/deleteGroup are all invoked imperatively
-// from client components (group-forms.tsx, confirm-action-button.tsx) inside
-// a try/catch, not as plain <form action>s — a redirect() thrown from inside
-// that awaited call rejects the promise with Next's internal redirect
-// signal, which our own catch block would swallow before Next's
-// RedirectBoundary ever sees it (confirmed against
-// next/dist/client/components/router-reducer/reducers/server-action-reducer.js:
-// "the action promise will be rejected with a redirect so that it's handled
-// by RedirectBoundary"). So these return where to go instead of redirecting
-// themselves, and the calling client component navigates via useRouter()
-// once the awaited call actually resolves — the same pattern already used
-// by addTitle/AddTitleForm in titles.ts.
-
-export async function createGroup(formData: FormData): Promise<string> {
+export async function createGroup(formData: FormData): Promise<ActionResult<{ groupId: string }>> {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("Group name is required");
+  const rawName = String(formData.get("name") ?? "").trim();
+  const name = rawName.slice(0, 100);
+  if (!name) {
+    return { success: false, error: "Group name is required" };
+  }
 
   const pb = await getSuperuserClient();
 
-  // inviteCode is unique; astronomically unlikely to collide (32^8
-  // combinations) but retry a few times rather than surfacing a raw
-  // validation error to the user on the rare chance it does.
-  let group: GroupsResponse | undefined;
-  for (let attempt = 0; !group && attempt < 5; attempt++) {
-    try {
-      group = await pb.collection("groups").create<GroupsResponse>({
-        name,
-        inviteCode: generateInviteCode(),
-        createdBy: session.id,
-      });
-    } catch (err) {
-      if (!isValidationNotUnique(err, "inviteCode")) throw err;
+  try {
+    let group: GroupsResponse | undefined;
+    for (let attempt = 0; !group && attempt < 5; attempt++) {
+      try {
+        group = await pb.collection("groups").create<GroupsResponse>({
+          name,
+          inviteCode: generateInviteCode(),
+          createdBy: session.id,
+        });
+      } catch (err) {
+        if (!isValidationNotUnique(err, "inviteCode")) throw err;
+      }
     }
-  }
-  if (!group) {
-    throw new Error("Couldn't generate a unique invite code, try again");
-  }
+    if (!group) {
+      return { success: false, error: "Couldn't generate a unique invite code, try again" };
+    }
 
-  await pb.collection("group_members").create({
-    group: group.id,
-    user: session.id,
-    role: "owner",
-  });
+    await pb.collection("group_members").create({
+      group: group.id,
+      user: session.id,
+      role: "owner",
+    });
 
-  return group.id;
+    revalidatePath("/groups");
+    return { success: true, data: { groupId: group.id } };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "createGroup", name });
+    return { success: false, error: "Failed to create group", traceId: diag.traceId };
+  }
 }
 
 export async function joinGroupByCode(
@@ -90,35 +86,56 @@ export async function joinGroupByCode(
       role: "member",
     });
   } catch (err) {
-    // Re-joining a group is a silent no-op, matching the unique (group,
-    // user) index behavior relied on today.
     if (!isValidationNotUnique(err)) throw err;
   }
 
   return group.id;
 }
 
-export async function joinGroup(formData: FormData): Promise<string> {
+export async function joinGroup(formData: FormData): Promise<ActionResult<{ groupId: string }>> {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const code = String(formData.get("code") ?? "");
-  const groupId = await joinGroupByCode(session.id, code);
-  if (!groupId) throw new Error("Invalid invite code");
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) {
+    return { success: false, error: "Invalid invite code" };
+  }
 
-  return groupId;
+  try {
+    const groupId = await joinGroupByCode(session.id, code);
+    if (!groupId) {
+      return { success: false, error: "Invalid invite code" };
+    }
+    revalidatePath("/groups");
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: { groupId } };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "joinGroup", code });
+    return { success: false, error: "Failed to join circle", traceId: diag.traceId };
+  }
 }
 
-export async function joinGroupByCodeAction(code: string): Promise<string> {
+export async function joinGroupByCodeAction(code: string): Promise<ActionResult<{ groupId: string }>> {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const groupId = await joinGroupByCode(session.id, code);
-  if (!groupId) throw new Error("Invalid invite code");
+  try {
+    const groupId = await joinGroupByCode(session.id, code);
+    if (!groupId) {
+      return { success: false, error: "Invalid invite code" };
+    }
 
-  revalidatePath("/groups");
-  revalidatePath(`/groups/${groupId}`);
-  return groupId;
+    revalidatePath("/groups");
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: { groupId } };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "joinGroupByCodeAction", code });
+    return { success: false, error: "Failed to join circle", traceId: diag.traceId };
+  }
 }
 
 export type PublicGroupOverview = {
@@ -219,129 +236,198 @@ export async function setPendingInviteAction(code: string): Promise<void> {
   await setPendingInviteCookie(code);
 }
 
-
-export async function renameGroup(groupId: string, formData: FormData) {
+export async function renameGroup(
+  groupId: string,
+  formData: FormData,
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) redirect("/login");
-  await requireOwner(groupId, session.id);
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("Group name is required");
+  try {
+    await requireOwner(groupId, session.id);
 
-  const pb = await getSuperuserClient();
-  await pb.collection("groups").update(groupId, { name });
+    const rawName = String(formData.get("name") ?? "").trim();
+    const name = rawName.slice(0, 100);
+    if (!name) {
+      return { success: false, error: "Group name is required" };
+    }
 
-  revalidatePath(`/groups/${groupId}`);
-  revalidatePath(`/groups/${groupId}/settings`);
+    const pb = await getSuperuserClient();
+    await pb.collection("groups").update(groupId, { name });
+
+    revalidatePath(`/groups/${groupId}`);
+    revalidatePath(`/groups/${groupId}/settings`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "renameGroup", groupId });
+    return { success: false, error: "Failed to rename group", traceId: diag.traceId };
+  }
 }
 
-export async function regenerateInviteCode(groupId: string) {
+export async function regenerateInviteCode(
+  groupId: string,
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) redirect("/login");
-  await requireOwner(groupId, session.id);
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const pb = await getSuperuserClient();
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      await pb
-        .collection("groups")
-        .update(groupId, { inviteCode: generateInviteCode() });
-      break;
-    } catch (err) {
-      if (attempt === 4 || !isValidationNotUnique(err, "inviteCode")) {
-        throw err;
+  try {
+    await requireOwner(groupId, session.id);
+
+    const pb = await getSuperuserClient();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await pb
+          .collection("groups")
+          .update(groupId, { inviteCode: generateInviteCode() });
+        break;
+      } catch (err) {
+        if (attempt === 4 || !isValidationNotUnique(err, "inviteCode")) {
+          throw err;
+        }
       }
     }
-  }
 
-  revalidatePath(`/groups/${groupId}/settings`);
+    revalidatePath(`/groups/${groupId}/settings`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "regenerateInviteCode", groupId });
+    return { success: false, error: "Failed to regenerate invite code", traceId: diag.traceId };
+  }
 }
 
-export async function removeMember(groupId: string, memberId: string) {
+export async function removeMember(
+  groupId: string,
+  memberId: string,
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) redirect("/login");
-  const requester = await requireOwner(groupId, session.id);
-
-  const pb = await getSuperuserClient();
-  const target = await pb
-    .collection("group_members")
-    .getOne<GroupMembersResponse>(memberId);
-  if (target.group !== groupId) throw new Error("Member not found in this group");
-  if (target.id === requester.id) {
-    throw new Error('Use "Leave group" to remove yourself');
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
   }
 
-  await pb.collection("group_members").delete(memberId);
+  try {
+    const requester = await requireOwner(groupId, session.id);
 
-  revalidatePath(`/groups/${groupId}/settings`);
-  revalidatePath(`/groups/${groupId}`);
-}
-
-export async function leaveGroup(groupId: string) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  const membership = await requireMembership(groupId, session.id);
-
-  const pb = await getSuperuserClient();
-
-  if (membership.role === "owner") {
-    const others = await pb.collection("group_members").getList(1, 1, {
-      filter: pb.filter("group = {:groupId} && id != {:id}", {
-        groupId,
-        id: membership.id,
-      }),
-    });
-    if (others.totalItems > 0) {
-      throw new Error(
-        "Remove the other members before you leave as an owner",
-      );
+    const pb = await getSuperuserClient();
+    const target = await pb
+      .collection("group_members")
+      .getOne<GroupMembersResponse>(memberId);
+    if (target.group !== groupId) {
+      return { success: false, error: "Member not found in this group" };
     }
-    // Sole remaining owner leaving: delete the entire group to avoid orphaned circles
-    await pb.collection("groups").delete(groupId);
-    return;
-  }
+    if (target.id === requester.id) {
+      return { success: false, error: 'Use "Leave group" to remove yourself' };
+    }
 
-  await pb.collection("group_members").delete(membership.id);
+    await pb.collection("group_members").delete(memberId);
+
+    revalidatePath(`/groups/${groupId}/settings`);
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "removeMember", groupId, memberId });
+    return { success: false, error: "Failed to remove member", traceId: diag.traceId };
+  }
 }
 
-export async function deleteGroup(groupId: string) {
+export async function leaveGroup(groupId: string): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) redirect("/login");
-  await requireOwner(groupId, session.id);
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const pb = await getSuperuserClient();
-  // group_members, titles, votes, and reviews all cascade-delete from
-  // groups (see pb_migrations) — one call tears down everything.
-  await pb.collection("groups").delete(groupId);
+  try {
+    const membership = await requireMembership(groupId, session.id);
+
+    const pb = await getSuperuserClient();
+
+    if (membership.role === "owner") {
+      const others = await pb.collection("group_members").getList(1, 1, {
+        filter: pb.filter("group = {:groupId} && id != {:id}", {
+          groupId,
+          id: membership.id,
+        }),
+      });
+      if (others.totalItems > 0) {
+        return {
+          success: false,
+          error: "Remove the other members before you leave as an owner",
+        };
+      }
+      await pb.collection("groups").delete(groupId);
+      revalidatePath("/groups");
+      return { success: true, data: undefined };
+    }
+
+    await pb.collection("group_members").delete(membership.id);
+    revalidatePath("/groups");
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "leaveGroup", groupId });
+    return { success: false, error: "Failed to leave group", traceId: diag.traceId };
+  }
+}
+
+export async function deleteGroup(groupId: string): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
+
+  try {
+    await requireOwner(groupId, session.id);
+
+    const pb = await getSuperuserClient();
+    await pb.collection("groups").delete(groupId);
+
+    revalidatePath("/groups");
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "deleteGroup", groupId });
+    return { success: false, error: "Failed to delete group", traceId: diag.traceId };
+  }
 }
 
 export async function updateGroupGuestSettings(
   groupId: string,
   settings: GroupGuestSettings & { isPublic: boolean },
-) {
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) redirect("/login");
-  await requireOwner(groupId, session.id);
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
 
-  const pb = await getSuperuserClient();
-  await pb.collection("groups").update(groupId, {
-    isPublic: Boolean(settings.isPublic),
-    guestSettings: {
-      visibility: {
-        backlog: Boolean(settings.visibility?.backlog),
-        finished: Boolean(settings.visibility?.finished),
-        reviews: Boolean(settings.visibility?.reviews),
-        comments: Boolean(settings.visibility?.comments),
-      },
-      permissions: {
-        canVote: Boolean(settings.permissions?.canVote),
-        canComment: Boolean(settings.permissions?.canComment),
-        canReview: Boolean(settings.permissions?.canReview),
-        canPropose: Boolean(settings.permissions?.canPropose),
-      },
-    },
-  });
+  try {
+    await requireOwner(groupId, session.id);
 
-  revalidatePath(`/groups/${groupId}`);
-  revalidatePath(`/groups/${groupId}/settings`);
+    const pb = await getSuperuserClient();
+    await pb.collection("groups").update(groupId, {
+      isPublic: Boolean(settings.isPublic),
+      guestSettings: {
+        visibility: {
+          backlog: Boolean(settings.visibility?.backlog),
+          finished: Boolean(settings.visibility?.finished),
+          reviews: Boolean(settings.visibility?.reviews),
+          comments: Boolean(settings.visibility?.comments),
+        },
+        permissions: {
+          canVote: Boolean(settings.permissions?.canVote),
+          canComment: Boolean(settings.permissions?.canComment),
+          canReview: Boolean(settings.permissions?.canReview),
+          canPropose: Boolean(settings.permissions?.canPropose),
+        },
+      },
+    });
+
+    revalidatePath(`/groups/${groupId}`);
+    revalidatePath(`/groups/${groupId}/settings`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "updateGroupGuestSettings", groupId });
+    return { success: false, error: "Failed to update guest settings", traceId: diag.traceId };
+  }
 }

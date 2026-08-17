@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 
 export function ConfirmActionButton({
   triggerLabel,
@@ -42,7 +43,7 @@ export function ConfirmActionButton({
   // way — see the comment in src/lib/actions/groups.ts — so navigation is
   // this component's job.
   redirectTo?: string;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<ActionResult<void> | void>;
 }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -73,7 +74,13 @@ export function ConfirmActionButton({
             onClick={() =>
               startTransition(async () => {
                 try {
-                  await onConfirm();
+                  const res = await onConfirm();
+                  if (res && typeof res === "object" && "success" in res && !res.success) {
+                    toast.error(res.error, {
+                      description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+                    });
+                    return;
+                  }
                   if (redirectTo) {
                     router.push(redirectTo);
                   } else {

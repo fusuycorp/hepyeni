@@ -103,7 +103,12 @@ export default async function AdminGroupsPage() {
                       <ArrowRight className="size-3" />
                     </Link>
 
-                    <form action={adminDeleteGroup.bind(null, group.id)}>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await adminDeleteGroup(group.id);
+                      }}
+                    >
                       <Button
                         type="submit"
                         variant="ghost"

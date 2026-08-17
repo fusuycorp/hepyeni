@@ -80,7 +80,14 @@ export function AddTitleForm({
     setAddingId(result.externalId);
     startAdd(async () => {
       try {
-        await addTitle(groupId, mediaType, result);
+        const res = await addTitle(groupId, mediaType, result);
+        if (!res.success) {
+          toast.error(res.error, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+          setAddingId(null);
+          return;
+        }
         toast.success(t.titles.addedToBacklog.replace("{title}", result.title));
         if (onSuccess) {
           onSuccess();
@@ -101,12 +108,18 @@ export function AddTitleForm({
 
     startAdd(async () => {
       try {
-        await addCustomTitle(groupId, mediaType, {
+        const res = await addCustomTitle(groupId, mediaType, {
           title: cleanTitle,
           creator: customCreator.trim() || undefined,
           coverUrl: customCoverUrl.trim() || undefined,
           description: customDescription.trim() || undefined,
         });
+        if (!res.success) {
+          toast.error(res.error, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+          return;
+        }
         toast.success(t.titles.addedToBacklog.replace("{title}", cleanTitle));
         if (onSuccess) {
           onSuccess();

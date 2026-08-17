@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 
 export function MarkConsumedButton({
   onMark,
@@ -15,7 +16,7 @@ export function MarkConsumedButton({
   className,
   showIcon = false,
 }: {
-  onMark: () => Promise<void>;
+  onMark: () => Promise<ActionResult<void> | void>;
   direction?: "consume" | "unconsume";
   variant?: "link" | "outline" | "default" | "ghost" | "secondary";
   size?: "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
@@ -47,7 +48,12 @@ export function MarkConsumedButton({
       onClick={() =>
         startTransition(async () => {
           try {
-            await onMark();
+            const res = await onMark();
+            if (res && typeof res === "object" && "success" in res && !res.success) {
+              toast.error(res.error || errorMessage, {
+                description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+              });
+            }
           } catch {
             toast.error(errorMessage);
           }
@@ -59,4 +65,3 @@ export function MarkConsumedButton({
     </Button>
   );
 }
-

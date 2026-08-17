@@ -126,7 +126,12 @@ export default async function AdminGroupDetailPage({
                         </p>
                       </div>
 
-                      <form action={adminDeleteTitle.bind(null, title.id, groupId)}>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await adminDeleteTitle(title.id, groupId);
+                        }}
+                      >
                         <Button
                           type="submit"
                           variant="ghost"
@@ -162,7 +167,12 @@ export default async function AdminGroupDetailPage({
                                 )}
                               </div>
 
-                              <form action={adminDeleteReview.bind(null, review.id, groupId)}>
+                              <form
+                                action={async () => {
+                                  "use server";
+                                  await adminDeleteReview(review.id, groupId);
+                                }}
+                              >
                                 <Button
                                   type="submit"
                                   variant="ghost"
@@ -213,7 +223,12 @@ export default async function AdminGroupDetailPage({
                     </span>
                   </div>
 
-                  <form action={adminRemoveGroupMember.bind(null, groupId, m.user)}>
+                  <form
+                    action={async () => {
+                      "use server";
+                      await adminRemoveGroupMember(groupId, m.user);
+                    }}
+                  >
                     <Button
                       type="submit"
                       variant="ghost"

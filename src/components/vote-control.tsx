@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 
 type VoteValue = "up" | "down";
 type VoteState = { score: number; userVote?: VoteValue };
@@ -17,7 +18,7 @@ export function VoteControl({
   orientation = "vertical",
   disabled = false,
 }: VoteState & {
-  onVote?: (value: VoteValue) => Promise<void>;
+  onVote?: (value: VoteValue) => Promise<ActionResult<void> | void>;
   orientation?: "vertical" | "horizontal";
   disabled?: boolean;
 }) {
@@ -43,7 +44,12 @@ export function VoteControl({
     startTransition(async () => {
       applyOptimistic(value);
       try {
-        await onVote(value);
+        const res = await onVote(value);
+        if (res && typeof res === "object" && "success" in res && !res.success) {
+          toast.error(res.error || t.media.voteFailed, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+        }
       } catch {
         toast.error(t.media.voteFailed);
       }
@@ -145,7 +151,7 @@ export function VoteControl({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label="Eksi oy ver"
+        aria-label={t.media.downvoteAria}
         aria-pressed={isDown}
         disabled={effectiveDisabled}
         onClick={() => vote("down")}

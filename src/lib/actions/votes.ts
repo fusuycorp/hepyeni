@@ -1,64 +1,66 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { voteRecordId } from "@/lib/pocketbase/vote-id";
+import { logDiagnostic } from "@/lib/errors";
+import type { ActionResult } from "@/types/actions";
 import type { VotesResponse } from "@/types/pocketbase-types";
 
 export async function voteOnTitle(
   titleId: string,
   groupId: string,
   value: "up" | "down",
-) {
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) redirect("/login");
-
-  const access = await resolveCircleAccess(groupId, session.id);
-  if (!access.canVote) {
-    throw new Error("You do not have permission to vote in this circle");
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
   }
-  await requireTitleInGroup(titleId, groupId);
 
-  const pb = await getSuperuserClient();
-  const id = await voteRecordId(titleId, session.id);
+  if (value !== "up" && value !== "down") {
+    return { success: false, error: "Geçersiz oy değeri." };
+  }
 
-  // The vote record's own id is a deterministic hash of (titleId, userId) —
-  // see vote-id.ts. The first create() for that pair is atomic by
-  // construction (SQLite's single-writer model serializes concurrent
-  // creates; exactly one wins, the other 400s). Empirically, PocketBase's
-  // app-level validation catches the (title, user) composite unique index
-  // before the id collision, so the error lands on those fields, not "id" —
-  // confirmed against a real instance, don't scope the field check. On a
-  // 400 there's already an existing vote: same value clicked again ->
-  // delete (toggle off), different value -> flip.
   try {
-    await pb
-      .collection("votes")
-      .create<VotesResponse>({ id, title: titleId, user: session.id, value });
-  } catch (err) {
-    if (!isValidationNotUnique(err)) throw err;
+    const access = await resolveCircleAccess(groupId, session.id);
+    if (!access.canVote) {
+      return { success: false, error: "Bu çemberde oy kullanma yetkiniz bulunmuyor." };
+    }
+    await requireTitleInGroup(titleId, groupId);
+
+    const pb = await getSuperuserClient();
+    const id = await voteRecordId(titleId, session.id);
 
     try {
-      const existing = await pb.collection("votes").getOne<VotesResponse>(id);
-      if (existing.value === value) {
-        await pb.collection("votes").delete(id);
-      } else {
-        await pb.collection("votes").update(id, { value });
+      await pb
+        .collection("votes")
+        .create<VotesResponse>({ id, title: titleId, user: session.id, value });
+    } catch (err) {
+      if (!isValidationNotUnique(err)) throw err;
+
+      try {
+        const existing = await pb.collection("votes").getOne<VotesResponse>(id);
+        if (existing.value === value) {
+          await pb.collection("votes").delete(id);
+        } else {
+          await pb.collection("votes").update(id, { value });
+        }
+      } catch (toggleErr) {
+        if (isNotFound(toggleErr)) {
+          return { success: true, data: undefined };
+        }
+        throw toggleErr;
       }
-    } catch (toggleErr) {
-      if (isNotFound(toggleErr)) {
-        // Record was concurrently deleted by another request; safe to resolve
-        return;
-      }
-      throw toggleErr;
     }
+
+    revalidatePath(`/groups/${groupId}`);
+    revalidatePath(`/groups/${groupId}/titles/${titleId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "voteOnTitle", titleId, groupId, value });
+    return { success: false, error: "Oy kaydedilirken bir hata oluştu.", traceId: diag.traceId };
   }
-
-  revalidatePath(`/groups/${groupId}`);
-  revalidatePath(`/groups/${groupId}/titles/${titleId}`);
 }
-

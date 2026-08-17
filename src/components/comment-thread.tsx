@@ -23,6 +23,7 @@ import { formatRelativeTime } from "@/lib/i18n";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTranslations, useLocale } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export type OptimisticComment = {
@@ -52,8 +53,8 @@ export interface CommentThreadProps {
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>>;
-  onDeleteComment?: (commentId: string) => Promise<void>;
+  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
   onFetchComments?: (
     titleId: string,
   ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
@@ -150,11 +151,27 @@ export function CommentThread({
 
     startTransition(async () => {
       try {
-        const created = onAddComment
+        const res = onAddComment
           ? await onAddComment(titleId, formData)
           : await addComment(titleId, groupId, formData);
+        if (res && typeof res === "object" && "success" in res) {
+          if (!res.success) {
+            setComments((prev) => prev.filter((c) => c.id !== tempId));
+            setCommentText(text);
+            toast.error(res.error || t.comments.addFailed, {
+              description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            });
+            return;
+          }
+          const created = res.data;
+          setComments((prev) =>
+            prev.map((c) => (c.id === tempId ? created : c)),
+          );
+          toast.success(t.comments.added);
+          return;
+        }
         setComments((prev) =>
-          prev.map((c) => (c.id === tempId ? created : c)),
+          prev.map((c) => (c.id === tempId ? (res as CommentsResponse<{ user?: UsersResponse }>) : c)),
         );
         toast.success(t.comments.added);
       } catch (err) {
@@ -171,10 +188,14 @@ export function CommentThread({
     setDeletingId(commentId);
     startTransition(async () => {
       try {
-        if (onDeleteComment) {
-          await onDeleteComment(commentId);
-        } else {
-          await deleteComment(commentId, groupId);
+        const res = onDeleteComment
+          ? await onDeleteComment(commentId)
+          : await deleteComment(commentId, groupId);
+        if (res && typeof res === "object" && "success" in res && !res.success) {
+          toast.error(res.error || t.comments.deleteFailed, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+          return;
         }
         // Remove the deleted comment and any direct replies from view
         setComments((prev) =>

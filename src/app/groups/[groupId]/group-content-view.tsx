@@ -19,7 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { MEDIA_TYPES } from "@/lib/media-types";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useTranslations } from "@/lib/i18n/client";
+import { useTranslations, useLocale } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
 import type {
   CommentsResponse,
@@ -62,15 +63,15 @@ interface GroupContentViewProps {
   canComment?: boolean;
   canReview?: boolean;
   canPropose?: boolean;
-  onVote: (titleId: string, value: "up" | "down") => Promise<void>;
-  onMarkConsumed: (titleId: string) => Promise<void>;
-  onUnmarkConsumed: (titleId: string) => Promise<void>;
-  onSubmitReview: (titleId: string, formData: FormData) => Promise<void>;
+  onVote: (titleId: string, value: "up" | "down") => Promise<ActionResult<void> | void>;
+  onMarkConsumed: (titleId: string) => Promise<ActionResult<void> | void>;
+  onUnmarkConsumed: (titleId: string) => Promise<ActionResult<void> | void>;
+  onSubmitReview: (titleId: string, formData: FormData) => Promise<ActionResult<void> | void>;
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>>;
-  onDeleteComment?: (commentId: string) => Promise<void>;
+  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
   onFetchComments?: (
     titleId: string,
   ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;

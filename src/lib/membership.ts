@@ -4,6 +4,8 @@ import type {
   GroupGuestSettings,
   GroupMembersResponse,
   GroupsResponse,
+  GroupSchedulesResponse,
+  ScheduleMilestonesResponse,
   TitlesResponse,
 } from "@/types/pocketbase-types";
 
@@ -208,6 +210,48 @@ export async function requireTitleInGroup(
       );
   } catch (err) {
     if (isNotFound(err)) throw new Error("Title not found in this group");
+    throw err;
+  }
+}
+
+export async function requireScheduleInGroup(
+  scheduleId: string,
+  groupId: string,
+): Promise<GroupSchedulesResponse> {
+  const pb = await getSuperuserClient();
+  try {
+    return await pb
+      .collection("group_schedules")
+      .getFirstListItem<GroupSchedulesResponse>(
+        pb.filter("id = {:scheduleId} && group = {:groupId}", {
+          scheduleId,
+          groupId,
+        }),
+      );
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Schedule not found in this group");
+    throw err;
+  }
+}
+
+export async function requireMilestoneInGroup(
+  milestoneId: string,
+  groupId: string,
+): Promise<ScheduleMilestonesResponse> {
+  const pb = await getSuperuserClient();
+  try {
+    const milestone = await pb
+      .collection("schedule_milestones")
+      .getOne<ScheduleMilestonesResponse<{ schedule?: GroupSchedulesResponse }>>(
+        milestoneId,
+        { expand: "schedule" },
+      );
+    if (!milestone.expand?.schedule || milestone.expand.schedule.group !== groupId) {
+      throw new Error("Milestone not found in this group");
+    }
+    return milestone;
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Milestone not found in this group");
     throw err;
   }
 }

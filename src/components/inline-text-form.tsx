@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 
 export function InlineTextForm({
   defaultValue,
@@ -17,7 +18,7 @@ export function InlineTextForm({
 }: {
   defaultValue: string;
   fieldName?: string;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: FormData) => Promise<ActionResult<void> | void>;
   successMessage: string;
   errorMessage: string;
   submitLabel?: string;
@@ -33,7 +34,13 @@ export function InlineTextForm({
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await onSubmit(formData);
+        const res = await onSubmit(formData);
+        if (res && typeof res === "object" && "success" in res && !res.success) {
+          toast.error(res.error || errorMessage, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+          return;
+        }
         toast.success(successMessage);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : errorMessage);

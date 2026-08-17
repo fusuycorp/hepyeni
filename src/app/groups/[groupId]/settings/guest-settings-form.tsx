@@ -72,11 +72,17 @@ export function GuestSettingsForm({
   const handleSave = () => {
     startTransition(async () => {
       try {
-        await updateGroupGuestSettings(groupId, {
+        const res = await updateGroupGuestSettings(groupId, {
           isPublic,
           visibility,
           permissions,
         });
+        if (res && typeof res === "object" && "success" in res && !res.success) {
+          toast.error(res.error || t.guestManagement.settingsSaveFailed, {
+            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          });
+          return;
+        }
         toast.success(t.guestManagement.settingsSaved);
       } catch {
         toast.error(t.guestManagement.settingsSaveFailed);

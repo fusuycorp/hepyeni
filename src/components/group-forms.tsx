@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
@@ -16,7 +17,7 @@ function errorMessage(err: unknown, fallback: string) {
 export function CreateGroupCard({
   onCreate,
 }: {
-  onCreate: (formData: FormData) => Promise<string>;
+  onCreate: (formData: FormData) => Promise<string | ActionResult<{ groupId: string }>>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -28,9 +29,20 @@ export function CreateGroupCard({
     const formData = new FormData(form);
     startTransition(async () => {
       try {
-        const groupId = await onCreate(formData);
+        const res = await onCreate(formData);
+        if (typeof res === "object" && res !== null && "success" in res) {
+          if (!res.success) {
+            toast.error(res.error || t.groups.createError, {
+              description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            });
+            return;
+          }
+          toast.success(t.groups.createSuccess);
+          router.push(`/groups/${res.data.groupId}`);
+          return;
+        }
         toast.success(t.groups.createSuccess);
-        router.push(`/groups/${groupId}`);
+        router.push(`/groups/${res}`);
       } catch (err) {
         toast.error(errorMessage(err, t.groups.createError));
       }
@@ -83,7 +95,7 @@ export function CreateGroupCard({
 export function JoinGroupCard({
   onJoin,
 }: {
-  onJoin: (formData: FormData) => Promise<string>;
+  onJoin: (formData: FormData) => Promise<string | ActionResult<{ groupId: string }>>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -95,9 +107,20 @@ export function JoinGroupCard({
     const formData = new FormData(form);
     startTransition(async () => {
       try {
-        const groupId = await onJoin(formData);
+        const res = await onJoin(formData);
+        if (typeof res === "object" && res !== null && "success" in res) {
+          if (!res.success) {
+            toast.error(res.error || t.groups.joinError, {
+              description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            });
+            return;
+          }
+          toast.success(t.groups.joinSuccess);
+          router.push(`/groups/${res.data.groupId}`);
+          return;
+        }
         toast.success(t.groups.joinSuccess);
-        router.push(`/groups/${groupId}`);
+        router.push(`/groups/${res}`);
       } catch (err) {
         toast.error(errorMessage(err, t.groups.joinError));
       }

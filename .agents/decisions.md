@@ -69,7 +69,15 @@
   - Progress on circle titles resolved automatically by matching either `groupTitle` or `(externalSource && externalId)`.
   - Avoided denormalizing milestones into unindexed JSON blobs. Created normalized 1:N `group_schedules` $\rightarrow$ `schedule_milestones` (`orderIndex`, `targetDate`, `targetUnit`) and normalized `milestone_checkins` junction table with `UNIQUE(milestone, user)` index.
   - Implemented `/shelf` personal dashboard, `<CircleTitleProgress />` on media title pages, and `<GroupSchedulesCard />` with active member check-ins.
-- **Consequences**: Pure relational normalization, fast indexed milestone progress queries, cross-circle progress syncing, and complete privacy controls (`isSharedWithCircles`).
+## ADR-009: Unified ActionResult<T> Pattern, Zero Unhandled Server Action Exceptions & Accessible AlertDialog Invariant
+- **Status**: Accepted & Implemented (2026-08-17)
+- **Context**: In Next.js production builds, throwing unhandled exceptions across the Server Action RPC boundary causes Next.js to sanitize the error into opaque hashes (`digest: '...'`). Clients receive generic messages, losing field validation details and trace IDs. Additionally, ad-hoc browser `confirm()` and `alert()` calls degraded accessibility and consistency.
+- **Decision**:
+  - Global Architectural Invariant: Every Server Action in `src/lib/actions/*.ts` must return a typed `ActionResult<T>` (`{ success: true, data: T } | { success: false, error: string, traceId?: string }`) defined in `@/types/actions`.
+  - Every error path in Server Actions logs structured diagnostics via `logDiagnostic()` from `@/lib/errors` and returns a reference code (`traceId`).
+  - Zero browser `alert()` or `confirm()`. All destructive/confirm actions use the framework-native Base UI `<AlertDialog>` from `@/components/ui/alert-dialog` or `@/components/confirm-action-button`.
+  - Strict sub-resource multi-tenant guards: `requireTitleInGroup`, `requireScheduleInGroup`, and `requireMilestoneInGroup` enforced on all nested database mutations.
+- **Consequences**: Zero masked production digests, complete error transparency with traceable reference codes, uniform user feedback in toasts without form resets, and accessible confirmation dialogs across the whole application.
 
 
 

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess } from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
+import type { ActionResult } from "@/types/actions";
 import type {
   GroupMembersResponse,
   TitlesMediaTypeOptions,
@@ -16,9 +17,7 @@ import type {
   UsersResponse,
 } from "@/types/pocketbase-types";
 
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string; traceId?: string; details?: Record<string, unknown> };
+export type { ActionResult };
 
 function toIsoDate(val?: string | null): string | null {
   if (!val || typeof val !== "string" || !val.trim()) return null;
@@ -289,7 +288,12 @@ export async function getTitleCircleProgress(
     const pb = await getSuperuserClient();
 
     const [title, members] = await Promise.all([
-      pb.collection("titles").getOne<TitlesResponse>(titleId).catch(() => null),
+      pb
+        .collection("titles")
+        .getFirstListItem<TitlesResponse>(
+          pb.filter("id = {:titleId} && group = {:groupId}", { titleId, groupId }),
+        )
+        .catch(() => null),
       pb
         .collection("group_members")
         .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({

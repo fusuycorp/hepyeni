@@ -85,7 +85,12 @@ export default async function AdminUsersPage() {
 
                 {!isSelf && (
                   <div className="flex items-center gap-2 self-end sm:self-center">
-                    <form action={setUserAdmin.bind(null, user.id, !user.isAdmin)}>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await setUserAdmin(user.id, !user.isAdmin);
+                      }}
+                    >
                       <Button
                         type="submit"
                         variant="outline"
@@ -97,11 +102,14 @@ export default async function AdminUsersPage() {
                     </form>
 
                     <form
-                      action={
-                        user.bannedAt
-                          ? unbanUser.bind(null, user.id)
-                          : banUser.bind(null, user.id)
-                      }
+                      action={async () => {
+                        "use server";
+                        if (user.bannedAt) {
+                          await unbanUser(user.id);
+                        } else {
+                          await banUser(user.id);
+                        }
+                      }}
                     >
                       <Button
                         type="submit"

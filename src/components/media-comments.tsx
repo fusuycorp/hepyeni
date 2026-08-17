@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { CommentThread, type DisplayComment } from "@/components/comment-thread";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import type { ActionResult } from "@/types/actions";
 import type {
   CommentsResponse,
   UsersResponse,
@@ -34,8 +35,8 @@ interface MediaCommentsProps {
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>>;
-  onDeleteComment?: (commentId: string) => Promise<void>;
+  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
   onFetchComments?: (
     titleId: string,
   ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
