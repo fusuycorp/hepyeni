@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { canDeleteComment } from "@/lib/comments";
 import { addComment, deleteComment } from "@/lib/actions/comments";
 import { formatRelativeTime } from "@/lib/i18n";
+import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
   CommentsResponse,
@@ -160,8 +161,8 @@ export function MediaComments({
           {sortedComments.length > 0 ? (
             sortedComments.map((c) => {
               const author = c.expand?.user;
-              const authorName = author?.name || author?.email || "Üye";
-              const initials = authorName.slice(0, 2).toUpperCase();
+              const authorName = getDisplayName(author);
+              const initials = getInitials(author?.name, author?.email);
               const canDelete = canDeleteComment({
                 commentUserId: c.user,
                 currentUserId,

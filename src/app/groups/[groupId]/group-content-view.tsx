@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MEDIA_TYPES } from "@/lib/media-types";
+import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type {
   CommentsResponse,
@@ -81,9 +82,17 @@ export function GroupContentView({
       {/* View Switcher & Media Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b">
         {/* Main Tabs (Up Next vs Consumed) */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit">
+        <div
+          role="tablist"
+          aria-label="İçerik görünümü"
+          className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
+        >
           <button
             type="button"
+            role="tab"
+            id="proposed-tab"
+            aria-selected={activeTab === "proposed"}
+            aria-controls="proposed-panel"
             onClick={() => setActiveTab("proposed")}
             className={cn(
               "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
@@ -104,6 +113,10 @@ export function GroupContentView({
 
           <button
             type="button"
+            role="tab"
+            id="consumed-tab"
+            aria-selected={activeTab === "consumed"}
+            aria-controls="consumed-panel"
             onClick={() => setActiveTab("consumed")}
             className={cn(
               "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
@@ -127,6 +140,7 @@ export function GroupContentView({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           <button
             type="button"
+            aria-pressed={selectedMediaType === "all"}
             onClick={() => setSelectedMediaType("all")}
             className={cn(
               "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
@@ -141,6 +155,7 @@ export function GroupContentView({
             <button
               key={type}
               type="button"
+              aria-pressed={selectedMediaType === type}
               onClick={() => setSelectedMediaType(type)}
               className={cn(
                 "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap flex items-center gap-1",
@@ -160,7 +175,7 @@ export function GroupContentView({
         {/* Left 2 Cols: Main Content (Backlog or Consumed) */}
         <div className="lg:col-span-2 space-y-4">
           {activeTab === "proposed" && (
-            <>
+            <div id="proposed-panel" role="tabpanel" aria-labelledby="proposed-tab">
               {filteredProposed.length > 0 ? (
                 <div className="space-y-3">
                   {filteredProposed.map((title, index) => (
@@ -212,7 +227,7 @@ export function GroupContentView({
                             <p className="text-[11px] text-muted-foreground">
                               Ekleyen:{" "}
                               <span className="font-medium text-foreground">
-                                {title.expand?.addedBy?.name || title.expand?.addedBy?.email || "üye"}
+                                {getDisplayName(title.expand?.addedBy)}
                               </span>
                             </p>
                             <div className="flex items-center gap-1.5">
@@ -249,11 +264,11 @@ export function GroupContentView({
                   }
                 />
               )}
-            </>
+            </div>
           )}
 
           {activeTab === "consumed" && (
-            <>
+            <div id="consumed-panel" role="tabpanel" aria-labelledby="consumed-tab">
               {filteredConsumed.length > 0 ? (
                 <div className="space-y-4">
                   {filteredConsumed.map((title) => {
@@ -342,7 +357,7 @@ export function GroupContentView({
                                   >
                                     <div className="flex items-center justify-between">
                                       <span className="font-semibold text-foreground">
-                                        {r.expand?.user?.name || r.expand?.user?.email || "Üye"}
+                                        {getDisplayName(r.expand?.user)}
                                       </span>
                                       <div className="flex items-center gap-0.5 text-amber-400">
                                         {Array.from({ length: r.rating }).map((_, i) => (
@@ -372,7 +387,7 @@ export function GroupContentView({
                   description="Bir kitabı, filmi veya podcast'i bitirdiğinizde tamamlandı olarak işaretleyerek değerlendirme yapabilirsiniz."
                 />
               )}
-            </>
+            </div>
           )}
         </div>
 
@@ -399,9 +414,9 @@ export function GroupContentView({
 
               <div className="space-y-2 pt-1">
                 {members.map((m) => {
-                  const userName = m.expand?.user?.name || m.expand?.user?.email || "Üye";
+                  const userName = getDisplayName(m.expand?.user);
                   const userEmail = m.expand?.user?.email;
-                  const initials = userName.slice(0, 2).toUpperCase();
+                  const initials = getInitials(m.expand?.user?.name, m.expand?.user?.email);
                   const isOwner = m.role === "owner";
 
                   return (

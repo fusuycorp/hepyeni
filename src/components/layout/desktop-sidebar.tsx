@@ -9,6 +9,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
+import { getDisplayName, getInitials } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/client";
 
 interface DesktopSidebarProps {
@@ -55,7 +56,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     });
   }
 
-  const userInitials = (user?.name?.trim() || user?.email || "U").slice(0, 2).toUpperCase();
+  const userInitials = getInitials(user?.name, user?.email);
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-card/60 backdrop-blur-md z-30">
@@ -128,12 +129,12 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
               className="flex items-center gap-3 min-w-0 flex-1 p-1.5 rounded-lg hover:bg-muted transition-colors"
             >
               <Avatar size="sm" className="ring-1 ring-border">
-                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name || user.email} />}
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={getDisplayName(user)} />}
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold truncate leading-tight">
-                  {user.name || user.email}
+                  {getDisplayName(user)}
                 </span>
                 <span className="text-[11px] text-muted-foreground truncate leading-tight">
                   {user.email}

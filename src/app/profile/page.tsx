@@ -8,17 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { SendResetLinkButton } from "@/components/send-reset-link-button";
-import { UpdateNameForm } from "@/components/update-name-form";
+import { InlineTextForm } from "@/components/inline-text-form";
 import { signOutAction } from "@/lib/actions/auth";
 import { deleteAccount, updateProfileName } from "@/lib/actions/profile";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getInitials } from "@/lib/format";
 import type { UsersResponse } from "@/types/pocketbase-types";
-
-function initials(name: string, email: string) {
-  const source = name.trim() || email;
-  return source.slice(0, 2).toUpperCase();
-}
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -53,7 +49,7 @@ export default async function ProfilePage() {
             <Avatar size="lg" className="size-16 ring-2 ring-primary/20 shrink-0">
               {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name || user.email} />}
               <AvatarFallback className="text-base font-bold">
-                {initials(user.name, user.email)}
+                {getInitials(user.name, user.email)}
               </AvatarFallback>
             </Avatar>
 
@@ -102,9 +98,11 @@ export default async function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <UpdateNameForm
-              defaultName={user.name}
-              onUpdate={updateProfileName}
+            <InlineTextForm
+              defaultValue={user.name}
+              onSubmit={updateProfileName}
+              successMessage="İsim güncellendi."
+              errorMessage="İsim güncellenemedi."
             />
           </CardContent>
         </Card>

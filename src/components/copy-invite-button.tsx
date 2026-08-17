@@ -17,10 +17,15 @@ export function CopyInviteButton({
 }) {
   const [copied, setCopied] = useState(false);
 
-  function copy(e: React.MouseEvent) {
+  async function copy(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    navigator.clipboard.writeText(code);
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      toast.error("Kod kopyalanamadı");
+      return;
+    }
     setCopied(true);
     toast.success(`Davet kodu kopyalandı: ${code}`);
     setTimeout(() => setCopied(false), 2000);

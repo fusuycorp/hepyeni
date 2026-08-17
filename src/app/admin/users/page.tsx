@@ -7,12 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { banUser, setUserAdmin, unbanUser } from "@/lib/actions/admin";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getInitials } from "@/lib/format";
 import type { UsersResponse } from "@/types/pocketbase-types";
-
-function initials(name?: string, email?: string) {
-  const source = name?.trim() || email || "U";
-  return source.slice(0, 2).toUpperCase();
-}
 
 export default async function AdminUsersPage() {
   const session = await getSession();
@@ -43,7 +39,7 @@ export default async function AdminUsersPage() {
         {allUsers.map((user) => {
           const isSelf = user.id === session.id;
           const userName = user.name || user.email;
-          const userInitials = initials(user.name, user.email);
+          const userInitials = getInitials(user.name, user.email);
 
           return (
             <Card

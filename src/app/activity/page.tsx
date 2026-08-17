@@ -10,6 +10,8 @@ import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { formatRelativeTime } from "@/lib/i18n";
+import { getDisplayName, getInitials } from "@/lib/format";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -41,21 +43,6 @@ type ActivityItem =
         user?: UsersResponse;
       }>;
     };
-
-function formatRelativeTime(dateString: string) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-
-  if (diffSec < 60) return "az önce";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin} dk önce`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} sa önce`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays} gün önce`;
-  return date.toLocaleDateString("tr-TR", { month: "short", day: "numeric" });
-}
 
 export default async function ActivityPage() {
   const session = await getSession();
@@ -168,8 +155,8 @@ export default async function ActivityPage() {
                 const { title } = item;
                 const group = title.expand?.group;
                 const author = title.expand?.addedBy;
-                const authorName = author?.name || author?.email || "Üye";
-                const initials = authorName.slice(0, 2).toUpperCase();
+                const authorName = getDisplayName(author);
+                const initials = getInitials(author?.name, author?.email);
 
                 return (
                   <Link
@@ -234,8 +221,8 @@ export default async function ActivityPage() {
                 const title = review.expand?.title;
                 const group = title?.expand?.group;
                 const reviewer = review.expand?.user;
-                const reviewerName = reviewer?.name || reviewer?.email || "Üye";
-                const initials = reviewerName.slice(0, 2).toUpperCase();
+                const reviewerName = getDisplayName(reviewer);
+                const initials = getInitials(reviewer?.name, reviewer?.email);
 
                 return (
                   <Link
@@ -301,8 +288,8 @@ export default async function ActivityPage() {
                 const title = comment.expand?.title;
                 const group = title?.expand?.group;
                 const commenter = comment.expand?.user;
-                const commenterName = commenter?.name || commenter?.email || "Üye";
-                const initials = commenterName.slice(0, 2).toUpperCase();
+                const commenterName = getDisplayName(commenter);
+                const initials = getInitials(commenter?.name, commenter?.email);
 
                 return (
                   <Link

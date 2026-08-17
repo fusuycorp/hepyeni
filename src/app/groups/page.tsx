@@ -90,7 +90,7 @@ export default async function GroupsPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full border">
-              {memberships.length} {memberships.length === 1 ? "grup" : "grup"}
+              {memberships.length} grup
             </span>
           </div>
         </div>

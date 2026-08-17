@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { CopyInviteButton } from "@/components/copy-invite-button";
-import { RenameGroupForm } from "@/components/rename-group-form";
+import { InlineTextForm } from "@/components/inline-text-form";
 import {
   deleteGroup,
   leaveGroup,
@@ -17,6 +17,7 @@ import {
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
+import { getDisplayName, getInitials } from "@/lib/format";
 import type {
   GroupMembersResponse,
   GroupsResponse,
@@ -100,9 +101,11 @@ export default async function GroupSettingsPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RenameGroupForm
-                defaultName={group.name}
-                onRename={renameGroup.bind(null, groupId)}
+              <InlineTextForm
+                defaultValue={group.name}
+                onSubmit={renameGroup.bind(null, groupId)}
+                successMessage="Grup adı güncellendi."
+                errorMessage="Grup adı güncellenemedi."
               />
             </CardContent>
           </Card>
@@ -158,9 +161,9 @@ export default async function GroupSettingsPage({
           <CardContent>
             <div className="divide-y divide-border/50">
               {members.map((m) => {
-                const userName = m.expand?.user?.name || m.expand?.user?.email || "Üye";
+                const userName = getDisplayName(m.expand?.user);
                 const userEmail = m.expand?.user?.email;
-                const initials = userName.slice(0, 2).toUpperCase();
+                const initials = getInitials(m.expand?.user?.name, m.expand?.user?.email);
                 const isMemberOwner = m.role === "owner";
                 const isSelf = m.id === membership.id;
 
