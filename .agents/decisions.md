@@ -52,9 +52,17 @@
   - Centralized origin resolution into `getRequestOrigin(req)` in `src/lib/pocketbase/session.ts` which extracts `x-forwarded-host`, `x-forwarded-proto`, and filters out `0.0.0.0` addresses.
   - All server-side redirects in middleware (`proxy.ts`) and API routes (`oauth2-callback`) must construct redirect URLs using `new URL(path, origin)` rather than `req.nextUrl`.
   - All OAuth initiation and token exchanges dynamically compute `oauth2RedirectUrl(origin)` based on the request's forwarded headers so the authorization URL and code exchange URI are byte-identical.
-- **Consequences**: Immune to container host-binding artifacts across local development, staging, and multi-domain reverse proxy production environments.
+## ADR-007: REST API Route Handler for Media Search vs Server Action RPC
+- **Status**: Accepted & Implemented (2026-08-17)
+- **Context**: Media search previously used a Next.js Server Action (`searchTitles`), causing client queries to execute as POST requests against the active HTML page route (`/groups/[groupId]`). This violated HTTP idempotent read semantics (`GET`), masked network error codes inside 200 OK React Flight streaming chunks, and prevented HTTP transport caching and inspectability.
+- **Decision**:
+  - Migrated search to a dedicated REST API Route Handler: `GET /api/titles/search?mediaType=...&q=...`.
+  - Returned standard JSON payloads with explicit HTTP status codes: `200 OK` for search results, `400 Bad Request` for invalid parameters, `401 Unauthorized` for missing sessions, and `502 Bad Gateway` for upstream provider errors with trace IDs.
+  - Multi-tiered book search across Google Books (API key), iTunes Books (zero-config, high-speed 150ms), and Open Library.
+- **Consequences**: Standard REST semantics, clean browser DevTools network inspection, transparent HTTP status codes, and multi-tier zero-config provider resiliency.
 
 ## Operational Gotcha: GitHub OAuth token lacks `workflow` scope by default
 - The `gh`-issued token used for `git push` in this environment only carries `repo` scope by default, which GitHub rejects for any push that modifies `.github/workflows/*` ("refusing to allow an OAuth App to create or update workflow ... without `workflow` scope"). This has caused a workflow file to be silently left uncommitted/unpushed before (see git history around the PocketBase deploy workflow).
 - **Fix**: `gh auth refresh --hostname github.com --scopes repo,workflow` (must include `--hostname` when run non-interactively; opens a device-code browser flow the user has to approve). Check `gh auth status` first — if `workflow` is already listed, no action needed.
+
 

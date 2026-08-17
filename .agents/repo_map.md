@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 142
+Total mapped files: 143
 
-- `.agents/activity.jsonl` (6561 B)
-- `.agents/decisions.md` (6214 B)
+- `.agents/activity.jsonl` (7215 B)
+- `.agents/decisions.md` (7222 B)
 - `.agents/memory.md` (4619 B)
-- `.agents/repo_map.md` (14702 B)
+- `.agents/repo_map.md` (14921 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -95,17 +95,24 @@ Total mapped files: 142
     * const stored
     * const diag
     * const pb
+- `src/app/api/titles/search/route.ts` (1522 B)
+    * const token
+    * const session
+    * const mediaType
+    * const query
+    * const results
+    * const diag
 - `src/app/error.tsx` (2458 B)
 - `src/app/favicon.ico` (25931 B)
 - `src/app/global-error.tsx` (1829 B)
 - `src/app/globals.css` (4355 B)
-- `src/app/groups/[groupId]/add/add-title-form.tsx` (8469 B)
+- `src/app/groups/[groupId]/add/add-title-form.tsx` (8752 B)
     * interface AddTitleFormProps
     * export function AddTitleForm
     * const router
     * const t
     * function handleSearch
-    * const res
+    * const cleanQuery
 - `src/app/groups/[groupId]/add/page.tsx` (2006 B)
     * const session
     * const pb
@@ -449,13 +456,13 @@ Total mapped files: 142
     * const pb
     * const membership
     * const pb
-- `src/lib/providers/google-books.ts` (4242 B)
+- `src/lib/providers/google-books.ts` (5430 B)
     * type GoogleBooksItem
+    * type ItunesEbookResult
     * type OpenLibraryDoc
     * const url
     * const res
     * const data
-    * export const googleBooksProvider
 - `src/lib/providers/index.ts` (868 B)
     * const providers
     * export function getProvider
@@ -486,7 +493,7 @@ Total mapped files: 142
     * export interface MediaProvider
 - `src/lib/utils.ts` (166 B)
     * export function cn
-- `src/proxy.ts` (1005 B)
+- `src/proxy.ts` (1140 B)
     * const session
     * const origin
     * export const config
@@ -543,10 +550,13 @@ Total mapped files: 142
     * const origin
     * const mockReq
     * const origin
-- `tests/providers.test.ts` (1363 B)
+- `tests/providers.test.ts` (2126 B)
     * const types
     * const provider
     * const results
+    * const bookProvider
+    * const bookResults
+    * const musicProvider
 - `tests/vote-id.test.ts` (1142 B)
     * const id
     * const id1
