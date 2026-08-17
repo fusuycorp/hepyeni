@@ -105,6 +105,19 @@ bun run build
 
 ---
 
+## Documentation
+
+Comprehensive architecture, security, and developer reference guides are available in the [`docs/`](file:///home/devhax/projects/fusuycorp/titirek/docs/README.md) directory:
+
+- [**System Architecture**](file:///home/devhax/projects/fusuycorp/titirek/docs/ARCHITECTURE.md): Server Action model, PocketBase superuser client, live session verification, and concurrency defense.
+- [**Codebase Map**](file:///home/devhax/projects/fusuycorp/titirek/docs/CODEBASE_MAP.md): Detailed directory tree and file breakdown.
+- [**Auth & Security**](file:///home/devhax/projects/fusuycorp/titirek/docs/AUTH_AND_SECURITY.md): Multi-provider auth flows, IDOR defense, and ban enforcement.
+- [**Data Models**](file:///home/devhax/projects/fusuycorp/titirek/docs/DATA_MODELS.md): PocketBase collections, ERD, and relational cascading.
+- [**External Media APIs**](file:///home/devhax/projects/fusuycorp/titirek/docs/EXTERNAL_APIS.md): Google Books, TMDB, Spotify, and iTunes integrations.
+- [**Deployment & Infrastructure**](file:///home/devhax/projects/fusuycorp/titirek/docs/DEPLOYMENT_AND_INFRA.md): Docker Swarm, Dokploy, and environment setup.
+
+---
+
 ## Architectural Decision Records
 
 Major architectural choices, security defenses, and design patterns are documented in [`DECISIONS.md`](file:///home/devhax/projects/fusuycorp/titirek/DECISIONS.md).
@@ -114,3 +127,4 @@ Major architectural choices, security defenses, and design patterns are document
 ## Deployment
 
 Containerized via `Dockerfile` and deployed on **Docker Swarm** with **Dokploy**. CI (`.github/workflows/deploy.yml`) builds the image, pushes to `registry.bogazici.app/budok/titirek`, and triggers Dokploy redeployments.
+
