@@ -45,6 +45,16 @@
   - Deleted the standalone `deploy-pocketbase.yml`.
 - **Consequences**: Redeploy ordering is now enforced by GitHub Actions' `needs` graph instead of incidental to build-time differences. Lost: the old workflow's ability to manually `workflow_dispatch` a PocketBase-image-only rebuild without also rebuilding the app image and triggering a redeploy — acceptable tradeoff, not worth a separate dispatch-input mechanism unless it's actually needed later.
 
+## ADR-006: Reverse-Proxy Dynamic Host Resolution & OAuth Redirect URL Protocol
+- **Status**: Accepted & Implemented (2026-08-17)
+- **Context**: In containerized Node.js deployments behind reverse proxies (Dokploy, Traefik, Caddy), internal container socket addresses (`0.0.0.0:3000`) caused `NextResponse.redirect(new URL(..., req.nextUrl))` to redirect users to `https://0.0.0.0:3000`, and caused OAuth `redirect_uri` to mismatch the public domain (`https://hepyeni.net/api/auth/oauth2-callback`), failing the Google/Apple token exchange with `redirect_uri_mismatch`.
+- **Decision**:
+  - Centralized origin resolution into `getRequestOrigin(req)` in `src/lib/pocketbase/session.ts` which extracts `x-forwarded-host`, `x-forwarded-proto`, and filters out `0.0.0.0` addresses.
+  - All server-side redirects in middleware (`proxy.ts`) and API routes (`oauth2-callback`) must construct redirect URLs using `new URL(path, origin)` rather than `req.nextUrl`.
+  - All OAuth initiation and token exchanges dynamically compute `oauth2RedirectUrl(origin)` based on the request's forwarded headers so the authorization URL and code exchange URI are byte-identical.
+- **Consequences**: Immune to container host-binding artifacts across local development, staging, and multi-domain reverse proxy production environments.
+
 ## Operational Gotcha: GitHub OAuth token lacks `workflow` scope by default
 - The `gh`-issued token used for `git push` in this environment only carries `repo` scope by default, which GitHub rejects for any push that modifies `.github/workflows/*` ("refusing to allow an OAuth App to create or update workflow ... without `workflow` scope"). This has caused a workflow file to be silently left uncommitted/unpushed before (see git history around the PocketBase deploy workflow).
 - **Fix**: `gh auth refresh --hostname github.com --scopes repo,workflow` (must include `--hostname` when run non-interactively; opens a device-code browser flow the user has to approve). Check `gh auth status` first — if `workflow` is already listed, no action needed.
+
