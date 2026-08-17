@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Rss, User } from "lucide-react";
+import { Users, BookOpen, Rss, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -12,6 +12,7 @@ export function BottomNav() {
 
   const tabs = [
     { href: "/groups", label: t.nav.groups, icon: Users },
+    { href: "/shelf", label: t.nav.shelf, icon: BookOpen },
     { href: "/activity", label: t.nav.activity, icon: Rss },
     { href: "/profile", label: t.nav.profile, icon: User },
   ];

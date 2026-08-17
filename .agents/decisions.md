@@ -61,8 +61,15 @@
   - Multi-tiered book search across Google Books (API key), iTunes Books (zero-config, high-speed 150ms), and Open Library.
 - **Consequences**: Standard REST semantics, clean browser DevTools network inspection, transparent HTTP status codes, and multi-tier zero-config provider resiliency.
 
-## Operational Gotcha: GitHub OAuth token lacks `workflow` scope by default
-- The `gh`-issued token used for `git push` in this environment only carries `repo` scope by default, which GitHub rejects for any push that modifies `.github/workflows/*` ("refusing to allow an OAuth App to create or update workflow ... without `workflow` scope"). This has caused a workflow file to be silently left uncommitted/unpushed before (see git history around the PocketBase deploy workflow).
-- **Fix**: `gh auth refresh --hostname github.com --scopes repo,workflow` (must include `--hostname` when run non-interactively; opens a device-code browser flow the user has to approve). Check `gh auth status` first — if `workflow` is already listed, no action needed.
+## ADR-008: Normalized Personal Media Shelf & Relational Circle Schedules Architecture
+- **Status**: Accepted & Implemented (2026-08-17)
+- **Context**: Users required the ability to log personal media progress (reading pages, TV episodes, listening minutes, custom notes, star ratings) independently of circles, choose whether to share this progress, synchronize their progress seamlessly with any circle consuming the same title, and participate in circle pacing schedules with milestone checkpoints.
+- **Decision**:
+  - Implemented `user_media_progress` collection indexed on `(user, externalSource, externalId)` for single-source-of-truth progress across all circles.
+  - Progress on circle titles resolved automatically by matching either `groupTitle` or `(externalSource && externalId)`.
+  - Avoided denormalizing milestones into unindexed JSON blobs. Created normalized 1:N `group_schedules` $\rightarrow$ `schedule_milestones` (`orderIndex`, `targetDate`, `targetUnit`) and normalized `milestone_checkins` junction table with `UNIQUE(milestone, user)` index.
+  - Implemented `/shelf` personal dashboard, `<CircleTitleProgress />` on media title pages, and `<GroupSchedulesCard />` with active member check-ins.
+- **Consequences**: Pure relational normalization, fast indexed milestone progress queries, cross-circle progress syncing, and complete privacy controls (`isSharedWithCircles`).
+
 
 

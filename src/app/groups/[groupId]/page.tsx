@@ -10,6 +10,7 @@ import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
+import { getGroupSchedules } from "@/lib/actions/schedules";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess } from "@/lib/membership";
@@ -53,7 +54,7 @@ export default async function GroupPage({
   const group = access.group;
   const pb = await getSuperuserClient();
 
-  const [members, groupTitles, userRecord, commentRows] = await Promise.all([
+  const [members, groupTitles, userRecord, commentRows, schedules] = await Promise.all([
     pb
       .collection("group_members")
       .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
@@ -76,6 +77,7 @@ export default async function GroupPage({
           fields: "id,title",
         })
       : Promise.resolve([]),
+    getGroupSchedules(groupId),
   ]);
 
   const commentCounts: Record<string, number> = {};
@@ -260,6 +262,7 @@ export default async function GroupPage({
           members={members}
           proposed={proposed}
           consumed={consumed}
+          schedules={schedules}
           currentUserId={session?.id ?? ""}
           currentUserRole={currentUserRole}
           isAdmin={session?.isAdmin}

@@ -26,10 +26,12 @@ import { VoteControl } from "@/components/vote-control";
 import { MarkConsumedButton } from "@/components/mark-consumed-button";
 import { ReviewForm } from "@/components/review-form";
 import { CommentThread, type DisplayComment } from "@/components/comment-thread";
+import { CircleTitleProgress } from "@/components/circle-title-progress";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useTranslations, useLocale } from "@/lib/i18n/client";
+import type { TitleMemberProgressItem } from "@/lib/actions/progress";
 import type {
   CommentsResponse,
   GroupsResponse,
@@ -52,6 +54,7 @@ interface TitleDetailViewProps {
   group: GroupsResponse;
   title: TitleWithScore;
   comments: CommentsResponse<{ user?: UsersResponse }>[];
+  memberProgress?: TitleMemberProgressItem[];
   currentUserId?: string;
   currentUserRole?: string;
   isAdmin?: boolean;
@@ -82,6 +85,7 @@ export function TitleDetailView({
   group,
   title,
   comments,
+  memberProgress = [],
   currentUserId = "",
   currentUserRole,
   isAdmin,
@@ -362,6 +366,14 @@ export function TitleDetailView({
           )}
         </CardContent>
       </Card>
+
+      {/* Circle Members Progress on this Title */}
+      <CircleTitleProgress
+        title={title}
+        memberProgress={memberProgress}
+        currentUserId={currentUserId}
+        isMember={!isGuest}
+      />
 
       {/* Tabs & Discussion / Reviews Sections */}
       {(canViewComments || canViewReviews) && (

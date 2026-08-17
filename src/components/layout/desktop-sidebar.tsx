@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Rss, User, Shield, LogOut, BookmarkCheck } from "lucide-react";
+import { Users, BookOpen, Rss, User, Shield, LogOut, BookmarkCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -32,6 +32,12 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
       label: t.nav.groups,
       icon: Users,
       active: pathname === "/groups" || (pathname.startsWith("/groups") && !pathname.includes("/admin")),
+    },
+    {
+      href: "/shelf",
+      label: t.nav.shelf,
+      icon: BookOpen,
+      active: pathname === "/shelf",
     },
     {
       href: "/activity",

@@ -27,6 +27,10 @@ export const Collections = {
   Titles: "titles",
   Users: "users",
   Votes: "votes",
+  UserMediaProgress: "user_media_progress",
+  GroupSchedules: "group_schedules",
+  ScheduleMilestones: "schedule_milestones",
+  MilestoneCheckins: "milestone_checkins",
 } as const;
 export type Collections = (typeof Collections)[keyof typeof Collections];
 
@@ -172,6 +176,84 @@ export type VotesRecord = {
   value: VotesValueOptions;
 };
 
+export const UserMediaProgressStatusOptions = {
+  in_progress: "in_progress",
+  completed: "completed",
+  plan_to_consume: "plan_to_consume",
+  on_hold: "on_hold",
+  dropped: "dropped",
+} as const;
+export type UserMediaProgressStatusOptions =
+  (typeof UserMediaProgressStatusOptions)[keyof typeof UserMediaProgressStatusOptions];
+
+export const UserMediaProgressUnitOptions = {
+  pages: "pages",
+  chapters: "chapters",
+  episodes: "episodes",
+  percent: "percent",
+  minutes: "minutes",
+} as const;
+export type UserMediaProgressUnitOptions =
+  (typeof UserMediaProgressUnitOptions)[keyof typeof UserMediaProgressUnitOptions];
+
+export type UserMediaProgressRecord = {
+  user: RecordIdString;
+  groupTitle?: RecordIdString;
+  mediaType: TitlesMediaTypeOptions;
+  externalSource?: string;
+  externalId?: string;
+  title: string;
+  creator?: string;
+  coverUrl?: string;
+  status: UserMediaProgressStatusOptions;
+  progressCurrent?: number;
+  progressTotal?: number;
+  progressUnit?: UserMediaProgressUnitOptions;
+  currentLabel?: string;
+  notes?: string;
+  rating?: number;
+  isSharedWithCircles?: boolean;
+  startedAt?: IsoDateString;
+  completedAt?: IsoDateString;
+  createdAt: IsoAutoDateString;
+  updatedAt: IsoAutoDateString;
+};
+
+export const GroupSchedulesStatusOptions = {
+  active: "active",
+  completed: "completed",
+  archived: "archived",
+} as const;
+export type GroupSchedulesStatusOptions =
+  (typeof GroupSchedulesStatusOptions)[keyof typeof GroupSchedulesStatusOptions];
+
+export type GroupSchedulesRecord = {
+  group: RecordIdString;
+  title?: RecordIdString;
+  name: string;
+  description?: string;
+  startDate?: IsoDateString;
+  targetDate?: IsoDateString;
+  status: GroupSchedulesStatusOptions;
+  createdBy: RecordIdString;
+  createdAt: IsoAutoDateString;
+};
+
+export type ScheduleMilestonesRecord = {
+  schedule: RecordIdString;
+  title: string;
+  targetDate?: IsoDateString;
+  targetUnit?: string;
+  orderIndex: number;
+  createdAt: IsoAutoDateString;
+};
+
+export type MilestoneCheckinsRecord = {
+  milestone: RecordIdString;
+  user: RecordIdString;
+  completedAt: IsoAutoDateString;
+};
+
 // Response types include system fields and match responses from the PocketBase API
 export type CommentsResponse<Texpand = unknown> =
   Required<CommentsRecord> & BaseSystemFields<Texpand>;
@@ -187,6 +269,14 @@ export type UsersResponse<Texpand = unknown> = Required<UsersRecord> &
   AuthSystemFields<Texpand>;
 export type VotesResponse<Texpand = unknown> = Required<VotesRecord> &
   BaseSystemFields<Texpand>;
+export type UserMediaProgressResponse<Texpand = unknown> =
+  Required<UserMediaProgressRecord> & BaseSystemFields<Texpand>;
+export type GroupSchedulesResponse<Texpand = unknown> =
+  Required<GroupSchedulesRecord> & BaseSystemFields<Texpand>;
+export type ScheduleMilestonesResponse<Texpand = unknown> =
+  Required<ScheduleMilestonesRecord> & BaseSystemFields<Texpand>;
+export type MilestoneCheckinsResponse<Texpand = unknown> =
+  Required<MilestoneCheckinsRecord> & BaseSystemFields<Texpand>;
 
 // Types containing all Records and Responses, useful for creating typing helper functions
 
@@ -198,6 +288,10 @@ export type CollectionRecords = {
   titles: TitlesRecord;
   users: UsersRecord;
   votes: VotesRecord;
+  user_media_progress: UserMediaProgressRecord;
+  group_schedules: GroupSchedulesRecord;
+  schedule_milestones: ScheduleMilestonesRecord;
+  milestone_checkins: MilestoneCheckinsRecord;
 };
 
 export type CollectionResponses = {
@@ -208,6 +302,10 @@ export type CollectionResponses = {
   titles: TitlesResponse;
   users: UsersResponse;
   votes: VotesResponse;
+  user_media_progress: UserMediaProgressResponse;
+  group_schedules: GroupSchedulesResponse;
+  schedule_milestones: ScheduleMilestonesResponse;
+  milestone_checkins: MilestoneCheckinsResponse;
 };
 
 // Type for usage with a type-asserted PocketBase instance

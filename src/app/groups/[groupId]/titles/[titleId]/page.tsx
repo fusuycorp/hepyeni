@@ -5,6 +5,7 @@ import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
+import { getTitleCircleProgress } from "@/lib/actions/progress";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
@@ -48,7 +49,7 @@ export default async function TitleDetailPage({
   const group = access.group;
   const pb = await getSuperuserClient();
 
-  const [titleRecord, userRecord, comments] = await Promise.all([
+  const [titleRecord, userRecord, comments, memberProgress] = await Promise.all([
     pb.collection("titles").getOne<TitlesResponse<TitleExpand>>(titleId, {
       expand: "addedBy,votes_via_title,reviews_via_title.user",
     }),
@@ -65,6 +66,7 @@ export default async function TitleDetailPage({
           sort: "createdAt",
         })
       : Promise.resolve([]),
+    getTitleCircleProgress(titleId, groupId),
   ]);
 
   if (titleRecord.group !== groupId) {
@@ -142,6 +144,7 @@ export default async function TitleDetailPage({
         group={group}
         title={titleWithScore}
         comments={comments}
+        memberProgress={memberProgress}
         currentUserId={session?.id ?? ""}
         currentUserRole={access.isOwner ? "owner" : access.isMember ? "member" : undefined}
         isAdmin={session?.isAdmin}

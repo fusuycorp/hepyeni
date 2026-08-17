@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X } from "lucide-react";
+import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
@@ -12,6 +12,7 @@ import { ReviewForm } from "@/components/review-form";
 import { MediaComments } from "@/components/media-comments";
 import { EmptyState } from "@/components/empty-state";
 import { AddTitleDialog } from "@/components/add-title-dialog";
+import { GroupSchedulesCard } from "@/components/group-schedules-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import { MEDIA_TYPES } from "@/lib/media-types";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
+import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -43,6 +45,7 @@ interface GroupContentViewProps {
   members: GroupMembersResponse<{ user?: UsersResponse }>[];
   proposed: TitleWithScore[];
   consumed: TitleWithScore[];
+  schedules?: GroupScheduleWithMilestones[];
   currentUserId?: string;
   currentUserRole?: string;
   isAdmin?: boolean;
@@ -78,6 +81,7 @@ export function GroupContentView({
   members,
   proposed,
   consumed,
+  schedules = [],
   currentUserId = "",
   currentUserRole,
   isAdmin,
@@ -103,12 +107,12 @@ export function GroupContentView({
   onFetchComments,
 }: GroupContentViewProps) {
   const defaultTab = !canViewBacklog && canViewFinished ? "consumed" : "proposed";
-  const [activeTab, setActiveTab] = useState<"proposed" | "consumed">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"proposed" | "consumed" | "schedules">(defaultTab);
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedRecommender, setSelectedRecommender] = useState<string>("all");
   const t = useTranslations();
 
-  const currentList = activeTab === "proposed" ? proposed : consumed;
+  const currentList = activeTab === "proposed" ? proposed : activeTab === "consumed" ? consumed : [];
 
   const recommenderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -238,6 +242,36 @@ export function GroupContentView({
                   </span>
                 </button>
               )}
+
+              <button
+                type="button"
+                role="tab"
+                id="schedules-tab"
+                aria-selected={activeTab === "schedules"}
+                aria-controls="schedules-panel"
+                onClick={() => setActiveTab("schedules")}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                  activeTab === "schedules"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Calendar className="size-3.5 text-primary" />
+                <span>{t.schedules.schedulesTitle}</span>
+                {schedules && schedules.length > 0 && (
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      activeTab === "schedules"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {schedules.length}
+                  </span>
+                )}
+              </button>
             </div>
           )}
 
@@ -355,10 +389,21 @@ export function GroupContentView({
       </div>
 
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left 2 Cols: Main Content (Backlog or Consumed) */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Content View: Schedules or Backlog/Finished Grid */}
+      {activeTab === "schedules" ? (
+        <GroupSchedulesCard
+          groupId={group.id}
+          schedules={schedules || []}
+          titles={[...proposed, ...consumed]}
+          isOwner={currentUserRole === "owner" || isAdmin}
+          isMember={!isGuest}
+          memberCount={members.length}
+        />
+      ) : (
+        /* Content Grid */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Left 2 Cols: Main Content (Backlog or Consumed) */}
+          <div className="lg:col-span-2 space-y-4">
           {activeTab === "proposed" && (
             <div id="proposed-panel" role="tabpanel" aria-labelledby="proposed-tab">
               {filteredProposed.length > 0 ? (
@@ -767,6 +812,7 @@ export function GroupContentView({
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }
