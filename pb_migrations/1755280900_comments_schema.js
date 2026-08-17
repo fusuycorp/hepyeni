@@ -43,6 +43,7 @@ migrate((app) => {
     ],
   });
   comments.addIndex("idx_comments_title", false, "title, createdAt");
+  comments.addIndex("idx_comments_group", false, "group, createdAt");
   app.save(comments);
 }, (app) => {
   const collection = app.findCollectionByNameOrId("comments");

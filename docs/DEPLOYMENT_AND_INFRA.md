@@ -18,10 +18,10 @@ flowchart LR
         TR[Traefik Ingress Proxy]
     end
 
-    subgraph Swarm Node / WorkHorse
+    subgraph Swarm Nodes
         subgraph Overlay: dokploy-network
-            APP[titirek: Next.js Standalone Runner]
-            PB[pocketbase: BaaS + Migrations]
+            APP[titirek: Next.js Standalone Runner<br/>2 replicas, node.labels.type == tanri]
+            PB[pocketbase: BaaS + Migrations<br/>1 replica, node.labels.type == worky]
             VOL[(Volume: titirek_pb_data)]
         end
     end
@@ -70,67 +70,101 @@ COPY pb_migrations /pb_migrations
 
 ## 3. Dokploy Swarm Stack Configuration
 
-Production services are defined in `services/titirek/docker-stack.yml` in the selfhosted deployment repository:
+Production services are defined in `services/titirek/docker-stack.yml` in the selfhosted deployment repository (this is a summary — that file is authoritative, see its own comments for the reasoning behind each deviation from the generic template, e.g. the `/pb_data` mount path and why Traefik labels are omitted in favor of Dokploy's dynamic domain management):
 
 ```yaml
 services:
   titirek:
     image: ${IMAGE_NAME:-registry.bogazici.app/budok/titirek:latest}
-    networks:
-      - dokploy-network
     environment:
-      - NODE_ENV=production
       - PB_URL=http://pocketbase:8090
       - PB_SUPERUSER_EMAIL=${PB_SUPERUSER_EMAIL}
       - PB_SUPERUSER_PASSWORD=${PB_SUPERUSER_PASSWORD}
-      - APP_URL=https://hepyeni.net
+      - APP_URL=${APP_URL:-https://hepyeni.net}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.hostname == WorkHorse
-
-  pocketbase:
-    image: registry.bogazici.app/budok/titirek-pb:latest
     networks:
       - dokploy-network
-    volumes:
-      - titirek_pb_data:/pb_data
-    environment:
-      - PB_ADMIN_EMAIL=${PB_SUPERUSER_EMAIL}
-      - PB_ADMIN_PASSWORD=${PB_SUPERUSER_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/login || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
-      replicas: 1
+      replicas: 2
+      restart_policy:
+        condition: on-failure
       placement:
         constraints:
-          - node.hostname == WorkHorse
+          - node.labels.type == tanri
 
-volumes:
-  titirek_pb_data:
-    driver: local
+  pocketbase:
+    image: ${PB_IMAGE_NAME:-registry.bogazici.app/budok/titirek-pb:latest}
+    environment:
+      - TZ=Europe/Istanbul
+      - PB_ADMIN_EMAIL=${PB_SUPERUSER_EMAIL}
+      - PB_ADMIN_PASSWORD=${PB_SUPERUSER_PASSWORD}
+    volumes:
+      - titirek_pb_data:/pb_data
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8090/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      placement:
+        constraints:
+          - node.labels.type == worky
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
 
 networks:
   dokploy-network:
     external: true
+
+volumes:
+  titirek_pb_data:
 ```
 
 ---
 
 ## 4. CI/CD Deployment Pipeline
 
-The GitHub Actions workflow in [`.github/workflows/deploy.yml`](file:///home/devhax/projects/fusuycorp/titirek/.github/workflows/deploy.yml) triggers on every push to the `main` branch:
+Two independent workflows watch `main`:
+
+### 4.1 App image: `.github/workflows/deploy.yml`
+Triggers on every push to `main` (excluding `**.md`/`.gitignore`):
 
 1. **Build & Push Job**:
    - Checks out the repository.
    - Sets up Docker Buildx.
    - Logs into `registry.bogazici.app` using repository secrets `REGISTRY_USERNAME` and `REGISTRY_PASSWORD`.
    - Builds and pushes `registry.bogazici.app/budok/titirek:latest`.
-2. **Dokploy Redeploy Trigger**:
+2. **Dokploy Redeploy Trigger** (`needs: build-and-push`):
    - Sends an authenticated `POST /api/compose.redeploy` request to `https://dokploy.bogazici.app` with `x-api-key: ${{ secrets.DOKPLOY_API_KEY }}`.
-   - Retries up to 3 times with exponential backoff to handle transient network hiccups.
+   - If that fails, retries once with a differently-shaped (tRPC-wrapped) payload against the same endpoint, since Dokploy's API has historically accepted either shape depending on version. This is a fixed two-attempt fallback, **not** a retry loop and **not** exponential backoff — there is no delay between attempts, and both attempts fire immediately in the same job run.
+
+### 4.2 PocketBase image: `.github/workflows/deploy-pocketbase.yml`
+Triggers only when `pb_migrations/**` or `Dockerfile.pocketbase` change on `main`. Builds and pushes `registry.bogazici.app/budok/titirek-pb:latest` — deliberately does **not** call `compose.redeploy` itself (see the workflow's own header comment); the coordinated stack redeploy that picks up a new PocketBase image happens separately.
+
+> [!WARNING]
+> A commit that touches only `pb_migrations/**` fires both workflows in parallel with no ordering between them. `deploy.yml` isn't path-filtered against `pb_migrations/**`, so its (much faster) redeploy can fire while `deploy-pocketbase.yml`'s image push is still in flight, which would leave the running `pocketbase` service on the previous image/migration set until the next unrelated push. There's no `workflow_run` gate enforcing build-before-redeploy order between the two workflows today.
 
 ---
 
