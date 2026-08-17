@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 141
+Total mapped files: 142
 
-- `.agents/activity.jsonl` (6169 B)
-- `.agents/decisions.md` (4902 B)
-- `.agents/memory.md` (3804 B)
-- `.agents/repo_map.md` (14140 B)
+- `.agents/activity.jsonl` (6561 B)
+- `.agents/decisions.md` (6214 B)
+- `.agents/memory.md` (4619 B)
+- `.agents/repo_map.md` (14702 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -88,24 +88,24 @@ Total mapped files: 141
     * const t
     * const locale
     * const isSelf
-- `src/app/api/auth/oauth2-callback/route.ts` (2700 B)
+- `src/app/api/auth/oauth2-callback/route.ts` (2765 B)
+    * const origin
+    * const redirectUri
     * const deny
     * const stored
     * const diag
     * const pb
-    * const pendingGroupId
-    * const diag
 - `src/app/error.tsx` (2458 B)
 - `src/app/favicon.ico` (25931 B)
 - `src/app/global-error.tsx` (1829 B)
 - `src/app/globals.css` (4355 B)
-- `src/app/groups/[groupId]/add/add-title-form.tsx` (8320 B)
+- `src/app/groups/[groupId]/add/add-title-form.tsx` (8469 B)
     * interface AddTitleFormProps
     * export function AddTitleForm
     * const router
     * const t
     * function handleSearch
-    * const data
+    * const res
 - `src/app/groups/[groupId]/add/page.tsx` (2006 B)
     * const session
     * const pb
@@ -346,7 +346,7 @@ Total mapped files: 141
     * const callerId
     * const pb
     * const pb
-- `src/lib/actions/auth.ts` (8072 B)
+- `src/lib/actions/auth.ts` (8355 B)
     * const pb
     * const methods
     * const providers
@@ -382,13 +382,13 @@ Total mapped files: 141
     * const reviewText
     * const pb
     * const existing
-- `src/lib/actions/titles.ts` (4454 B)
+- `src/lib/actions/titles.ts` (4861 B)
+    * export type SearchTitlesResponse
     * const session
     * const cleanQuery
+    * const results
+    * const diag
     * const session
-    * const title
-    * const externalSource
-    * const externalId
 - `src/lib/actions/votes.ts` (2199 B)
     * const session
     * const pb
@@ -449,7 +449,7 @@ Total mapped files: 141
     * const pb
     * const membership
     * const pb
-- `src/lib/providers/google-books.ts` (4049 B)
+- `src/lib/providers/google-books.ts` (4242 B)
     * type GoogleBooksItem
     * type OpenLibraryDoc
     * const url
@@ -467,27 +467,28 @@ Total mapped files: 141
     * const url
     * const res
     * const data
-- `src/lib/providers/spotify.ts` (2852 B)
+- `src/lib/providers/spotify.ts` (4421 B)
     * type SpotifyAlbum
+    * type ItunesAlbumResult
     * const clientId
     * const clientSecret
     * const res
     * const data
-    * export const spotifyProvider
-- `src/lib/providers/tmdb.ts` (1902 B)
+- `src/lib/providers/tmdb.ts` (3647 B)
     * type TmdbResult
-    * function makeTmdbProvider
-    * const apiKey
+    * type ItunesVideoResult
     * const url
     * const res
     * const data
+    * function makeTmdbProvider
 - `src/lib/providers/types.ts` (359 B)
     * export type NormalizedSearchResult
     * export interface MediaProvider
 - `src/lib/utils.ts` (166 B)
     * export function cn
-- `src/proxy.ts` (948 B)
+- `src/proxy.ts` (1005 B)
     * const session
+    * const origin
     * export const config
 - `src/types/pocketbase-types.ts` (5782 B)
     * export const Collections
@@ -535,8 +536,17 @@ Total mapped files: 141
     * const serverError
     * const genericError
     * const uniqueError
-- `tests/providers.test.ts` (1251 B)
+- `tests/origin.test.ts` (2167 B)
+    * const mockReq
+    * const origin
+    * const mockReq
+    * const origin
+    * const mockReq
+    * const origin
+- `tests/providers.test.ts` (1363 B)
+    * const types
     * const provider
+    * const results
 - `tests/vote-id.test.ts` (1142 B)
     * const id
     * const id1
