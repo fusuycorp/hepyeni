@@ -12,16 +12,17 @@ describe("Invite System & Translations", () => {
   });
 
   it("contains non-empty translation strings for all invite keys", () => {
-    for (const [key, value] of Object.entries(en.invite)) {
+    for (const value of Object.values(en.invite)) {
       expect(typeof value).toBe("string");
       expect((value as string).trim().length).toBeGreaterThan(0);
     }
 
-    for (const [key, value] of Object.entries(tr.invite)) {
+    for (const value of Object.values(tr.invite)) {
       expect(typeof value).toBe("string");
       expect((value as string).trim().length).toBeGreaterThan(0);
     }
   });
+
 
   it("formats invite URLs correctly with code parameter", () => {
     const code = "ABC23456";
