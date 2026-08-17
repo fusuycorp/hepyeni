@@ -12,7 +12,9 @@ import {
   setOtpCookie,
   setSessionCookie,
 } from "@/lib/pocketbase/session";
+import { autoJoinPendingInvite } from "@/lib/actions/groups";
 import type { UsersResponse } from "@/types/pocketbase-types";
+
 
 async function signInWithOAuth2(provider: "google" | "apple") {
   const pb = new PocketBase(process.env.PB_URL);
@@ -97,7 +99,8 @@ export async function verifyEmailCode(formData: FormData) {
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 
   await setSessionCookie(token);
-  redirect("/groups");
+  const pendingGroupId = await autoJoinPendingInvite(record.id);
+  redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
 
 export async function signInWithPassword(formData: FormData) {
@@ -121,7 +124,8 @@ export async function signInWithPassword(formData: FormData) {
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 
   await setSessionCookie(token);
-  redirect("/groups");
+  const pendingGroupId = await autoJoinPendingInvite(record.id);
+  redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
 
 export async function signUpWithPassword(formData: FormData) {
@@ -160,8 +164,10 @@ export async function signUpWithPassword(formData: FormData) {
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 
   await setSessionCookie(token);
-  redirect("/groups");
+  const pendingGroupId = await autoJoinPendingInvite(record.id);
+  redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
+
 
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get("email") ?? "")

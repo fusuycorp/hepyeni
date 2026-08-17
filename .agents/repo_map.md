@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 134
+Total mapped files: 137
 
-- `.agents/activity.jsonl` (4718 B)
+- `.agents/activity.jsonl` (5424 B)
 - `.agents/decisions.md` (4902 B)
-- `.agents/memory.md` (2991 B)
-- `.agents/repo_map.md` (13565 B)
+- `.agents/memory.md` (3403 B)
+- `.agents/repo_map.md` (13739 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -14,7 +14,7 @@ Total mapped files: 134
 - `.gitignore` (639 B)
 - `AGENTS.md` (678 B)
 - `CLAUDE.md` (678 B)
-- `DECISIONS.md` (4163 B)
+- `DECISIONS.md` (5686 B)
 - `Dockerfile` (1467 B)
 - `Dockerfile.pocketbase` (902 B)
 - `README.md` (5853 B)
@@ -88,10 +88,11 @@ Total mapped files: 134
     * const t
     * const locale
     * const isSelf
-- `src/app/api/auth/oauth2-callback/route.ts` (1619 B)
+- `src/app/api/auth/oauth2-callback/route.ts` (1823 B)
     * const deny
     * const stored
     * const pb
+    * const pendingGroupId
     * const form
 - `src/app/error.tsx` (2458 B)
 - `src/app/favicon.ico` (25931 B)
@@ -123,7 +124,7 @@ Total mapped files: 134
     * const t
     * const commentCounts
     * const currentMember
-- `src/app/groups/[groupId]/settings/page.tsx` (11910 B)
+- `src/app/groups/[groupId]/settings/page.tsx` (12021 B)
     * const session
     * const pb
     * const t
@@ -137,6 +138,12 @@ Total mapped files: 134
     * const groupIds
     * const filterParams
     * const filterExpr
+- `src/app/invite/[code]/invite-cta.tsx` (3362 B)
+    * export function InviteCTA
+    * const router
+    * const t
+    * const joinedId
+- `src/app/invite/[code]/page.tsx` (8639 B)
 - `src/app/layout.tsx` (1445 B)
     * const geistSans
     * const geistMono
@@ -185,9 +192,11 @@ Total mapped files: 134
     * const t
     * const resolvedConfirmLabel
     * const resolvedPendingLabel
-- `src/components/copy-invite-button.tsx` (2420 B)
+- `src/components/copy-invite-button.tsx` (2896 B)
     * export function CopyInviteButton
     * const t
+    * const textToCopy
+    * const label
 - `src/components/empty-state.tsx` (1122 B)
     * export function EmptyState
 - `src/components/forgot-password-form.tsx` (1179 B)
@@ -333,7 +342,7 @@ Total mapped files: 134
     * const callerId
     * const pb
     * const pb
-- `src/lib/actions/auth.ts` (6755 B)
+- `src/lib/actions/auth.ts` (7155 B)
     * const pb
     * const methods
     * const method
@@ -347,13 +356,13 @@ Total mapped files: 134
     * const pb
     * const comment
     * const session
-- `src/lib/actions/groups.ts` (6444 B)
+- `src/lib/actions/groups.ts` (9792 B)
     * const session
     * const name
     * const pb
-    * const session
-    * const code
+    * const cleanCode
     * const pb
+    * const session
 - `src/lib/actions/profile.ts` (1878 B)
     * const session
     * const name
@@ -397,7 +406,7 @@ Total mapped files: 134
     * const t
     * const setLocale
     * export function useI18n
-- `src/lib/i18n/en.ts` (14934 B)
+- `src/lib/i18n/en.ts` (16021 B)
     * export const en
 - `src/lib/i18n/index.ts` (1744 B)
     * const dictionaries
@@ -411,9 +420,9 @@ Total mapped files: 134
     * const localeCookie
     * const locale
     * const locale
-- `src/lib/i18n/tr.ts` (16443 B)
+- `src/lib/i18n/tr.ts` (17597 B)
     * export const tr
-- `src/lib/i18n/types.ts` (9029 B)
+- `src/lib/i18n/types.ts` (9574 B)
     * export type Locale
     * export interface Translations
 - `src/lib/invite-code.ts` (263 B)
@@ -463,7 +472,7 @@ Total mapped files: 134
     * export interface MediaProvider
 - `src/lib/utils.ts` (166 B)
     * export function cn
-- `src/proxy.ts` (940 B)
+- `src/proxy.ts` (948 B)
     * const session
     * export const config
 - `src/types/pocketbase-types.ts` (5782 B)
@@ -491,6 +500,13 @@ Total mapped files: 134
     * const validCharset
     * const code
     * const codes
+- `tests/invite.test.ts` (1346 B)
+    * const enKeys
+    * const trKeys
+    * const code
+    * const origin
+    * const expectedUrl
+    * const raw
 - `tests/media-types.test.ts` (1323 B)
 - `tests/membership.test.ts` (1541 B)
     * const notFoundError

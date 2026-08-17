@@ -127,9 +127,11 @@ export default async function GroupSettingsPage({
             </div>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-2">
-              <CopyInviteButton code={group.inviteCode} variant="button" />
+            <div className="flex flex-wrap items-center gap-2">
+              <CopyInviteButton code={group.inviteCode} variant="button" mode="code" />
+              <CopyInviteButton code={group.inviteCode} variant="button" mode="link" />
             </div>
+
 
             {isOwner && (
               <ConfirmActionButton

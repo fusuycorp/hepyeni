@@ -9,6 +9,8 @@
 - **Deterministic Record IDs**: Atomic vote toggles use base36 SHA-256 hash of `titleId:userId` for conflict resolution.
 - **Provider Resilience**: External media providers implement `MediaProvider` with 8s timeout wrapper (`AbortSignal.timeout(8000)`).
 - **i18n Localization**: Cookie synchronization uses `NEXT_LOCALE` / `locale` with dictionary support for TR and EN. `Translations` (`src/lib/i18n/types.ts`) is a fully-required interface (no optional fields) so `en.ts`/`tr.ts` structural parity is compile-time enforced — a new UI string always gets added to `types.ts` + `en.ts` + `tr.ts` together, never one at a time. No component should hardcode a string or import `en`/`tr` directly — always `useTranslations()` (client) / `getServerTranslations()` (server).
+- **Public Invite Links & Auto-Join**: `/invite/[code]` is public in `proxy.ts`. It renders circle metadata and proposed media backlog items without comments, reviews, or private voter IDs. Visiting or clicking Join records `pb_pending_invite` cookie; all auth paths (OAuth2, password signup/signin, OTP) auto-join the user to `group_members` upon session creation and redirect directly to `/groups/[groupId]`.
+
 
 ## Domain Vocabulary & Gotchas
 - **Circles / Groups**: Media consumption circles where members add, vote on, review, and comment on media titles.

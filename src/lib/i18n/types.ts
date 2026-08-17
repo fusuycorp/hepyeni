@@ -362,4 +362,27 @@ export interface Translations {
     noTitlesYet: string;
     groupMembersTitle: string;
   };
+  invite: {
+    pageTitle: string;
+    invitedToJoin: string;
+    invitationSubtitle: string;
+    membersCount: string;
+    proposedCount: string;
+    joinCircle: string;
+    joining: string;
+    loginToJoin: string;
+    registerToJoin: string;
+    alreadyMember: string;
+    goToCircle: string;
+    backlogPreviewTitle: string;
+    backlogPreviewDesc: string;
+    emptyBacklog: string;
+    invalidCodeTitle: string;
+    invalidCodeDesc: string;
+    backToHome: string;
+    copyLink: string;
+    linkCopied: string;
+    shareLink: string;
+  };
 }
+

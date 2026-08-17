@@ -144,3 +144,38 @@ export async function consumeOAuth2StateCookie(): Promise<OAuth2State | null> {
     return null;
   }
 }
+
+// --- Pending Group Invite transient state — preserves invite code through login/signup ---
+
+const PENDING_INVITE_COOKIE = "pb_pending_invite";
+
+export async function setPendingInviteCookie(code: string): Promise<void> {
+  const store = await cookies();
+  store.set(PENDING_INVITE_COOKIE, code.trim().toUpperCase(), {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24, // 24 hours
+  });
+}
+
+export async function getPendingInviteCookie(): Promise<string | null> {
+  const store = await cookies();
+  return store.get(PENDING_INVITE_COOKIE)?.value ?? null;
+}
+
+export async function consumePendingInviteCookie(): Promise<string | null> {
+  const store = await cookies();
+  const val = store.get(PENDING_INVITE_COOKIE)?.value ?? null;
+  if (val) {
+    store.delete(PENDING_INVITE_COOKIE);
+  }
+  return val;
+}
+
+export async function clearPendingInviteCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(PENDING_INVITE_COOKIE);
+}
+

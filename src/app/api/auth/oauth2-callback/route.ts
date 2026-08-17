@@ -33,10 +33,15 @@ async function handleCallback(
     if (record.bannedAt) return deny();
 
     await setSessionCookie(token);
-    return NextResponse.redirect(new URL("/groups", req.nextUrl));
+    const { autoJoinPendingInvite } = await import("@/lib/actions/groups");
+    const pendingGroupId = await autoJoinPendingInvite(record.id);
+    return NextResponse.redirect(
+      new URL(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups", req.nextUrl),
+    );
   } catch {
     return deny();
   }
+
 }
 
 export async function GET(req: NextRequest) {

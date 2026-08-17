@@ -62,33 +62,30 @@ export async function createGroup(formData: FormData): Promise<string> {
   return group.id;
 }
 
-export async function joinGroup(formData: FormData): Promise<string> {
-  const session = await getSession();
-  if (!session) redirect("/login");
-
-  const code = String(formData.get("code") ?? "")
-    .trim()
-    .toUpperCase();
-  if (!code) throw new Error("Invite code is required");
+export async function joinGroupByCode(
+  userId: string,
+  code: string,
+): Promise<string | null> {
+  const cleanCode = code.trim().toUpperCase();
+  if (!cleanCode) return null;
 
   const pb = await getSuperuserClient();
-
   let group: GroupsResponse;
   try {
     group = await pb
       .collection("groups")
       .getFirstListItem<GroupsResponse>(
-        pb.filter("inviteCode = {:code}", { code }),
+        pb.filter("inviteCode = {:code}", { code: cleanCode }),
       );
   } catch (err) {
-    if (isNotFound(err)) throw new Error("Invalid invite code");
+    if (isNotFound(err)) return null;
     throw err;
   }
 
   try {
     await pb.collection("group_members").create({
       group: group.id,
-      user: session.id,
+      user: userId,
       role: "member",
     });
   } catch (err) {
@@ -99,6 +96,128 @@ export async function joinGroup(formData: FormData): Promise<string> {
 
   return group.id;
 }
+
+export async function joinGroup(formData: FormData): Promise<string> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const code = String(formData.get("code") ?? "");
+  const groupId = await joinGroupByCode(session.id, code);
+  if (!groupId) throw new Error("Invalid invite code");
+
+  return groupId;
+}
+
+export async function joinGroupByCodeAction(code: string): Promise<string> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const groupId = await joinGroupByCode(session.id, code);
+  if (!groupId) throw new Error("Invalid invite code");
+
+  revalidatePath("/groups");
+  revalidatePath(`/groups/${groupId}`);
+  return groupId;
+}
+
+export type PublicGroupOverview = {
+  group: GroupsResponse;
+  memberCount: number;
+  proposedCount: number;
+  consumedCount: number;
+  isMember?: boolean;
+  proposedTitles: Array<{
+    id: string;
+    title: string;
+    creator?: string;
+    mediaType: string;
+    coverUrl?: string;
+    createdAt: string;
+  }>;
+};
+
+export async function getGroupByInviteCode(
+  code: string,
+): Promise<PublicGroupOverview | null> {
+  const cleanCode = code.trim().toUpperCase();
+  if (!cleanCode) return null;
+
+  const pb = await getSuperuserClient();
+  let group: GroupsResponse;
+  try {
+    group = await pb
+      .collection("groups")
+      .getFirstListItem<GroupsResponse>(
+        pb.filter("inviteCode = {:code}", { code: cleanCode }),
+      );
+  } catch (err) {
+    if (isNotFound(err)) return null;
+    throw err;
+  }
+
+  const session = await getSession();
+
+  const [membersResult, proposedTitles, consumedResult, userMembership] =
+    await Promise.all([
+      pb.collection("group_members").getList(1, 1, {
+        filter: pb.filter("group = {:groupId}", { groupId: group.id }),
+      }),
+      pb.collection("titles").getFullList({
+        filter: pb.filter("group = {:groupId} && status = 'proposed'", {
+          groupId: group.id,
+        }),
+        fields: "id,title,creator,mediaType,coverUrl,createdAt",
+        sort: "-createdAt",
+      }),
+      pb.collection("titles").getList(1, 1, {
+        filter: pb.filter("group = {:groupId} && status = 'consumed'", {
+          groupId: group.id,
+        }),
+      }),
+      session
+        ? pb
+            .collection("group_members")
+            .getFirstListItem(
+              pb.filter("group = {:groupId} && user = {:userId}", {
+                groupId: group.id,
+                userId: session.id,
+              }),
+            )
+            .catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+  return {
+    group,
+    memberCount: membersResult.totalItems,
+    proposedCount: proposedTitles.length,
+    consumedCount: consumedResult.totalItems,
+    isMember: Boolean(userMembership),
+    proposedTitles: proposedTitles.map((t) => ({
+      id: t.id,
+      title: t.title,
+      creator: t.creator,
+      mediaType: t.mediaType,
+      coverUrl: t.coverUrl,
+      createdAt: t.createdAt,
+    })),
+  };
+}
+
+export async function autoJoinPendingInvite(
+  userId: string,
+): Promise<string | null> {
+  const { consumePendingInviteCookie } = await import("@/lib/pocketbase/session");
+  const pendingCode = await consumePendingInviteCookie();
+  if (!pendingCode) return null;
+  return joinGroupByCode(userId, pendingCode);
+}
+
+export async function setPendingInviteAction(code: string): Promise<void> {
+  const { setPendingInviteCookie } = await import("@/lib/pocketbase/session");
+  await setPendingInviteCookie(code);
+}
+
 
 export async function renameGroup(groupId: string, formData: FormData) {
   const session = await getSession();

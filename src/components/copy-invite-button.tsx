@@ -10,10 +10,12 @@ import { useTranslations } from "@/lib/i18n/client";
 export function CopyInviteButton({
   code,
   variant = "pill",
+  mode = "code",
   className,
 }: {
   code: string;
   variant?: "pill" | "icon" | "button";
+  mode?: "code" | "link";
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -22,16 +24,30 @@ export function CopyInviteButton({
   async function copy(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    const textToCopy =
+      mode === "link"
+        ? typeof window !== "undefined"
+          ? `${window.location.origin}/invite/${code}`
+          : `/invite/${code}`
+        : code;
+
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(textToCopy);
     } catch {
       toast.error(t.common.error);
       return;
     }
     setCopied(true);
-    toast.success(`${t.common.copied} ${code}`);
+    if (mode === "link") {
+      toast.success(t.invite.linkCopied);
+    } else {
+      toast.success(`${t.common.copied} ${code}`);
+    }
     setTimeout(() => setCopied(false), 2000);
   }
+
+
+  const label = mode === "link" ? t.invite.copyLink : t.groups.copyInviteCode;
 
   if (variant === "icon") {
     return (
@@ -41,8 +57,8 @@ export function CopyInviteButton({
         size="icon-xs"
         className={cn("size-6 text-muted-foreground hover:text-foreground", className)}
         onClick={copy}
-        title={t.groups.copyInviteCode}
-        aria-label={t.groups.copyInviteCode}
+        title={label}
+        aria-label={label}
       >
         {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
       </Button>
@@ -66,12 +82,17 @@ export function CopyInviteButton({
         ) : (
           <>
             <Copy className="size-3.5" />
-            <span>{t.groups.codeLabel}: {code}</span>
+            <span>
+              {mode === "link"
+                ? t.invite.copyLink
+                : `${t.groups.codeLabel}: ${code}`}
+            </span>
           </>
         )}
       </Button>
     );
   }
+
 
   return (
     <button
