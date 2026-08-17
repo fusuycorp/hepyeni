@@ -1,0 +1,90 @@
+export type DiagnosticEntry = {
+  traceId: string;
+  timestamp: string;
+  code: string;
+  action: string;
+  userMessage: string;
+  technicalDetails?: Record<string, unknown>;
+  stack?: string;
+};
+
+// Circular in-memory buffer storing recent diagnostics for troubleshooting
+const MAX_DIAGNOSTICS = 50;
+const diagnosticHistory: DiagnosticEntry[] = [];
+
+export function generateTraceId(): string {
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let id = "ERR-";
+  for (let i = 0; i < 6; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+export class AppError extends Error {
+  readonly code: string;
+  readonly traceId: string;
+  readonly technicalDetails?: Record<string, unknown>;
+  readonly isAppError = true;
+
+  constructor(
+    userMessage: string,
+    options: {
+      code: string;
+      technicalDetails?: Record<string, unknown>;
+      cause?: unknown;
+    },
+  ) {
+    super(userMessage);
+    this.name = "AppError";
+    this.code = options.code;
+    this.traceId = generateTraceId();
+    this.technicalDetails = options.technicalDetails;
+    if (options.cause) {
+      this.cause = options.cause;
+    }
+  }
+}
+
+export function logDiagnostic(
+  error: unknown,
+  context: { action: string; [key: string]: unknown },
+): DiagnosticEntry {
+  const isApp = error instanceof AppError;
+  const traceId = isApp ? error.traceId : generateTraceId();
+  const code = isApp ? error.code : "INTERNAL_ERROR";
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  const technicalDetails = isApp ? error.technicalDetails : { rawError: message };
+
+  const entry: DiagnosticEntry = {
+    traceId,
+    timestamp: new Date().toISOString(),
+    code,
+    action: context.action,
+    userMessage: message,
+    technicalDetails: {
+      ...context,
+      ...technicalDetails,
+    },
+    stack,
+  };
+
+  // Push to circular history buffer
+  diagnosticHistory.unshift(entry);
+  if (diagnosticHistory.length > MAX_DIAGNOSTICS) {
+    diagnosticHistory.pop();
+  }
+
+  // Structured logging to console
+  console.error(
+    `[TITIREK_DIAGNOSTIC] ${entry.traceId} [${entry.code}] (${entry.action}): ${entry.userMessage}`,
+    JSON.stringify(entry.technicalDetails),
+  );
+
+  return entry;
+}
+
+export function getRecentDiagnostics(): DiagnosticEntry[] {
+  return [...diagnosticHistory];
+}

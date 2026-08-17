@@ -137,12 +137,15 @@ export interface Translations {
       banned: string;
       session_expired: string;
       oauth_failed: string;
+      oauth_not_configured: string;
       account_deleted: string;
       invalid_password_length: string;
       signup_failed: string;
       invalid_reset_link: string;
     };
+    providerNotConfigured: string;
     notices: {
+
       password_reset_sent: string;
       password_reset_success: string;
       email_verified: string;
@@ -384,5 +387,25 @@ export interface Translations {
     linkCopied: string;
     shareLink: string;
   };
+  diagnostics: {
+    title: string;
+    description: string;
+    traceId: string;
+    code: string;
+    timestamp: string;
+    action: string;
+    details: string;
+    stack: string;
+    copyReport: string;
+    copied: string;
+    noErrors: string;
+    developerMode: string;
+    developerModeDesc: string;
+    viewTechnicalDetails: string;
+    hideTechnicalDetails: string;
+    troubleshoot: string;
+    errorIdLabel: string;
+  };
 }
+
 

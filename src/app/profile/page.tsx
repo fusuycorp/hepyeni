@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { User, KeyRound, AlertTriangle, Shield, LogOut, ShieldCheck } from "lucide-react";
+import { User, KeyRound, AlertTriangle, Shield, LogOut, ShieldCheck, Terminal } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { SendResetLinkButton } from "@/components/send-reset-link-button";
 import { InlineTextForm } from "@/components/inline-text-form";
+import { DiagnosticModal } from "@/components/diagnostic-modal";
+
 import { signOutAction } from "@/lib/actions/auth";
 import { deleteAccount, updateProfileName } from "@/lib/actions/profile";
 import { getSession } from "@/lib/pocketbase/session";
@@ -161,6 +163,30 @@ export default async function ProfilePage() {
             </Link>
           </CardContent>
         </Card>
+
+        {/* Developer Diagnostics / Troubleshooting */}
+        <Card className="border-border/70 shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Terminal className="size-4 text-primary" />
+              <div>
+                <CardTitle className="text-sm font-semibold">
+                  {t.diagnostics.developerMode}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {t.diagnostics.developerModeDesc}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-muted-foreground max-w-md">
+              {t.diagnostics.description}
+            </p>
+            <DiagnosticModal />
+          </CardContent>
+        </Card>
+
 
         {/* Danger Zone */}
         <Card className="border-destructive/30 bg-destructive/5 shadow-xs">

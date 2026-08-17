@@ -10,6 +10,8 @@ import { requireMembership, requireTitleInGroup } from "@/lib/membership";
 import { getProvider } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 
+import { logDiagnostic } from "@/lib/errors";
+
 // searchTitles and addTitle are invoked imperatively from a client component
 // (not via a plain <form action>), wrapped in its own try/catch to surface
 // errors in the UI. redirect() throws a special error that must propagate
@@ -25,11 +27,18 @@ export async function searchTitles(
 ): Promise<NormalizedSearchResult[]> {
   const session = await getSession();
   if (!session) throw new Error("Please sign in again");
-  if (!query.trim()) return [];
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return [];
   if (!MEDIA_TYPES.includes(mediaType)) throw new Error("Invalid media type");
 
-  return getProvider(mediaType).search(query.trim());
+  try {
+    return await getProvider(mediaType).search(cleanQuery);
+  } catch (err) {
+    logDiagnostic(err, { action: "searchTitles", mediaType, query: cleanQuery });
+    throw new Error("Search failed. Please try again in a few moments.");
+  }
 }
+
 
 export async function addTitle(
   groupId: string,

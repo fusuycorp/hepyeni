@@ -1,0 +1,48 @@
+import { describe, expect, it } from "bun:test";
+import {
+  AppError,
+  generateTraceId,
+  logDiagnostic,
+  getRecentDiagnostics,
+} from "@/lib/errors";
+
+describe("Error Management & Diagnostics System", () => {
+  it("generates unique 10-character formatted trace IDs (ERR-xxxxxx)", () => {
+    const id1 = generateTraceId();
+    const id2 = generateTraceId();
+
+    expect(id1).toMatch(/^ERR-[2-9A-Z]{6}$/);
+    expect(id2).toMatch(/^ERR-[2-9A-Z]{6}$/);
+    expect(id1).not.toBe(id2);
+  });
+
+  it("constructs AppError with safe user message and technical details", () => {
+    const error = new AppError("Service unavailable", {
+      code: "PROVIDER_RATE_LIMITED",
+      technicalDetails: { status: 429, endpoint: "https://api.example.com" },
+    });
+
+    expect(error.message).toBe("Service unavailable");
+    expect(error.code).toBe("PROVIDER_RATE_LIMITED");
+    expect(error.traceId).toMatch(/^ERR-/);
+    expect(error.technicalDetails?.status).toBe(429);
+    expect(error.isAppError).toBe(true);
+  });
+
+  it("logs diagnostics and records entries in the circular buffer", () => {
+    const testError = new Error("Connection timed out");
+    const entry = logDiagnostic(testError, {
+      action: "test:network",
+      target: "db-cluster",
+    });
+
+    expect(entry.traceId).toMatch(/^ERR-/);
+    expect(entry.action).toBe("test:network");
+    expect(entry.userMessage).toBe("Connection timed out");
+    expect(entry.technicalDetails?.target).toBe("db-cluster");
+
+    const recent = getRecentDiagnostics();
+    expect(recent.length).toBeGreaterThan(0);
+    expect(recent[0].traceId).toBe(entry.traceId);
+  });
+});

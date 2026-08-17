@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 137
+Total mapped files: 141
 
-- `.agents/activity.jsonl` (5424 B)
+- `.agents/activity.jsonl` (6169 B)
 - `.agents/decisions.md` (4902 B)
-- `.agents/memory.md` (3403 B)
-- `.agents/repo_map.md` (13739 B)
+- `.agents/memory.md` (3804 B)
+- `.agents/repo_map.md` (14140 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -88,12 +88,13 @@ Total mapped files: 137
     * const t
     * const locale
     * const isSelf
-- `src/app/api/auth/oauth2-callback/route.ts` (1823 B)
+- `src/app/api/auth/oauth2-callback/route.ts` (2700 B)
     * const deny
     * const stored
+    * const diag
     * const pb
     * const pendingGroupId
-    * const form
+    * const diag
 - `src/app/error.tsx` (2458 B)
 - `src/app/favicon.ico` (25931 B)
 - `src/app/global-error.tsx` (1829 B)
@@ -150,10 +151,8 @@ Total mapped files: 137
     * const t
     * export const viewport
     * const locale
-- `src/app/login/page.tsx` (12529 B)
+- `src/app/login/page.tsx` (13576 B)
     * const session
-    * const otp
-    * const t
     * const ERROR_MESSAGES
     * const NOTICE_MESSAGES
 - `src/app/page.tsx` (223 B)
@@ -161,7 +160,7 @@ Total mapped files: 137
 - `src/app/privacy/page.tsx` (10981 B)
     * export const metadata
     * const lastUpdated
-- `src/app/profile/page.tsx` (8269 B)
+- `src/app/profile/page.tsx` (9278 B)
     * const session
     * const pb
     * const user
@@ -197,6 +196,11 @@ Total mapped files: 137
     * const t
     * const textToCopy
     * const label
+- `src/components/diagnostic-modal.tsx` (6664 B)
+    * export function DiagnosticModal
+    * const t
+    * const items
+    * const report
 - `src/components/empty-state.tsx` (1122 B)
     * export function EmptyState
 - `src/components/forgot-password-form.tsx` (1179 B)
@@ -342,19 +346,21 @@ Total mapped files: 137
     * const callerId
     * const pb
     * const pb
-- `src/lib/actions/auth.ts` (7155 B)
+- `src/lib/actions/auth.ts` (8072 B)
     * const pb
     * const methods
-    * const method
-    * const email
-    * const superuser
-    * const randomPassword
+    * const providers
+    * const pb
+    * const methods
+    * const diag
 - `src/lib/actions/comments.ts` (2863 B)
     * const session
     * const rawContent
     * const content
     * const pb
     * const comment
+    * const session
+- `src/lib/actions/diagnostics.ts` (429 B)
     * const session
 - `src/lib/actions/groups.ts` (9792 B)
     * const session
@@ -376,13 +382,13 @@ Total mapped files: 137
     * const reviewText
     * const pb
     * const existing
-- `src/lib/actions/titles.ts` (4181 B)
+- `src/lib/actions/titles.ts` (4454 B)
     * const session
+    * const cleanQuery
     * const session
     * const title
     * const externalSource
     * const externalId
-    * const creator
 - `src/lib/actions/votes.ts` (2199 B)
     * const session
     * const pb
@@ -395,6 +401,13 @@ Total mapped files: 137
     * export function validateCommentContent
     * const content
     * export function canDeleteComment
+- `src/lib/errors/index.ts` (2397 B)
+    * export type DiagnosticEntry
+    * const MAX_DIAGNOSTICS
+    * const diagnosticHistory
+    * export function generateTraceId
+    * const chars
+    * export class AppError
 - `src/lib/format.ts` (301 B)
     * export function getInitials
     * const source
@@ -406,7 +419,7 @@ Total mapped files: 137
     * const t
     * const setLocale
     * export function useI18n
-- `src/lib/i18n/en.ts` (16021 B)
+- `src/lib/i18n/en.ts` (16918 B)
     * export const en
 - `src/lib/i18n/index.ts` (1744 B)
     * const dictionaries
@@ -420,9 +433,9 @@ Total mapped files: 137
     * const localeCookie
     * const locale
     * const locale
-- `src/lib/i18n/tr.ts` (17597 B)
+- `src/lib/i18n/tr.ts` (18658 B)
     * export const tr
-- `src/lib/i18n/types.ts` (9574 B)
+- `src/lib/i18n/types.ts` (10079 B)
     * export type Locale
     * export interface Translations
 - `src/lib/invite-code.ts` (263 B)
@@ -436,12 +449,13 @@ Total mapped files: 137
     * const pb
     * const membership
     * const pb
-- `src/lib/providers/google-books.ts` (1388 B)
+- `src/lib/providers/google-books.ts` (4049 B)
     * type GoogleBooksItem
-    * export const googleBooksProvider
+    * type OpenLibraryDoc
     * const url
     * const res
     * const data
+    * export const googleBooksProvider
 - `src/lib/providers/index.ts` (868 B)
     * const providers
     * export function getProvider
@@ -490,6 +504,13 @@ Total mapped files: 137
     * const authorId
     * const otherUserId
     * const ownerId
+- `tests/errors.test.ts` (1618 B)
+    * const id1
+    * const id2
+    * const error
+    * const testError
+    * const entry
+    * const recent
 - `tests/format.test.ts` (2015 B)
 - `tests/i18n.test.ts` (4730 B)
     * function secondsAgo
@@ -500,7 +521,7 @@ Total mapped files: 137
     * const validCharset
     * const code
     * const codes
-- `tests/invite.test.ts` (1346 B)
+- `tests/invite.test.ts` (1331 B)
     * const enKeys
     * const trKeys
     * const code

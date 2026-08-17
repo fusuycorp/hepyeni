@@ -17,7 +17,22 @@ async function handleCallback(
     NextResponse.redirect(new URL("/login?error=AccessDenied", req.nextUrl));
 
   const stored = await consumeOAuth2StateCookie();
-  if (!code || !state || !stored || stored.state !== state) return deny();
+  if (!code || !state || !stored || stored.state !== state) {
+    const { logDiagnostic } = await import("@/lib/errors");
+    const diag = logDiagnostic(
+      new Error("OAuth callback state verification failed or state expired"),
+      {
+        action: "oauth2-callback:verifyState",
+        hasCode: Boolean(code),
+        hasState: Boolean(state),
+        hasStored: Boolean(stored),
+        stateMatch: stored ? stored.state === state : false,
+      },
+    );
+    return NextResponse.redirect(
+      new URL(`/login?error=OAuthFailed&trace=${diag.traceId}`, req.nextUrl),
+    );
+  }
 
   const pb = new PocketBase(process.env.PB_URL);
   try {
@@ -36,11 +51,23 @@ async function handleCallback(
     const { autoJoinPendingInvite } = await import("@/lib/actions/groups");
     const pendingGroupId = await autoJoinPendingInvite(record.id);
     return NextResponse.redirect(
-      new URL(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups", req.nextUrl),
+      new URL(
+        pendingGroupId ? `/groups/${pendingGroupId}` : "/groups",
+        req.nextUrl,
+      ),
     );
-  } catch {
-    return deny();
+  } catch (err) {
+    const { logDiagnostic } = await import("@/lib/errors");
+    const diag = logDiagnostic(err, {
+      action: "oauth2-callback:authWithOAuth2Code",
+      provider: stored.provider,
+      redirectUrl: oauth2RedirectUrl(),
+    });
+    return NextResponse.redirect(
+      new URL(`/login?error=OAuthFailed&trace=${diag.traceId}`, req.nextUrl),
+    );
   }
+
 
 }
 

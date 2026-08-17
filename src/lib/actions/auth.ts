@@ -13,14 +13,47 @@ import {
   setSessionCookie,
 } from "@/lib/pocketbase/session";
 import { autoJoinPendingInvite } from "@/lib/actions/groups";
+import { logDiagnostic } from "@/lib/errors";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
+export async function getAvailableAuthProviders(): Promise<{
+  google: boolean;
+  apple: boolean;
+}> {
+  try {
+    const pb = new PocketBase(process.env.PB_URL);
+    const methods = await pb.collection("users").listAuthMethods();
+    const providers = methods.oauth2?.providers ?? [];
+    return {
+      google: providers.some((p) => p.name === "google"),
+      apple: providers.some((p) => p.name === "apple"),
+    };
+  } catch (err) {
+    logDiagnostic(err, { action: "getAvailableAuthProviders" });
+    return { google: false, apple: false };
+  }
+}
 
 async function signInWithOAuth2(provider: "google" | "apple") {
   const pb = new PocketBase(process.env.PB_URL);
-  const methods = await pb.collection("users").listAuthMethods();
-  const method = methods.oauth2.providers.find((p) => p.name === provider);
-  if (!method) throw new Error(`${provider} sign-in is not configured`);
+  let method:
+    | { authURL: string; state: string; codeVerifier: string }
+    | undefined;
+
+  try {
+    const methods = await pb.collection("users").listAuthMethods();
+    method = methods.oauth2.providers.find((p) => p.name === provider);
+  } catch (err) {
+    const diag = logDiagnostic(err, {
+      action: "signInWithOAuth2:listAuthMethods",
+      provider,
+    });
+    redirect(`/login?error=OAuthFailed&trace=${diag.traceId}`);
+  }
+
+  if (!method) {
+    redirect(`/login?error=OAuthNotConfigured&provider=${provider}`);
+  }
 
   await setOAuth2StateCookie({
     provider,
@@ -41,6 +74,7 @@ export async function signInWithGoogle() {
 export async function signInWithApple() {
   await signInWithOAuth2("apple");
 }
+
 
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get("email") ?? "")
