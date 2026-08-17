@@ -78,10 +78,32 @@ export type OAuth2State = {
 
 // Must be byte-identical between the redirect-to-Google step and the
 // callback step, or the OAuth2 provider rejects the code exchange.
-export function oauth2RedirectUrl(): string {
-  const base = process.env.APP_URL ?? "http://localhost:3000";
+export function getRequestOrigin(req?: {
+  headers: { get: (name: string) => string | null };
+}): string {
+  if (req) {
+    const host =
+      req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const proto =
+      req.headers.get("x-forwarded-proto") || "https";
+
+    if (host && !host.includes("0.0.0.0")) {
+      return `${proto}://${host}`;
+    }
+  }
+
+  if (process.env.APP_URL && !process.env.APP_URL.includes("0.0.0.0")) {
+    return process.env.APP_URL.replace(/\/$/, "");
+  }
+
+  return "http://localhost:3000";
+}
+
+export function oauth2RedirectUrl(origin?: string): string {
+  const base = origin || getRequestOrigin();
   return new URL("/api/auth/oauth2-callback", base).toString();
 }
+
 
 // --- Email OTP transient state — bridges the "request a code" step and
 // the "enter the code" step of the two-step passwordless login form. ---

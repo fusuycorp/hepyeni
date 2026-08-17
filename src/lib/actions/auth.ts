@@ -61,11 +61,19 @@ async function signInWithOAuth2(provider: "google" | "apple") {
     codeVerifier: method.codeVerifier,
   });
 
+  const { headers } = await import("next/headers");
+  const headerStore = await headers();
+  const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") || "https";
+  const origin =
+    host && !host.includes("0.0.0.0") ? `${proto}://${host}` : undefined;
+
   // authURL ends with `redirect_uri=` (no value) — PocketBase's documented
   // pattern is to concatenate the redirect URL directly, not merge query
   // params via the URL API.
-  redirect(method.authURL + oauth2RedirectUrl());
+  redirect(method.authURL + oauth2RedirectUrl(origin));
 }
+
 
 export async function signInWithGoogle() {
   await signInWithOAuth2("google");

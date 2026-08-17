@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import PocketBase from "pocketbase";
 import {
   consumeOAuth2StateCookie,
+  getRequestOrigin,
   oauth2RedirectUrl,
   setSessionCookie,
 } from "@/lib/pocketbase/session";
@@ -13,8 +14,11 @@ async function handleCallback(
   code: string | null,
   state: string | null,
 ) {
+  const origin = getRequestOrigin(req);
+  const redirectUri = oauth2RedirectUrl(origin);
+
   const deny = () =>
-    NextResponse.redirect(new URL("/login?error=AccessDenied", req.nextUrl));
+    NextResponse.redirect(new URL("/login?error=AccessDenied", origin));
 
   const stored = await consumeOAuth2StateCookie();
   if (!code || !state || !stored || stored.state !== state) {
@@ -30,7 +34,7 @@ async function handleCallback(
       },
     );
     return NextResponse.redirect(
-      new URL(`/login?error=OAuthFailed&trace=${diag.traceId}`, req.nextUrl),
+      new URL(`/login?error=OAuthFailed&trace=${diag.traceId}`, origin),
     );
   }
 
@@ -42,7 +46,7 @@ async function handleCallback(
         stored.provider,
         code,
         stored.codeVerifier,
-        oauth2RedirectUrl(),
+        redirectUri,
       );
 
     if (record.bannedAt) return deny();
@@ -53,7 +57,7 @@ async function handleCallback(
     return NextResponse.redirect(
       new URL(
         pendingGroupId ? `/groups/${pendingGroupId}` : "/groups",
-        req.nextUrl,
+        origin,
       ),
     );
   } catch (err) {
@@ -61,15 +65,14 @@ async function handleCallback(
     const diag = logDiagnostic(err, {
       action: "oauth2-callback:authWithOAuth2Code",
       provider: stored.provider,
-      redirectUrl: oauth2RedirectUrl(),
+      redirectUri,
     });
     return NextResponse.redirect(
-      new URL(`/login?error=OAuthFailed&trace=${diag.traceId}`, req.nextUrl),
+      new URL(`/login?error=OAuthFailed&trace=${diag.traceId}`, origin),
     );
   }
-
-
 }
+
 
 export async function GET(req: NextRequest) {
   return handleCallback(
