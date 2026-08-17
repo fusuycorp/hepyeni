@@ -92,7 +92,7 @@ export function AddToShelfDialog() {
         const titleToSave = isCustomMode ? customTitle : selectedMedia?.title;
         if (!titleToSave) return;
 
-        await saveMediaProgress({
+        const res = await saveMediaProgress({
           mediaType: activeType as TitlesMediaTypeOptions,
           title: titleToSave,
           creator: isCustomMode ? customCreator : selectedMedia?.creator,
@@ -108,6 +108,13 @@ export function AddToShelfDialog() {
           rating,
           isSharedWithCircles,
         });
+
+        if (!res.success) {
+          toast.error(res.error, {
+            description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          });
+          return;
+        }
 
         toast.success(t.shelf.progressSaved);
         setOpen(false);

@@ -47,10 +47,11 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
 
   const handleQuickStep = (item: UserMediaProgressResponse, delta: number) => {
     startTransition(async () => {
-      try {
-        await updateProgressQuickStep(item.id, delta);
-      } catch {
-        toast.error(t.common.error);
+      const res = await updateProgressQuickStep(item.id, delta);
+      if (!res.success) {
+        toast.error(res.error, {
+          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+        });
       }
     });
   };

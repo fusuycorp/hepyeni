@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireMembership, resolveCircleAccess } from "@/lib/membership";
+import { logDiagnostic } from "@/lib/errors";
 import type {
   GroupSchedulesRecord,
   GroupSchedulesResponse,
@@ -15,11 +16,26 @@ import type {
   UsersResponse,
 } from "@/types/pocketbase-types";
 
-function toIsoDate(val?: string | null): string | undefined {
-  if (!val || typeof val !== "string" || !val.trim()) return undefined;
+export type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; traceId?: string; details?: Record<string, unknown> };
+
+function toIsoDate(val?: string | null): string | null {
+  if (!val || typeof val !== "string" || !val.trim()) return null;
   const d = new Date(val);
-  if (isNaN(d.getTime())) return undefined;
+  if (isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  const errObj = err as { data?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
+  if (errObj?.data?.data) {
+    const fieldErrors = Object.entries(errObj.data.data)
+      .map(([field, detail]) => `${field}: ${detail?.message || "Invalid"}`)
+      .join(", ");
+    if (fieldErrors) return fieldErrors;
+  }
+  return errObj?.data?.message || errObj?.message || fallback;
 }
 
 export interface CreateScheduleMilestoneInput {
@@ -126,7 +142,7 @@ export async function getGroupSchedules(
       milestones: milestonesBySchedule.get(s.id) || [],
     }));
   } catch (err) {
-    console.error("[getGroupSchedules Error]:", err);
+    logDiagnostic(err, { action: "getGroupSchedules", groupId });
     return [];
   }
 }
@@ -134,28 +150,50 @@ export async function getGroupSchedules(
 export async function createGroupSchedule(
   groupId: string,
   input: CreateGroupScheduleInput,
-) {
+): Promise<ActionResult<{ id: string }>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized: Please sign in first");
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
+  }
 
   // Require circle membership or admin
   const access = await resolveCircleAccess(groupId, session.id);
   if (!access.isMember && !session.isAdmin) {
-    throw new Error("Only circle members or owners can create schedules");
+    return { success: false, error: "Bu çemberde program oluşturma yetkiniz bulunmuyor." };
+  }
+
+  const cleanName = input.name?.trim();
+  if (!cleanName) {
+    return { success: false, error: "Lütfen bir program adı belirtin." };
+  }
+
+  const validMilestones = (input.milestones || []).filter((m) => m.title && m.title.trim().length > 0);
+  if (validMilestones.length === 0) {
+    return { success: false, error: "En az bir geçerli kontrol noktası eklenmelidir." };
   }
 
   const pb = await getSuperuserClient();
 
-  const scheduleData: Partial<GroupSchedulesRecord> = {
+  const scheduleData: Record<string, unknown> = {
     group: groupId,
-    title: input.titleId || undefined,
-    name: input.name.trim().slice(0, 200),
-    description: input.description ? input.description.trim().slice(0, 1000) : undefined,
-    startDate: toIsoDate(input.startDate),
-    targetDate: toIsoDate(input.targetDate),
+    name: cleanName.slice(0, 200),
+    description: input.description ? input.description.trim().slice(0, 1000) : null,
     status: "active",
     createdBy: session.id,
   };
+
+  // Only assign relation/date if valid non-empty
+  if (input.titleId && input.titleId.trim()) {
+    scheduleData.title = input.titleId.trim();
+  }
+  const parsedStartDate = toIsoDate(input.startDate);
+  if (parsedStartDate) {
+    scheduleData.startDate = parsedStartDate;
+  }
+  const parsedTargetDate = toIsoDate(input.targetDate);
+  if (parsedTargetDate) {
+    scheduleData.targetDate = parsedTargetDate;
+  }
 
   try {
     const schedule = await pb
@@ -163,28 +201,29 @@ export async function createGroupSchedule(
       .create<GroupSchedulesResponse>(scheduleData);
 
     // Create milestones in order
-    for (let i = 0; i < input.milestones.length; i++) {
-      const m = input.milestones[i];
-      if (!m.title.trim()) continue;
-
-      const milestoneData: Partial<ScheduleMilestonesRecord> = {
+    for (let i = 0; i < validMilestones.length; i++) {
+      const m = validMilestones[i];
+      const milestoneData: Record<string, unknown> = {
         schedule: schedule.id,
         title: m.title.trim().slice(0, 200),
-        targetDate: toIsoDate(m.targetDate),
-        targetUnit: m.targetUnit ? m.targetUnit.trim().slice(0, 100) : undefined,
         orderIndex: i,
       };
+
+      const mDate = toIsoDate(m.targetDate);
+      if (mDate) milestoneData.targetDate = mDate;
+      if (m.targetUnit && m.targetUnit.trim()) {
+        milestoneData.targetUnit = m.targetUnit.trim().slice(0, 100);
+      }
 
       await pb.collection("schedule_milestones").create(milestoneData);
     }
 
     revalidatePath(`/groups/${groupId}`);
-    return schedule;
+    return { success: true, data: { id: schedule.id } };
   } catch (err: unknown) {
-    const errObj = err as { data?: { message?: string }; message?: string };
-    const errorDetails = errObj?.data ? JSON.stringify(errObj.data) : errObj?.message || String(err);
-    console.error("[createGroupSchedule Error]:", errorDetails, err);
-    throw new Error(errObj?.data?.message || errObj?.message || "Failed to create schedule");
+    const diag = logDiagnostic(err, { action: "createGroupSchedule", groupId, input });
+    const userMsg = extractErrorMessage(err, "Program kaydedilirken bir hata oluştu.");
+    return { success: false, error: userMsg, traceId: diag.traceId };
   }
 }
 
@@ -192,61 +231,88 @@ export async function updateGroupScheduleStatus(
   scheduleId: string,
   groupId: string,
   status: GroupSchedulesStatusOptions,
-) {
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
+  }
   const access = await resolveCircleAccess(groupId, session.id);
   if (!access.isOwner && !session.isAdmin) {
-    throw new Error("Only circle owners can update schedule status");
+    return { success: false, error: "Sadece çember yöneticisi program durumunu güncelleyebilir." };
   }
-  const pb = await getSuperuserClient();
 
-  await pb.collection("group_schedules").update(scheduleId, { status });
-  revalidatePath(`/groups/${groupId}`);
+  try {
+    const pb = await getSuperuserClient();
+    await pb.collection("group_schedules").update(scheduleId, { status });
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "updateGroupScheduleStatus", scheduleId, groupId, status });
+    return { success: false, error: "Durum güncellenemedi.", traceId: diag.traceId };
+  }
 }
 
-export async function deleteGroupSchedule(scheduleId: string, groupId: string) {
+export async function deleteGroupSchedule(
+  scheduleId: string,
+  groupId: string,
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
+  }
   const access = await resolveCircleAccess(groupId, session.id);
   if (!access.isOwner && !session.isAdmin) {
-    throw new Error("Only circle owners can delete schedules");
+    return { success: false, error: "Sadece çember yöneticisi programı silebilir." };
   }
-  const pb = await getSuperuserClient();
 
-  await pb.collection("group_schedules").delete(scheduleId);
-  revalidatePath(`/groups/${groupId}`);
+  try {
+    const pb = await getSuperuserClient();
+    await pb.collection("group_schedules").delete(scheduleId);
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "deleteGroupSchedule", scheduleId, groupId });
+    return { success: false, error: "Program silinemedi.", traceId: diag.traceId };
+  }
 }
 
 export async function toggleMilestoneCheckin(
   milestoneId: string,
   groupId: string,
-) {
+): Promise<ActionResult<{ checkedIn: boolean }>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
-
-  await requireMembership(groupId, session.id);
-  const pb = await getSuperuserClient();
-
-  // Check if checkin already exists
-  const existing = await pb
-    .collection("milestone_checkins")
-    .getFirstListItem<MilestoneCheckinsResponse>(
-      pb.filter("milestone = {:milestoneId} && user = {:userId}", {
-        milestoneId,
-        userId: session.id,
-      }),
-    )
-    .catch(() => null);
-
-  if (existing) {
-    await pb.collection("milestone_checkins").delete(existing.id);
-  } else {
-    await pb.collection("milestone_checkins").create({
-      milestone: milestoneId,
-      user: session.id,
-    });
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
   }
 
-  revalidatePath(`/groups/${groupId}`);
+  try {
+    await requireMembership(groupId, session.id);
+    const pb = await getSuperuserClient();
+
+    const existing = await pb
+      .collection("milestone_checkins")
+      .getFirstListItem<MilestoneCheckinsResponse>(
+        pb.filter("milestone = {:milestoneId} && user = {:userId}", {
+          milestoneId,
+          userId: session.id,
+        }),
+      )
+      .catch(() => null);
+
+    if (existing) {
+      await pb.collection("milestone_checkins").delete(existing.id);
+      revalidatePath(`/groups/${groupId}`);
+      return { success: true, data: { checkedIn: false } };
+    } else {
+      await pb.collection("milestone_checkins").create({
+        milestone: milestoneId,
+        user: session.id,
+      });
+      revalidatePath(`/groups/${groupId}`);
+      return { success: true, data: { checkedIn: true } };
+    }
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "toggleMilestoneCheckin", milestoneId, groupId });
+    return { success: false, error: "Kontrol noktası güncellenemedi.", traceId: diag.traceId };
+  }
 }

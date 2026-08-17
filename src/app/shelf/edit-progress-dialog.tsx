@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +49,7 @@ export function EditProgressDialog({
   const t = useTranslations();
   const [isPending, startTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
 
   const [status, setStatus] = useState<UserMediaProgressStatusOptions>(item.status);
   const [progressCurrent, setProgressCurrent] = useState<string>(
@@ -59,46 +70,52 @@ export function EditProgressDialog({
 
   const handleSave = () => {
     startTransition(async () => {
-      try {
-        await saveMediaProgress({
-          id: item.id,
-          mediaType: item.mediaType,
-          title: item.title,
-          creator: item.creator,
-          coverUrl: item.coverUrl,
-          externalSource: item.externalSource,
-          externalId: item.externalId,
-          groupTitleId: item.groupTitle,
-          status,
-          progressCurrent: progressCurrent ? parseInt(progressCurrent, 10) : undefined,
-          progressTotal: progressTotal ? parseInt(progressTotal, 10) : undefined,
-          progressUnit,
-          currentLabel: currentLabel || undefined,
-          notes: notes || undefined,
-          rating,
-          isSharedWithCircles,
-        });
+      const res = await saveMediaProgress({
+        id: item.id,
+        mediaType: item.mediaType,
+        title: item.title,
+        creator: item.creator,
+        coverUrl: item.coverUrl,
+        externalSource: item.externalSource,
+        externalId: item.externalId,
+        groupTitleId: item.groupTitle,
+        status,
+        progressCurrent: progressCurrent ? parseInt(progressCurrent, 10) : undefined,
+        progressTotal: progressTotal ? parseInt(progressTotal, 10) : undefined,
+        progressUnit,
+        currentLabel: currentLabel || undefined,
+        notes: notes || undefined,
+        rating,
+        isSharedWithCircles,
+      });
 
-        toast.success(t.shelf.progressSaved);
-        onOpenChange(false);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : t.common.error;
-        toast.error(msg);
+      if (!res.success) {
+        toast.error(res.error, {
+          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+        });
+        return;
       }
+
+      toast.success(t.shelf.progressSaved);
+      onOpenChange(false);
     });
   };
 
-  const handleDelete = () => {
-    if (!confirm(t.shelf.deleteConfirm)) return;
+  const handleConfirmDelete = () => {
+    setConfirmDeleteDialogOpen(false);
     setIsDeleting(true);
     startTransition(async () => {
       try {
-        await deleteMediaProgress(item.id);
+        const res = await deleteMediaProgress(item.id);
+        if (!res.success) {
+          toast.error(res.error, {
+            description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          });
+          return;
+        }
+
         toast.success(t.shelf.progressDeleted);
         onOpenChange(false);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : t.common.error;
-        toast.error(msg);
       } finally {
         setIsDeleting(false);
       }
@@ -106,124 +123,140 @@ export function EditProgressDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold">
-            {t.shelf.editProgress}
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            {item.title}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">
+              {t.shelf.editProgress}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {t.shelf.pageSubtitle}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 pt-2">
-          {/* Header Preview */}
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border/50">
-            <MediaCover
-              src={item.coverUrl}
-              alt={item.title}
-              size="sm"
-              className="shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground truncate">{item.title}</p>
+          {/* Media Header Preview */}
+          <div className="flex gap-3 items-center p-3 rounded-xl bg-muted/40 border border-border/50">
+            <MediaCover src={item.coverUrl} alt={item.title} size="sm" />
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <MediaBadge type={item.mediaType} />
+              </div>
+              <h4 className="text-xs font-bold text-foreground truncate">
+                {item.title}
+              </h4>
               {item.creator && (
-                <p className="text-[11px] text-muted-foreground truncate">{item.creator}</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {item.creator}
+                </p>
               )}
-              <MediaBadge type={item.mediaType} size="sm" className="mt-1" />
             </div>
           </div>
 
-          {/* Status Selection */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">{t.media.mediaStatus}</Label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[
-                { id: "in_progress", label: t.shelf.statusInProgress },
-                { id: "plan_to_consume", label: t.shelf.statusPlanToConsume },
-                { id: "completed", label: t.shelf.statusCompleted },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setStatus(s.id as UserMediaProgressStatusOptions)}
-                  className={cn(
-                    "py-2 px-2.5 rounded-lg border text-xs font-medium transition-all text-center",
-                    status === s.id
-                      ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
-                      : "border-border/60 hover:bg-muted/40 text-muted-foreground",
-                  )}
-                >
-                  {s.label}
-                </button>
-              ))}
+          <div className="space-y-4 pt-1">
+            {/* Status Select */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t.shelf.quickUpdate}</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(
+                  [
+                    "in_progress",
+                    "completed",
+                    "plan_to_consume",
+                    "on_hold",
+                    "dropped",
+                  ] as UserMediaProgressStatusOptions[]
+                ).map((s) => {
+                  const isSelected = status === s;
+                  const labelMap: Record<UserMediaProgressStatusOptions, string> = {
+                    in_progress: t.shelf.statusInProgress,
+                    completed: t.shelf.statusCompleted,
+                    plan_to_consume: t.shelf.statusPlanToConsume,
+                    on_hold: t.shelf.statusOnHold,
+                    dropped: t.shelf.statusDropped,
+                  };
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={cn(
+                        "p-2 rounded-lg text-xs font-medium border text-center transition-all cursor-pointer",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary shadow-2xs font-semibold"
+                          : "bg-background border-border/70 hover:bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {labelMap[s]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* Progress Counters */}
-          {status !== "plan_to_consume" && (
-            <div className="grid grid-cols-3 gap-2.5 p-3 rounded-xl bg-card border border-border/60">
+            {/* Progress Counters */}
+            <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">{t.shelf.currentProgress}</Label>
+                <Label className="text-xs">{t.shelf.currentProgress}</Label>
                 <Input
                   type="number"
+                  min="0"
                   value={progressCurrent}
                   onChange={(e) => setProgressCurrent(e.target.value)}
-                  className="h-8 text-xs font-mono"
-                  min={0}
+                  placeholder="0"
+                  className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">{t.shelf.totalProgress}</Label>
+                <Label className="text-xs">{t.shelf.totalProgress}</Label>
                 <Input
                   type="number"
+                  min="1"
                   value={progressTotal}
                   onChange={(e) => setProgressTotal(e.target.value)}
-                  placeholder="e.g. 350"
-                  className="h-8 text-xs font-mono"
-                  min={1}
+                  placeholder="e.g. 400"
+                  className="h-8 text-xs"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] text-muted-foreground">{t.shelf.currentUnit}</Label>
+                <Label className="text-xs">{t.shelf.currentUnit}</Label>
                 <select
                   value={progressUnit}
-                  onChange={(e) => setProgressUnit(e.target.value as UserMediaProgressUnitOptions)}
+                  onChange={(e) =>
+                    setProgressUnit(e.target.value as UserMediaProgressUnitOptions)
+                  }
                   className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                 >
                   <option value="pages">{t.shelf.pages}</option>
                   <option value="chapters">{t.shelf.chapters}</option>
                   <option value="episodes">{t.shelf.episodes}</option>
-                  <option value="minutes">{t.shelf.minutes}</option>
                   <option value="percent">{t.shelf.percent}</option>
+                  <option value="minutes">{t.shelf.minutes}</option>
                 </select>
               </div>
             </div>
-          )}
 
-          {/* Current Chapter / Checkpoint Label */}
-          <div className="space-y-1">
-            <Label className="text-xs">{t.shelf.currentLabel}</Label>
-            <Input
-              value={currentLabel}
-              onChange={(e) => setCurrentLabel(e.target.value)}
-              placeholder="e.g. Season 2 Episode 4"
-              className="h-8 text-xs"
-            />
-          </div>
+            {/* Current Chapter/Track Label */}
+            <div className="space-y-1">
+              <Label className="text-xs">{t.shelf.currentLabel}</Label>
+              <Input
+                value={currentLabel}
+                onChange={(e) => setCurrentLabel(e.target.value)}
+                placeholder="Örn: Bölüm 4 - Gizemli Yol"
+                className="h-8 text-xs"
+              />
+            </div>
 
-          {/* Rating (if completed) */}
-          {status === "completed" && (
+            {/* Rating Stars */}
             <div className="space-y-1.5">
               <Label className="text-xs">{t.shelf.personalRating}</Label>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
                     onClick={() => setRating(rating === star ? undefined : star)}
-                    className="p-1 text-muted-foreground hover:text-amber-400 transition-colors"
+                    className="p-1 hover:scale-110 transition-transform cursor-pointer"
                   >
                     <Star
                       className={cn(
@@ -235,83 +268,102 @@ export function EditProgressDialog({
                     />
                   </button>
                 ))}
+                {rating && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setRating(undefined)}
+                    className="text-[10px] text-muted-foreground ml-2 h-6"
+                  >
+                    {t.common.cancel}
+                  </Button>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Personal Journal Notes */}
-          <div className="space-y-1">
-            <Label className="text-xs">{t.shelf.personalNotes}</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t.shelf.notesPlaceholder}
-              className="text-xs min-h-[60px] resize-none"
-            />
-          </div>
-
-          {/* Circle Sharing */}
-          <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
-            <div className="space-y-0.5">
-              <p className="text-xs font-semibold text-foreground">{t.shelf.shareWithCircles}</p>
-              <p className="text-[11px] text-muted-foreground">{t.shelf.shareWithCirclesDesc}</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isSharedWithCircles}
-              onClick={() => setIsSharedWithCircles(!isSharedWithCircles)}
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out",
-                isSharedWithCircles ? "bg-primary" : "bg-muted-foreground/30",
-              )}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block size-4 transform rounded-full bg-background shadow-2xs transition duration-200 ease-in-out",
-                  isSharedWithCircles ? "translate-x-4" : "translate-x-0",
-                )}
+            {/* Notes */}
+            <div className="space-y-1">
+              <Label className="text-xs">{t.shelf.personalNotes}</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Kişisel düşünceleriniz ve notlarınız..."
+                className="text-xs min-h-[60px] resize-none"
               />
-            </button>
-          </div>
+            </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-between pt-3 border-t border-border/50">
-            <Button
-              type="button"
-              variant="destructive"
-              size="xs"
-              onClick={handleDelete}
-              disabled={isDeleting || isPending}
-              className="gap-1.5"
-            >
-              <Trash2 className="size-3.5" />
-              <span>{t.shelf.deleteProgress}</span>
-            </Button>
+            {/* Privacy Checkbox */}
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={isSharedWithCircles}
+                onChange={(e) => setIsSharedWithCircles(e.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary size-4"
+              />
+              <span>{t.shelf.shareWithCircles}</span>
+            </label>
 
-            <div className="flex items-center gap-2">
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-3 border-t border-border/50">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => onOpenChange(false)}
-              >
-                {t.common.close}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSave}
+                onClick={() => setConfirmDeleteDialogOpen(true)}
                 disabled={isPending || isDeleting}
-                className="gap-1.5"
+                className="text-destructive hover:bg-destructive/10 gap-1.5 text-xs"
               >
-                {isPending && <Loader2 className="size-3.5 animate-spin" />}
-                <span>{t.shelf.saveProgress}</span>
+                <Trash2 className="size-3.5" />
+                <span>{t.common.delete}</span>
               </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenChange(false)}
+                >
+                  {t.common.close}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isPending || isDeleting}
+                  onClick={handleSave}
+                  className="gap-1.5"
+                >
+                  {isPending && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{t.shelf.saveProgress}</span>
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accessible Base UI AlertDialog for Deletion Confirmation */}
+      <AlertDialog open={confirmDeleteDialogOpen} onOpenChange={setConfirmDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.common.confirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.shelf.deleteConfirm}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="size-3.5 animate-spin" /> : t.common.delete}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { requireMembership, resolveCircleAccess } from "@/lib/membership";
+import { resolveCircleAccess } from "@/lib/membership";
+import { logDiagnostic } from "@/lib/errors";
 import type {
   GroupMembersResponse,
   TitlesMediaTypeOptions,
@@ -14,6 +15,28 @@ import type {
   UserMediaProgressUnitOptions,
   UsersResponse,
 } from "@/types/pocketbase-types";
+
+export type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string; traceId?: string; details?: Record<string, unknown> };
+
+function toIsoDate(val?: string | null): string | null {
+  if (!val || typeof val !== "string" || !val.trim()) return null;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  const errObj = err as { data?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
+  if (errObj?.data?.data) {
+    const fieldErrors = Object.entries(errObj.data.data)
+      .map(([field, detail]) => `${field}: ${detail?.message || "Invalid"}`)
+      .join(", ");
+    if (fieldErrors) return fieldErrors;
+  }
+  return errObj?.data?.message || errObj?.message || fallback;
+}
 
 export interface SaveMediaProgressInput {
   id?: string;
@@ -58,157 +81,192 @@ export async function getPersonalShelf(
 
     return records;
   } catch (err) {
-    console.error("[getPersonalShelf Error]:", err);
+    logDiagnostic(err, { action: "getPersonalShelf" });
     return [];
   }
 }
 
-export async function saveMediaProgress(input: SaveMediaProgressInput) {
+export async function saveMediaProgress(
+  input: SaveMediaProgressInput,
+): Promise<ActionResult<UserMediaProgressResponse>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
-
-  const pb = await getSuperuserClient();
-
-  const data: Partial<UserMediaProgressRecord> = {
-    user: session.id,
-    mediaType: input.mediaType,
-    title: input.title.trim().slice(0, 300),
-    creator: input.creator ? input.creator.trim().slice(0, 300) : undefined,
-    coverUrl: input.coverUrl ? input.coverUrl.trim().slice(0, 2000) : undefined,
-    externalSource: input.externalSource?.slice(0, 100),
-    externalId: input.externalId?.slice(0, 200),
-    groupTitle: input.groupTitleId || undefined,
-    status: input.status,
-    progressCurrent:
-      typeof input.progressCurrent === "number" && !isNaN(input.progressCurrent)
-        ? Math.max(0, input.progressCurrent)
-        : undefined,
-    progressTotal:
-      typeof input.progressTotal === "number" && !isNaN(input.progressTotal)
-        ? Math.max(1, input.progressTotal)
-        : undefined,
-    progressUnit: input.progressUnit || undefined,
-    currentLabel: input.currentLabel ? input.currentLabel.trim().slice(0, 100) : undefined,
-    notes: input.notes ? input.notes.trim().slice(0, 3000) : undefined,
-    rating:
-      typeof input.rating === "number" && input.rating >= 1 && input.rating <= 5
-        ? input.rating
-        : undefined,
-    isSharedWithCircles: input.isSharedWithCircles ?? true,
-    startedAt: input.startedAt || undefined,
-    completedAt: input.completedAt || undefined,
-  };
-
-  if (data.status === "completed" && !data.completedAt) {
-    data.completedAt = new Date().toISOString();
-  }
-  if (data.status === "in_progress" && !data.startedAt) {
-    data.startedAt = new Date().toISOString();
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
   }
 
-  let result: UserMediaProgressResponse;
+  const cleanTitle = input.title?.trim();
+  if (!cleanTitle) {
+    return { success: false, error: "Başlık alanı boş bırakılamaz." };
+  }
 
-  if (input.id) {
-    // Verify ownership
-    const existing = await pb
-      .collection("user_media_progress")
-      .getOne<UserMediaProgressResponse>(input.id);
-    if (existing.user !== session.id) {
-      throw new Error("Forbidden");
+  try {
+    const pb = await getSuperuserClient();
+
+    const data: Record<string, unknown> = {
+      user: session.id,
+      mediaType: input.mediaType,
+      title: cleanTitle.slice(0, 300),
+      creator: input.creator ? input.creator.trim().slice(0, 300) : null,
+      coverUrl: input.coverUrl ? input.coverUrl.trim().slice(0, 2000) : null,
+      externalSource: input.externalSource ? input.externalSource.slice(0, 100) : null,
+      externalId: input.externalId ? input.externalId.slice(0, 200) : null,
+      status: input.status,
+      progressCurrent:
+        typeof input.progressCurrent === "number" && !isNaN(input.progressCurrent)
+          ? Math.max(0, input.progressCurrent)
+          : null,
+      progressTotal:
+        typeof input.progressTotal === "number" && !isNaN(input.progressTotal)
+          ? Math.max(1, input.progressTotal)
+          : null,
+      progressUnit: input.progressUnit || null,
+      currentLabel: input.currentLabel ? input.currentLabel.trim().slice(0, 100) : null,
+      notes: input.notes ? input.notes.trim().slice(0, 3000) : null,
+      rating:
+        typeof input.rating === "number" && input.rating >= 1 && input.rating <= 5
+          ? input.rating
+          : null,
+      isSharedWithCircles: input.isSharedWithCircles ?? true,
+    };
+
+    if (input.groupTitleId && input.groupTitleId.trim()) {
+      data.groupTitle = input.groupTitleId.trim();
     }
-    result = await pb
-      .collection("user_media_progress")
-      .update<UserMediaProgressResponse>(input.id, data);
-  } else {
-    // Check if progress already exists for this user + externalId/groupTitle
-    let existingItem: UserMediaProgressResponse | null = null;
-    if (input.externalSource && input.externalId) {
-      existingItem = await pb
+
+    const parsedStarted = toIsoDate(input.startedAt);
+    if (parsedStarted) data.startedAt = parsedStarted;
+    else if (data.status === "in_progress") data.startedAt = new Date().toISOString();
+
+    const parsedCompleted = toIsoDate(input.completedAt);
+    if (parsedCompleted) data.completedAt = parsedCompleted;
+    else if (data.status === "completed") data.completedAt = new Date().toISOString();
+
+    let result: UserMediaProgressResponse;
+
+    if (input.id) {
+      const existing = await pb
         .collection("user_media_progress")
-        .getFirstListItem<UserMediaProgressResponse>(
-          pb.filter(
-            "user = {:userId} && externalSource = {:source} && externalId = {:extId}",
-            {
-              userId: session.id,
-              source: input.externalSource,
-              extId: input.externalId,
-            },
-          ),
-        )
-        .catch(() => null);
-    }
-
-    if (existingItem) {
+        .getOne<UserMediaProgressResponse>(input.id);
+      if (existing.user !== session.id) {
+        return { success: false, error: "Bu kaydı düzenleme yetkiniz yok." };
+      }
       result = await pb
         .collection("user_media_progress")
-        .update<UserMediaProgressResponse>(existingItem.id, data);
+        .update<UserMediaProgressResponse>(input.id, data);
     } else {
-      result = await pb
-        .collection("user_media_progress")
-        .create<UserMediaProgressResponse>(data);
+      let existingItem: UserMediaProgressResponse | null = null;
+      if (input.externalSource && input.externalId) {
+        existingItem = await pb
+          .collection("user_media_progress")
+          .getFirstListItem<UserMediaProgressResponse>(
+            pb.filter(
+              "user = {:userId} && externalSource = {:source} && externalId = {:extId}",
+              {
+                userId: session.id,
+                source: input.externalSource,
+                extId: input.externalId,
+              },
+            ),
+          )
+          .catch(() => null);
+      }
+
+      if (existingItem) {
+        result = await pb
+          .collection("user_media_progress")
+          .update<UserMediaProgressResponse>(existingItem.id, data);
+      } else {
+        result = await pb
+          .collection("user_media_progress")
+          .create<UserMediaProgressResponse>(data);
+      }
     }
-  }
 
-  revalidatePath("/shelf");
-  revalidatePath("/activity");
-  if (input.groupTitleId) {
-    revalidatePath(`/groups`);
-  }
+    revalidatePath("/shelf");
+    revalidatePath("/activity");
+    if (input.groupTitleId) {
+      revalidatePath("/groups");
+    }
 
-  return result;
+    return { success: true, data: result };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "saveMediaProgress", input });
+    const userMsg = extractErrorMessage(err, "Kayıt kaydedilirken bir hata oluştu.");
+    return { success: false, error: userMsg, traceId: diag.traceId };
+  }
 }
 
 export async function updateProgressQuickStep(
   progressId: string,
   delta: number,
-) {
+): Promise<ActionResult<UserMediaProgressResponse>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
-
-  const pb = await getSuperuserClient();
-  const existing = await pb
-    .collection("user_media_progress")
-    .getOne<UserMediaProgressResponse>(progressId);
-
-  if (existing.user !== session.id) throw new Error("Forbidden");
-
-  const current = existing.progressCurrent ?? 0;
-  const newCurrent = Math.max(0, current + delta);
-  const updateData: Partial<UserMediaProgressRecord> = {
-    progressCurrent: newCurrent,
-  };
-
-  // Auto-complete if reached total
-  if (
-    existing.progressTotal &&
-    newCurrent >= existing.progressTotal &&
-    existing.status !== "completed"
-  ) {
-    updateData.status = "completed";
-    updateData.completedAt = new Date().toISOString();
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
   }
 
-  const updated = await pb
-    .collection("user_media_progress")
-    .update<UserMediaProgressResponse>(progressId, updateData);
+  try {
+    const pb = await getSuperuserClient();
+    const existing = await pb
+      .collection("user_media_progress")
+      .getOne<UserMediaProgressResponse>(progressId);
 
-  revalidatePath("/shelf");
-  return updated;
+    if (existing.user !== session.id) {
+      return { success: false, error: "Bu kaydı düzenleme yetkiniz yok." };
+    }
+
+    const current = existing.progressCurrent ?? 0;
+    const newCurrent = Math.max(0, current + delta);
+    const updateData: Partial<UserMediaProgressRecord> = {
+      progressCurrent: newCurrent,
+    };
+
+    if (
+      existing.progressTotal &&
+      newCurrent >= existing.progressTotal &&
+      existing.status !== "completed"
+    ) {
+      updateData.status = "completed";
+      updateData.completedAt = new Date().toISOString();
+    }
+
+    const updated = await pb
+      .collection("user_media_progress")
+      .update<UserMediaProgressResponse>(progressId, updateData);
+
+    revalidatePath("/shelf");
+    return { success: true, data: updated };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "updateProgressQuickStep", progressId, delta });
+    return { success: false, error: "İlerleme adımı güncellenemedi.", traceId: diag.traceId };
+  }
 }
 
-export async function deleteMediaProgress(progressId: string) {
+export async function deleteMediaProgress(
+  progressId: string,
+): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
+  }
 
-  const pb = await getSuperuserClient();
-  const existing = await pb
-    .collection("user_media_progress")
-    .getOne<UserMediaProgressResponse>(progressId);
+  try {
+    const pb = await getSuperuserClient();
+    const existing = await pb
+      .collection("user_media_progress")
+      .getOne<UserMediaProgressResponse>(progressId);
 
-  if (existing.user !== session.id) throw new Error("Forbidden");
+    if (existing.user !== session.id) {
+      return { success: false, error: "Bu kaydı silme yetkiniz yok." };
+    }
 
-  await pb.collection("user_media_progress").delete(progressId);
-  revalidatePath("/shelf");
+    await pb.collection("user_media_progress").delete(progressId);
+    revalidatePath("/shelf");
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "deleteMediaProgress", progressId });
+    return { success: false, error: "Kayıt silinemedi.", traceId: diag.traceId };
+  }
 }
 
 export interface TitleMemberProgressItem {
@@ -227,84 +285,80 @@ export async function getTitleCircleProgress(
     return [];
   }
 
-  const pb = await getSuperuserClient();
-
-  const [title, members] = await Promise.all([
-    pb.collection("titles").getOne<TitlesResponse>(titleId).catch(() => null),
-    pb
-      .collection("group_members")
-      .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
-        filter: pb.filter("group = {:groupId}", { groupId }),
-        expand: "user",
-      }),
-  ]);
-
-  if (!title) return [];
-
-  const memberUserIds = members.map((m) => m.user);
-  if (memberUserIds.length === 0) return [];
-
-  // Query progress records by groupTitleId OR by matching externalSource/externalId
-  const filter = pb.filter(
-    "groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})",
-    {
-      titleId,
-      src: title.externalSource,
-      extId: title.externalId,
-    },
-  );
-
-  let progressRecords: UserMediaProgressResponse<{ user?: UsersResponse }>[] = [];
   try {
-    progressRecords = await pb
+    const pb = await getSuperuserClient();
+
+    const [title, members] = await Promise.all([
+      pb.collection("titles").getOne<TitlesResponse>(titleId).catch(() => null),
+      pb
+        .collection("group_members")
+        .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
+          filter: pb.filter("group = {:groupId}", { groupId }),
+          expand: "user",
+        }),
+    ]);
+
+    if (!title) return [];
+
+    const memberUserIds = members.map((m) => m.user);
+    if (memberUserIds.length === 0) return [];
+
+    const filter = pb.filter(
+      "groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})",
+      {
+        titleId,
+        src: title.externalSource,
+        extId: title.externalId,
+      },
+    );
+
+    const progressRecords = await pb
       .collection("user_media_progress")
       .getFullList<UserMediaProgressResponse<{ user?: UsersResponse }>>({
         filter,
         expand: "user",
       });
-  } catch (err) {
-    console.error("[getTitleCircleProgress Error]:", err);
-    return [];
-  }
 
-  const memberMap = new Map<string, UsersResponse>();
-  for (const m of members) {
-    if (m.expand?.user) {
-      memberMap.set(m.user, m.expand.user);
-    }
-  }
-
-  const result: TitleMemberProgressItem[] = [];
-
-  for (const p of progressRecords) {
-    if (memberMap.has(p.user)) {
-      // Privacy check: only show if isSharedWithCircles is true OR it's the requesting user
-      if (p.isSharedWithCircles !== false || p.user === session?.id) {
-        const user = memberMap.get(p.user)!;
-        let percentage: number | undefined;
-        if (p.status === "completed") {
-          percentage = 100;
-        } else if (
-          p.progressCurrent &&
-          p.progressTotal &&
-          p.progressTotal > 0
-        ) {
-          percentage = Math.min(
-            100,
-            Math.round((p.progressCurrent / p.progressTotal) * 100),
-          );
-        }
-
-        result.push({
-          user,
-          progress: p,
-          percentage,
-        });
+    const memberMap = new Map<string, UsersResponse>();
+    for (const m of members) {
+      if (m.expand?.user) {
+        memberMap.set(m.user, m.expand.user);
       }
     }
-  }
 
-  return result;
+    const result: TitleMemberProgressItem[] = [];
+    for (const p of progressRecords) {
+      if (memberMap.has(p.user)) {
+        if (p.isSharedWithCircles !== false || p.user === session?.id) {
+          const user = memberMap.get(p.user)!;
+          let percentage: number | undefined;
+          if (p.status === "completed") {
+            percentage = 100;
+          } else if (
+            p.progressCurrent &&
+            p.progressTotal &&
+            p.progressTotal > 0
+          ) {
+            percentage = Math.min(
+              100,
+              Math.round((p.progressCurrent / p.progressTotal) * 100),
+            );
+          }
+
+          result.push({
+            user,
+            progress: p,
+            percentage,
+          });
+        }
+      }
+    }
+
+    return result;
+  } catch (err) {
+    logDiagnostic(err, { action: "getTitleCircleProgress", titleId, groupId });
+    return [];
+  }
 }
 
 export interface CircleLiveActivityItem {
@@ -321,24 +375,24 @@ export async function getCircleLiveActivity(
     return [];
   }
 
-  const pb = await getSuperuserClient();
-  const members = await pb
-    .collection("group_members")
-    .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
-      filter: pb.filter("group = {:groupId}", { groupId }),
-      expand: "user",
-    });
-
-  const memberMap = new Map<string, UsersResponse>();
-  for (const m of members) {
-    if (m.expand?.user) {
-      memberMap.set(m.user, m.expand.user);
-    }
-  }
-
-  if (memberMap.size === 0) return [];
-
   try {
+    const pb = await getSuperuserClient();
+    const members = await pb
+      .collection("group_members")
+      .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
+        filter: pb.filter("group = {:groupId}", { groupId }),
+        expand: "user",
+      });
+
+    const memberMap = new Map<string, UsersResponse>();
+    for (const m of members) {
+      if (m.expand?.user) {
+        memberMap.set(m.user, m.expand.user);
+      }
+    }
+
+    if (memberMap.size === 0) return [];
+
     const activeProgress = await pb
       .collection("user_media_progress")
       .getFullList<UserMediaProgressResponse>({
@@ -358,7 +412,7 @@ export async function getCircleLiveActivity(
 
     return result;
   } catch (err) {
-    console.error("[getCircleLiveActivity Error]:", err);
+    logDiagnostic(err, { action: "getCircleLiveActivity", groupId });
     return [];
   }
 }
