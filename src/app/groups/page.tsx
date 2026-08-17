@@ -22,15 +22,24 @@ export default async function GroupsPage() {
   if (!session) redirect("/login");
 
   const pb = await getSuperuserClient();
-  const [memberships, userRecord] = await Promise.all([
-    pb
-      .collection("group_members")
-      .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
-        filter: pb.filter("user = {:userId}", { userId: session.id }),
-        expand: "group",
-      }),
-    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
-  ]);
+  let memberships: GroupMembersResponse<{ group?: GroupsResponse }>[] = [];
+  let userRecord: UsersResponse | null = null;
+
+  try {
+    const [fetchedMemberships, fetchedUser] = await Promise.all([
+      pb
+        .collection("group_members")
+        .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
+          filter: pb.filter("user = {:userId}", { userId: session.id }),
+          expand: "group",
+        }),
+      pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
+    ]);
+    memberships = fetchedMemberships;
+    userRecord = fetchedUser;
+  } catch (err) {
+    console.error("[GroupsPage] Failed to fetch memberships:", err);
+  }
 
   const groupIds = memberships
     .map((m) => m.group)
@@ -39,19 +48,23 @@ export default async function GroupsPage() {
   // Fetch title stats for user's groups
   let titlesByGroup: Record<string, { proposed: number; consumed: number }> = {};
   if (groupIds.length > 0) {
-    const filterParams = Object.fromEntries(groupIds.map((id, i) => [`g${i}`, id]));
-    const filterExpr = `(${groupIds.map((_, i) => `group = {:g${i}}`).join(" || ")})`;
-    const allTitles = await pb.collection("titles").getFullList<TitlesResponse>({
-      filter: pb.filter(filterExpr, filterParams),
-      fields: "id,group,status",
-    });
+    try {
+      const filterParams = Object.fromEntries(groupIds.map((id, i) => [`g${i}`, id]));
+      const filterExpr = `(${groupIds.map((_, i) => `group = {:g${i}}`).join(" || ")})`;
+      const allTitles = await pb.collection("titles").getFullList<TitlesResponse>({
+        filter: pb.filter(filterExpr, filterParams),
+        fields: "id,group,status",
+      });
 
-    titlesByGroup = allTitles.reduce((acc, t) => {
-      if (!acc[t.group]) acc[t.group] = { proposed: 0, consumed: 0 };
-      if (t.status === "proposed") acc[t.group].proposed += 1;
-      else if (t.status === "consumed") acc[t.group].consumed += 1;
-      return acc;
-    }, {} as Record<string, { proposed: number; consumed: number }>);
+      titlesByGroup = allTitles.reduce((acc, t) => {
+        if (!acc[t.group]) acc[t.group] = { proposed: 0, consumed: 0 };
+        if (t.status === "proposed") acc[t.group].proposed += 1;
+        else if (t.status === "consumed") acc[t.group].consumed += 1;
+        return acc;
+      }, {} as Record<string, { proposed: number; consumed: number }>);
+    } catch (err) {
+      console.error("[GroupsPage] Failed to fetch title stats:", err);
+    }
   }
 
   const currentUser = {

@@ -24,13 +24,39 @@ globalThis.__pbSuperuser = pb;
 async function ensureAuthenticated(): Promise<void> {
   if (pb.authStore.isValid) return;
 
-  globalThis.__pbSuperuserAuth ??= pb
-    .collection("_superusers")
-    .authWithPassword(
-      process.env.PB_SUPERUSER_EMAIL!,
-      process.env.PB_SUPERUSER_PASSWORD!,
-      { autoRefreshThreshold: 30 * 60 },
-    )
+  const email = process.env.PB_SUPERUSER_EMAIL;
+  const password = process.env.PB_SUPERUSER_PASSWORD;
+
+  if (!email || !password) {
+    const errorMsg = `[PocketBase Superuser] Missing credentials: PB_SUPERUSER_EMAIL or PB_SUPERUSER_PASSWORD is not set in the environment. PB_URL=${process.env.PB_URL ?? "http://localhost:8090"}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  globalThis.__pbSuperuserAuth ??= (async () => {
+    try {
+      // PocketBase 0.23+ uses `_superusers`, older PocketBase uses `_admins`
+      try {
+        await pb
+          .collection("_superusers")
+          .authWithPassword(email, password, { autoRefreshThreshold: 30 * 60 });
+      } catch (firstErr) {
+        try {
+          await pb
+            .collection("_admins")
+            .authWithPassword(email, password, { autoRefreshThreshold: 30 * 60 });
+        } catch {
+          throw firstErr;
+        }
+      }
+    } catch (err: unknown) {
+      console.error(
+        `[PocketBase Superuser] Failed to authenticate superuser (${email}) at ${process.env.PB_URL ?? "http://localhost:8090"}:`,
+        err,
+      );
+      throw err;
+    }
+  })()
     .then(() => undefined)
     .finally(() => {
       globalThis.__pbSuperuserAuth = undefined;
