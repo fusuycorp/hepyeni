@@ -96,3 +96,19 @@ export async function markConsumed(titleId: string, groupId: string) {
 
   revalidatePath(`/groups/${groupId}`);
 }
+
+export async function unmarkConsumed(titleId: string, groupId: string) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  await requireMembership(groupId, session.id);
+  await requireTitleInGroup(titleId, groupId);
+
+  const pb = await getSuperuserClient();
+  await pb.collection("titles").update(titleId, {
+    status: "proposed",
+    consumedAt: null,
+  });
+
+  revalidatePath(`/groups/${groupId}`);
+}

@@ -48,6 +48,7 @@ interface GroupContentViewProps {
   isAdmin?: boolean;
   onVote: (titleId: string, value: "up" | "down") => Promise<void>;
   onMarkConsumed: (titleId: string) => Promise<void>;
+  onUnmarkConsumed: (titleId: string) => Promise<void>;
   onSubmitReview: (titleId: string, formData: FormData) => Promise<void>;
   onAddComment?: (titleId: string, formData: FormData) => Promise<void>;
   onDeleteComment?: (commentId: string) => Promise<void>;
@@ -63,6 +64,7 @@ export function GroupContentView({
   isAdmin,
   onVote,
   onMarkConsumed,
+  onUnmarkConsumed,
   onSubmitReview,
   onAddComment,
   onDeleteComment,
@@ -326,17 +328,23 @@ export function GroupContentView({
                                 )}
                               </div>
                             </div>
-                            <MediaComments
-                              titleId={title.id}
-                              groupId={group.id}
-                              titleName={title.title}
-                              comments={title.expand?.comments_via_title ?? []}
-                              currentUserId={currentUserId}
-                              currentUserRole={currentUserRole}
-                              isAdmin={isAdmin}
-                              onAddComment={onAddComment}
-                              onDeleteComment={onDeleteComment}
-                            />
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <MediaComments
+                                titleId={title.id}
+                                groupId={group.id}
+                                titleName={title.title}
+                                comments={title.expand?.comments_via_title ?? []}
+                                currentUserId={currentUserId}
+                                currentUserRole={currentUserRole}
+                                isAdmin={isAdmin}
+                                onAddComment={onAddComment}
+                                onDeleteComment={onDeleteComment}
+                              />
+                              <MarkConsumedButton
+                                direction="unconsume"
+                                onMark={() => onUnmarkConsumed(title.id)}
+                              />
+                            </div>
                           </div>
 
                           {/* My Review Section */}

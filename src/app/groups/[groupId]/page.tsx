@@ -6,7 +6,7 @@ import { AddTitleDialog } from "@/components/add-title-dialog";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { buttonVariants } from "@/components/ui/button";
 import { GroupContentView } from "./group-content-view";
-import { markConsumed } from "@/lib/actions/titles";
+import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment } from "@/lib/actions/comments";
@@ -114,6 +114,11 @@ export default async function GroupPage({
     await markConsumed(titleId, groupId);
   }
 
+  async function handleUnmarkConsumed(titleId: string) {
+    "use server";
+    await unmarkConsumed(titleId, groupId);
+  }
+
   async function handleSubmitReview(titleId: string, formData: FormData) {
     "use server";
     await submitReview(titleId, groupId, formData);
@@ -191,6 +196,7 @@ export default async function GroupPage({
           isAdmin={session.isAdmin}
           onVote={handleVote}
           onMarkConsumed={handleMarkConsumed}
+          onUnmarkConsumed={handleUnmarkConsumed}
           onSubmitReview={handleSubmitReview}
           onAddComment={handleAddComment}
           onDeleteComment={handleDeleteComment}

@@ -91,6 +91,7 @@ export interface Translations {
     downvoteAria: string;
     voteFailed: string;
     markConsumedFailed: string;
+    unmarkConsumedFailed: string;
     pending: string;
   };
   auth: {

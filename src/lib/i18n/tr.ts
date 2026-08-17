@@ -91,6 +91,7 @@ export const tr: Translations = {
     downvoteAria: "Eksi oy ver",
     voteFailed: "Oyunuz kaydedilemedi — lütfen tekrar deneyin.",
     markConsumedFailed: "Tamamlandı olarak işaretlenemedi — lütfen tekrar deneyin.",
+    unmarkConsumedFailed: "Sıradakilere geri taşınamadı — lütfen tekrar deneyin.",
     pending: "Sıradaki",
   },
   auth: {

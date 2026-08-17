@@ -91,6 +91,7 @@ export const en: Translations = {
     downvoteAria: "Downvote",
     voteFailed: "Your vote couldn't be saved — please try again.",
     markConsumedFailed: "Couldn't mark as consumed — please try again.",
+    unmarkConsumedFailed: "Couldn't move back to Up Next — please try again.",
     pending: "Pending",
   },
   auth: {
