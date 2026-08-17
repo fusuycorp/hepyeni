@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider } from "@/lib/i18n/client";
+import { getLocale, getServerTranslations } from "@/lib/i18n/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,20 +16,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Titirek — Medya Takip ve Oylama",
-  description: "Arkadaşlarınızla ve kulüplerinizle kitap, film, dizi, müzik ve podcast takip edin.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerTranslations();
+  return {
+    title: t.metadata.title,
+    description: t.metadata.description,
+  };
+}
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
+
   return (
     <html
-      lang="tr"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
@@ -38,7 +45,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <I18nProvider initialLocale={locale}>
+            {children}
+          </I18nProvider>
           <Toaster />
         </ThemeProvider>
       </body>

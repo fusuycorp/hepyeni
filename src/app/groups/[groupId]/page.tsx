@@ -9,10 +9,12 @@ import { GroupContentView } from "./group-content-view";
 import { markConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
+import { addComment, deleteComment } from "@/lib/actions/comments";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type {
+  CommentsResponse,
   GroupMembersResponse,
   GroupsResponse,
   ReviewsResponse,
@@ -25,6 +27,7 @@ type TitleExpand = {
   addedBy?: UsersResponse;
   votes_via_title?: VotesResponse[];
   reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
+  comments_via_title?: CommentsResponse<{ user?: UsersResponse }>[];
 };
 
 export default async function GroupPage({
@@ -63,11 +66,14 @@ export default async function GroupPage({
       }),
     pb.collection("titles").getFullList<TitlesResponse<TitleExpand>>({
       filter: pb.filter("group = {:groupId}", { groupId }),
-      expand: "addedBy,votes_via_title,reviews_via_title.user",
+      expand: "addedBy,votes_via_title,reviews_via_title.user,comments_via_title.user",
       sort: "-createdAt",
     }),
     pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
   ]);
+
+  const currentMember = members.find((m) => m.user === session.id);
+  const currentUserRole = currentMember?.role;
 
   const withScore = groupTitles.map((title) => {
     const votes = title.expand?.votes_via_title ?? [];
@@ -109,6 +115,16 @@ export default async function GroupPage({
   async function handleSubmitReview(titleId: string, formData: FormData) {
     "use server";
     await submitReview(titleId, groupId, formData);
+  }
+
+  async function handleAddComment(titleId: string, formData: FormData) {
+    "use server";
+    await addComment(titleId, groupId, formData);
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    "use server";
+    await deleteComment(commentId, groupId);
   }
 
   return (
@@ -169,9 +185,13 @@ export default async function GroupPage({
           proposed={proposed}
           consumed={consumed}
           currentUserId={session.id}
+          currentUserRole={currentUserRole}
+          isAdmin={session.isAdmin}
           onVote={handleVote}
           onMarkConsumed={handleMarkConsumed}
           onSubmitReview={handleSubmitReview}
+          onAddComment={handleAddComment}
+          onDeleteComment={handleDeleteComment}
         />
 
         {/* Floating Action Button (Bottom Right FAB) */}

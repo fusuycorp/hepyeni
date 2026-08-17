@@ -40,7 +40,7 @@ export function AddTitleDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger ? (
-        <DialogTrigger render={<>{trigger}</>} />
+        <DialogTrigger render={trigger ? (trigger as React.ReactElement) : undefined} />
       ) : (
         <DialogTrigger
           render={

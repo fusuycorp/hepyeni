@@ -1,6 +1,22 @@
 import type { Translations } from "./types";
 
 export const tr: Translations = {
+  metadata: {
+    title: "Titirek — Ortak Medya Takip ve İstek Listesi",
+    description: "Arkadaşlarınızla ve kulüplerinizle kitap, film, dizi, müzik ve podcast takip edin.",
+  },
+  comments: {
+    title: "Yorumlar",
+    subtitle: "Bu başlık hakkındaki düşüncelerinizi paylaşın",
+    addComment: "Yorum Ekle",
+    placeholder: "Düşüncelerinizi buraya yazın...",
+    post: "Paylaş",
+    posting: "Paylaşılıyor...",
+    noComments: "Henüz yorum yapılmamış. İlk yorumu siz yapın!",
+    deleteConfirm: "Bu yorumu silmek istediğinizden emin misiniz?",
+    delete: "Yorumu Sil",
+    count: "yorum",
+  },
   common: {
     appName: "Titirek",
     appDescription: "Arkadaşlarınızla ve kulüplerinizle kitap, film, dizi, müzik ve podcast takip edin.",

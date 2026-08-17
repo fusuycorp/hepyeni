@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { ChevronLeft, BookmarkCheck } from "lucide-react";
@@ -7,6 +9,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -28,11 +31,13 @@ export function AppShell({
   children,
   user,
   backHref,
-  backLabel = "Geri",
+  backLabel,
   title,
   headerActions,
   maxWidth = "default",
 }: AppShellProps) {
+  const t = useTranslations();
+  const resolvedBackLabel = backLabel ?? t.common.back;
   const widthClasses = {
     narrow: "max-w-xl",
     default: "max-w-4xl",
@@ -58,14 +63,14 @@ export function AppShell({
               })}
             >
               <ChevronLeft className="size-4" />
-              <span className="text-xs font-medium">{backLabel}</span>
+              <span className="text-xs font-medium">{resolvedBackLabel}</span>
             </Link>
           ) : (
             <Link href="/groups" className="flex items-center gap-2">
               <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-2xs">
                 <BookmarkCheck className="size-4" />
               </div>
-              <span className="font-semibold text-sm tracking-tight">Titirek</span>
+              <span className="font-semibold text-sm tracking-tight">{t.common.appName}</span>
             </Link>
           )}
 
@@ -104,7 +109,7 @@ export function AppShell({
                 })}
               >
                 <ChevronLeft className="size-4" />
-                <span>{backLabel}</span>
+                <span>{resolvedBackLabel}</span>
               </Link>
             </div>
           )}

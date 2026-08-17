@@ -9,6 +9,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface DesktopSidebarProps {
   user?: {
@@ -22,23 +23,24 @@ interface DesktopSidebarProps {
 
 export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations();
 
   const navItems = [
     {
       href: "/groups",
-      label: "Gruplar",
+      label: t.nav.groups,
       icon: Users,
       active: pathname === "/groups" || (pathname.startsWith("/groups") && !pathname.includes("/admin")),
     },
     {
       href: "/activity",
-      label: "Aktivite",
+      label: t.nav.activity,
       icon: Rss,
       active: pathname === "/activity",
     },
     {
       href: "/profile",
-      label: "Profil",
+      label: t.nav.profile,
       icon: User,
       active: pathname === "/profile",
     },
@@ -47,7 +49,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   if (user?.isAdmin) {
     navItems.push({
       href: "/admin",
-      label: "Yönetici Paneli",
+      label: t.nav.admin,
       icon: Shield,
       active: pathname.startsWith("/admin"),
     });
@@ -65,10 +67,10 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-base tracking-tight leading-none">
-              Titirek
+              {t.common.appName}
             </span>
             <span className="text-[11px] text-muted-foreground tracking-tight mt-0.5">
-              Medya Takibi
+              {t.nav.mediaTracker}
             </span>
           </div>
         </Link>
@@ -81,7 +83,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
       {/* Main Nav Links */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
         <div className="px-2 mb-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Menü
+          {t.nav.menu}
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -131,7 +133,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold truncate leading-tight">
-                  {user.name || "Kullanıcı"}
+                  {user.name || user.email}
                 </span>
                 <span className="text-[11px] text-muted-foreground truncate leading-tight">
                   {user.email}
@@ -145,8 +147,8 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
                 variant="ghost"
                 size="icon-sm"
                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                title="Çıkış Yap"
-                aria-label="Çıkış Yap"
+                title={t.nav.signOut}
+                aria-label={t.nav.signOut}
               >
                 <LogOut className="size-4" />
               </Button>

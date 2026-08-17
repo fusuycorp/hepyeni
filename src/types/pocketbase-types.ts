@@ -20,6 +20,7 @@ export const Collections = {
   Mfas: "_mfas",
   Otps: "_otps",
   Superusers: "_superusers",
+  Comments: "comments",
   GroupMembers: "group_members",
   Groups: "groups",
   Reviews: "reviews",
@@ -54,7 +55,14 @@ export type AuthSystemFields<T = unknown> = {
   verified: boolean;
 } & BaseSystemFields<T>;
 
-// Record types for each collection
+export type CommentsRecord = {
+  content: string;
+  createdAt: IsoAutoDateString;
+  group: RecordIdString;
+  id: string;
+  title: RecordIdString;
+  user: RecordIdString;
+};
 
 export const GroupMembersRoleOptions = {
   owner: "owner",
@@ -147,6 +155,8 @@ export type VotesRecord = {
 };
 
 // Response types include system fields and match responses from the PocketBase API
+export type CommentsResponse<Texpand = unknown> =
+  Required<CommentsRecord> & BaseSystemFields<Texpand>;
 export type GroupMembersResponse<Texpand = unknown> =
   Required<GroupMembersRecord> & BaseSystemFields<Texpand>;
 export type GroupsResponse<Texpand = unknown> = Required<GroupsRecord> &
@@ -163,6 +173,7 @@ export type VotesResponse<Texpand = unknown> = Required<VotesRecord> &
 // Types containing all Records and Responses, useful for creating typing helper functions
 
 export type CollectionRecords = {
+  comments: CommentsRecord;
   group_members: GroupMembersRecord;
   groups: GroupsRecord;
   reviews: ReviewsRecord;
@@ -172,6 +183,7 @@ export type CollectionRecords = {
 };
 
 export type CollectionResponses = {
+  comments: CommentsResponse;
   group_members: GroupMembersResponse;
   groups: GroupsResponse;
   reviews: ReviewsResponse;

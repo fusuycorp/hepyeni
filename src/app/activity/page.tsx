@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Rss, Star } from "lucide-react";
+import { MessageSquare, Rss, Star } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import { MediaBadge } from "@/components/media-badge";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import type {
+  CommentsResponse,
   GroupMembersResponse,
   GroupsResponse,
   ReviewsResponse,
@@ -28,6 +29,14 @@ type ActivityItem =
       kind: "reviewed";
       at: string;
       review: ReviewsResponse<{
+        title?: TitlesResponse<{ group?: GroupsResponse }>;
+        user?: UsersResponse;
+      }>;
+    }
+  | {
+      kind: "commented";
+      at: string;
+      comment: CommentsResponse<{
         title?: TitlesResponse<{ group?: GroupsResponse }>;
         user?: UsersResponse;
       }>;
@@ -74,8 +83,12 @@ export default async function ActivityPage() {
       `(${groupIds.map((_, i) => `title.group = {:g${i}}`).join(" || ")})`,
       filterParams,
     );
+    const commentGroupFilter = pb.filter(
+      `(${groupIds.map((_, i) => `group = {:g${i}}`).join(" || ")})`,
+      filterParams,
+    );
 
-    const [titles, reviews] = await Promise.all([
+    const [titles, reviews, comments] = await Promise.all([
       pb
         .collection("titles")
         .getList<TitlesResponse<{ group?: GroupsResponse; addedBy?: UsersResponse }>>(
@@ -95,6 +108,18 @@ export default async function ActivityPage() {
           expand: "title.group,user",
           sort: "-createdAt",
         }),
+      pb
+        .collection("comments")
+        .getList<
+          CommentsResponse<{
+            title?: TitlesResponse<{ group?: GroupsResponse }>;
+            user?: UsersResponse;
+          }>
+        >(1, 30, {
+          filter: commentGroupFilter,
+          expand: "title.group,user",
+          sort: "-createdAt",
+        }),
     ]);
 
     items = [
@@ -107,6 +132,11 @@ export default async function ActivityPage() {
         kind: "reviewed",
         at: review.createdAt,
         review,
+      })),
+      ...comments.items.map((comment): ActivityItem => ({
+        kind: "commented",
+        at: comment.createdAt,
+        comment,
       })),
     ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   }
@@ -199,74 +229,130 @@ export default async function ActivityPage() {
                     </Card>
                   </Link>
                 );
-              }
+              } else if (item.kind === "reviewed") {
+                const { review } = item;
+                const title = review.expand?.title;
+                const group = title?.expand?.group;
+                const reviewer = review.expand?.user;
+                const reviewerName = reviewer?.name || reviewer?.email || "Üye";
+                const initials = reviewerName.slice(0, 2).toUpperCase();
 
-              const { review } = item;
-              const title = review.expand?.title;
-              const group = title?.expand?.group;
-              const reviewer = review.expand?.user;
-              const reviewerName = reviewer?.name || reviewer?.email || "Üye";
-              const initials = reviewerName.slice(0, 2).toUpperCase();
+                return (
+                  <Link
+                    key={`r-${review.id}`}
+                    href={group ? `/groups/${group.id}` : "#"}
+                    className="group block"
+                  >
+                    <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                      <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
+                        <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
+                          {reviewer?.avatarUrl && <AvatarImage src={reviewer.avatarUrl} alt={reviewerName} />}
+                          <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
 
-              return (
-                <Link
-                  key={`r-${review.id}`}
-                  href={group ? `/groups/${group.id}` : "#"}
-                  className="group block"
-                >
-                  <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
-                    <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
-                      <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
-                        {reviewer?.avatarUrl && <AvatarImage src={reviewer.avatarUrl} alt={reviewerName} />}
-                        <AvatarFallback>{initials}</AvatarFallback>
-                      </Avatar>
-
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="font-semibold text-foreground">{reviewerName}</span>
-                            <span>değerlendirdi:</span>
-                            <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
-                            {group && (
-                              <>
-                                <span>&middot;</span>
-                                <Badge variant="secondary" className="text-[10px] font-medium py-0">
-                                  {group.name}
-                                </Badge>
-                              </>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {formatRelativeTime(review.createdAt)}
-                          </span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-1 text-amber-400">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`size-3.5 ${
-                                  i < review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
-                                }`}
-                              />
-                            ))}
-                            <span className="text-xs font-semibold text-foreground ml-1.5">
-                              {review.rating}.0 / 5.0
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span className="font-semibold text-foreground">{reviewerName}</span>
+                              <span>değerlendirdi:</span>
+                              <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
+                              {group && (
+                                <>
+                                  <span>&middot;</span>
+                                  <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                    {group.name}
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {formatRelativeTime(review.createdAt)}
                             </span>
                           </div>
 
-                          {review.reviewText && (
-                            <p className="text-xs text-muted-foreground leading-relaxed italic">
-                              &ldquo;{review.reviewText}&rdquo;
-                            </p>
-                          )}
+                          <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-1 text-amber-400">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`size-3.5 ${
+                                    i < review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+                                  }`}
+                                />
+                              ))}
+                              <span className="text-xs font-semibold text-foreground ml-1.5">
+                                {review.rating}.0 / 5.0
+                              </span>
+                            </div>
+
+                            {review.reviewText && (
+                              <p className="text-xs text-muted-foreground leading-relaxed italic">
+                                &ldquo;{review.reviewText}&rdquo;
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              } else if (item.kind === "commented") {
+                const { comment } = item;
+                const title = comment.expand?.title;
+                const group = title?.expand?.group;
+                const commenter = comment.expand?.user;
+                const commenterName = commenter?.name || commenter?.email || "Üye";
+                const initials = commenterName.slice(0, 2).toUpperCase();
+
+                return (
+                  <Link
+                    key={`c-${comment.id}`}
+                    href={group ? `/groups/${group.id}` : "#"}
+                    className="group block"
+                  >
+                    <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                      <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
+                        <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
+                          {commenter?.avatarUrl && <AvatarImage src={commenter.avatarUrl} alt={commenterName} />}
+                          <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
+
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span className="font-semibold text-foreground">{commenterName}</span>
+                              <span>yorum yaptı:</span>
+                              <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
+                              {group && (
+                                <>
+                                  <span>&middot;</span>
+                                  <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                    {group.name}
+                                  </Badge>
+                                </>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {formatRelativeTime(comment.createdAt)}
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-1.5 text-primary text-xs font-medium">
+                              <MessageSquare className="size-3.5" />
+                              <span>Yorum</span>
+                            </div>
+                            <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                              {comment.content}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              }
+              return null;
             })}
           </div>
         ) : (

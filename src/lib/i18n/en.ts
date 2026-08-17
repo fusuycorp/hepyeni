@@ -1,6 +1,22 @@
 import type { Translations } from "./types";
 
 export const en: Translations = {
+  metadata: {
+    title: "Titirek — Social Media Tracking & Backlog",
+    description: "Track books, movies, tv, music, and podcasts with your circles.",
+  },
+  comments: {
+    title: "Comments",
+    subtitle: "Share your thoughts about this title",
+    addComment: "Add Comment",
+    placeholder: "Write your thoughts here...",
+    post: "Post",
+    posting: "Posting...",
+    noComments: "No comments yet. Be the first to share your thoughts!",
+    deleteConfirm: "Are you sure you want to delete this comment?",
+    delete: "Delete Comment",
+    count: "comments",
+  },
   common: {
     appName: "Titirek",
     appDescription: "Track books, movies, tv, music, and podcasts with your circles.",

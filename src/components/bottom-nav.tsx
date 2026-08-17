@@ -4,16 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Users, Rss, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const TABS = [
-  { href: "/groups", label: "Gruplar", icon: Users },
-  { href: "/activity", label: "Aktivite", icon: Rss },
-  { href: "/profile", label: "Profil", icon: User },
-] as const;
-
+import { useTranslations } from "@/lib/i18n/client";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslations();
+
+  const tabs = [
+    { href: "/groups", label: t.nav.groups, icon: Users },
+    { href: "/activity", label: t.nav.activity, icon: Rss },
+    { href: "/profile", label: t.nav.profile, icon: User },
+  ];
 
   return (
     <nav
@@ -21,7 +22,7 @@ export function BottomNav() {
       aria-label="Mobile Navigation"
     >
       <div className="mx-auto flex w-full max-w-md items-center justify-around px-2 py-1 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
-        {TABS.map(({ href, label, icon: Icon }) => {
+        {tabs.map(({ href, label, icon: Icon }) => {
           const active =
             pathname === href || (href === "/groups" && pathname.startsWith("/groups") && !pathname.includes("/admin"));
           return (

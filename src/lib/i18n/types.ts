@@ -1,6 +1,22 @@
 export type Locale = "tr" | "en";
 
 export interface Translations {
+  metadata: {
+    title: string;
+    description: string;
+  };
+  comments: {
+    title: string;
+    subtitle: string;
+    addComment: string;
+    placeholder: string;
+    post: string;
+    posting: string;
+    noComments: string;
+    deleteConfirm: string;
+    delete: string;
+    count: string;
+  };
   common: {
     appName: string;
     appDescription: string;

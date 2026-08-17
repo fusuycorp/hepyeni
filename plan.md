@@ -1,96 +1,53 @@
-# Implementation Plan: Turkish Language Support & Third-Party Integration Guide
+# Implementation Plan: Language Toggle Fix, Floating Action Button Fix & Media Comments Feature
 
 ## Objectives
-1. **Production Deployment (`hepyeni.net`)**:
-   - Canonical Domain: `https://hepyeni.net`
-   - Google OAuth2 Authorized Origin: `https://hepyeni.net`
-   - Google OAuth2 Callback URI: `https://hepyeni.net/api/auth/oauth2-callback`
-   - Public Privacy Policy URL: `https://hepyeni.net/privacy`
-   - Public Terms of Service URL: `https://hepyeni.net/terms`
-   - Production Environment Variable: `APP_URL=https://hepyeni.net`
+1. **Fix Language Change Feature**:
+   - Resolve cookie name mismatch (`locale` vs `NEXT_LOCALE`) between `src/components/language-toggle.tsx`, `src/lib/i18n/server.ts`, and `src/lib/i18n/client.tsx`.
+   - Add missing `metadata` fields to `types.ts`, `tr.ts`, `en.ts`.
+   - Connect `LanguageToggle` directly to `useI18n()` context and ensure immediate reactivity on both client and server components via `router.refresh()`.
+   - Complete localized translations across navigation, sidebar, groups, activity, profile, and admin pages.
 
-2. **Privacy Policy & Terms of Service (Legal & OAuth Compliance)**:
-   - Make `/privacy` and `/terms` public in `src/proxy.ts` (bypass login redirects).
-   - Create `src/app/privacy/page.tsx` covering:
-     - Data collection (Name, email, avatar from Google/Apple OAuth or email registration).
-     - Purpose of data processing (Authentication, circle collaboration, media recommendations).
-     - Third-party integrations (Google OAuth, Apple Sign-In, TMDB API, Spotify API, iTunes Podcasts, Google Books).
-     - Data retention & account deletion (Self-service permanent deletion in `/profile`).
-     - Cookie policy (HttpOnly session cookies `pb_session`, PKCE state `pb_oauth_state`).
-     - Contact details for `hepyeni.net`.
-   - Create `src/app/terms/page.tsx` covering:
-     - User accounts & security responsibilities.
-     - Acceptable use & group moderation rules.
-     - Media metadata intellectual property disclaimer (TMDB, Spotify, Google Books).
-     - Limitation of liability & account termination.
-   - Add footer links to `/privacy` and `/terms` across `src/app/login/page.tsx`, `src/app/reset-password/page.tsx`, `src/app/profile/page.tsx`, and sidebar.
+2. **Fix Right-Bottom "Medya Öner" Floating Action Button**:
+   - Resolve Base UI `<DialogTrigger>` prop forwarding bug in `src/components/add-title-dialog.tsx` caused by wrapping the trigger element in a `<React.Fragment>`.
+   - Fix to `render={trigger as React.ReactElement}`.
 
-3. **Turkish Language Support & Language Switcher (i18n)**:
-   - Provide complete, native Turkish translation and localization across all pages, components, toasts, badges, and relative date formatters.
-   - Zero-dependency, type-safe dictionary system (`src/lib/i18n/`).
-   - Add a language selection button (`LanguageToggle`) to header/sidebar/login allowing users to toggle between Turkish and English.
-   - Maintain full test coverage and type-safety (`bun test`, `tsc --noEmit`, `bun run lint`).
-
-4. **UX Enhancements**:
-   - **Login Redirect**: When an already authenticated user accesses `/login`, immediately redirect them to the main page (`/groups`).
-   - **Floating Action Button (FAB)**: Add a floating "Medya Öner" button to the bottom right of the circle detail view (`/groups/[groupId]`).
+3. **Design & Implement Media Comments Feature**:
+   - Allow circle members to comment, discuss, and talk about any recommended media (both proposed and consumed).
+   - Add PocketBase collection migration `pb_migrations/1755280900_comments_schema.js`.
+   - Update `src/types/pocketbase-types.ts` with `CommentsRecord` & `CommentsResponse`.
+   - Implement secure server actions in `src/lib/actions/comments.ts` (`addComment`, `deleteComment`) with membership verification and input boundaries.
+   - Build UI component `src/components/media-comments.tsx` with dialog/collapsible thread, relative timestamping, and deletion controls.
+   - Integrate comments into `group-content-view.tsx` and `activity/page.tsx`.
+   - Add localization strings in `tr.ts` and `en.ts`.
+   - Add automated test suite `tests/comments.test.ts`.
 
 ---
 
-## 1. i18n Architecture Design
+## Technical Specifications & Architecture
 
-### Directory Structure:
-- `src/lib/i18n/types.ts`: TypeScript interface definitions for the entire dictionary structure.
-- `src/lib/i18n/tr.ts`: Full Turkish dictionary.
-- `src/lib/i18n/en.ts`: English dictionary (for fallback/reference).
-- `src/lib/i18n/index.ts`: Dictionary resolver, helper utilities, and relative time formatter (`tr-TR`).
+### 1. Database Schema (`comments`)
+- **Collection**: `comments`
+- **Fields**:
+  - `id`: 15-char string (PK)
+  - `title`: Relation -> `titles.id` (`cascadeDelete: true`)
+  - `user`: Relation -> `users.id` (`cascadeDelete: true`)
+  - `group`: Relation -> `groups.id` (`cascadeDelete: true`)
+  - `content`: Text (Required, max 2000 chars)
+  - `createdAt`: Autodate (`onCreate: true`)
+  - `updatedAt`: Autodate (`onCreate: true`, `onUpdate: true`)
+- **Indexes**: `idx_comments_title_created` on `(title, createdAt)`
 
-### Localization Touchpoints:
-1. **HTML & Metadata**: `src/app/layout.tsx` (`lang="tr"`, metadata title & description in Turkish).
-2. **Navigation & Layout**:
-   - `src/components/layout/desktop-sidebar.tsx`
-   - `src/components/bottom-nav.tsx`
-   - `src/components/layout/app-shell.tsx`
-   - `src/components/theme-toggle.tsx`
-3. **Auth & Profile**:
-   - `src/app/login/page.tsx`
-   - `src/app/reset-password/page.tsx`
-   - `src/app/profile/page.tsx`
-   - `src/components/forgot-password-form.tsx`
-   - `src/components/send-reset-link-button.tsx`
-   - `src/components/update-name-form.tsx`
-4. **Groups / Circles & Media**:
-   - `src/app/groups/page.tsx`
-   - `src/app/groups/[groupId]/page.tsx`
-   - `src/app/groups/[groupId]/group-content-view.tsx`
-   - `src/app/groups/[groupId]/add/page.tsx`
-   - `src/app/groups/[groupId]/add/add-title-form.tsx`
-   - `src/app/groups/[groupId]/settings/page.tsx`
-   - `src/components/group-forms.tsx`
-   - `src/components/review-form.tsx`
-   - `src/components/vote-control.tsx`
-   - `src/components/confirm-action-button.tsx`
-   - `src/components/copy-invite-button.tsx`
-   - `src/components/empty-state.tsx`
-   - `src/components/mark-consumed-button.tsx`
-   - `src/components/media-badge.tsx`
-5. **Activity & Admin**:
-   - `src/app/activity/page.tsx` (Localized relative time: "şimdi", "5 dk önce", "2 saat önce", "3 gün önce")
-   - `src/app/admin/layout.tsx`
-   - `src/app/admin/page.tsx`
-   - `src/app/admin/users/page.tsx`
-   - `src/app/admin/groups/page.tsx`
-   - `src/app/admin/groups/[groupId]/page.tsx`
-6. **Server Actions Messages**:
-   - `src/lib/actions/auth.ts`, `groups.ts`, `titles.ts`, `reviews.ts`, `votes.ts`, `profile.ts`, `admin.ts`.
+### 2. Permissions & Authorization
+- Only members of the circle (`group_members`) can view or post comments on titles in that group.
+- Comment deletion is permitted only by the comment author, circle owner, or platform admin.
+- API rules set to `null` on PocketBase, handled entirely through Next.js server actions using `getSuperuserClient()`.
 
 ---
 
-## 2. Execution Phases
-
-- [ ] **Phase 1**: Create `src/lib/i18n/types.ts`, `tr.ts`, `en.ts`, and `index.ts`.
-- [ ] **Phase 2**: Localize Navigation, Layout, Theme Toggle, AppShell, and Metadata.
-- [ ] **Phase 3**: Localize Auth (Login, Reset Password, Profile) & Action Responses.
-- [ ] **Phase 4**: Localize Groups / Circles, Media Search, Add Title, Reviews, Voting, and Settings.
-- [ ] **Phase 5**: Localize Activity Timeline (with `tr-TR` relative time) and Admin Portal.
-- [ ] **Phase 6**: Run `bun run typecheck`, `bun run lint`, and `bun test` to verify zero errors or regressions.
+## Execution Phases
+- **Phase 1**: Fix Language Toggle and Base UI Dialog Trigger bug.
+- **Phase 2**: Add Database Migration & PocketBase Types for Comments.
+- **Phase 3**: Create Server Actions & Automated Tests for Comments.
+- **Phase 4**: Build Media Comments UI & Integrate with Group View & Activity Feed.
+- **Phase 5**: Complete Full i18n Localization for Comments and UI.
+- **Phase 6**: Verification (`bun test`, `bun run typecheck`, `bun run lint`).

@@ -1,35 +1,19 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-function getLocaleSnapshot(): "tr" | "en" {
-  if (typeof document === "undefined") return "tr";
-  const match = document.cookie.match(/(?:^|;\s*)locale=([^;]+)/);
-  if (match && (match[1] === "en" || match[1] === "tr")) {
-    return match[1];
-  }
-  return "tr";
-}
-
-function getServerSnapshot(): "tr" | "en" {
-  return "tr";
-}
-
-function subscribe(callback: () => void) {
-  window.addEventListener("languagechange", callback);
-  return () => window.removeEventListener("languagechange", callback);
-}
+import { useI18n } from "@/lib/i18n/client";
 
 export function LanguageToggle({ className }: { className?: string }) {
   const router = useRouter();
-  const locale = useSyncExternalStore(subscribe, getLocaleSnapshot, getServerSnapshot);
+  const { locale, setLocale } = useI18n();
 
   function toggleLanguage() {
     const nextLocale = locale === "tr" ? "en" : "tr";
+    setLocale(nextLocale);
     document.cookie = `locale=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
+    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
     document.documentElement.lang = nextLocale;
     window.dispatchEvent(new Event("languagechange"));
     router.refresh();

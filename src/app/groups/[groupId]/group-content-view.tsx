@@ -8,6 +8,7 @@ import { MediaBadge } from "@/components/media-badge";
 import { VoteControl } from "@/components/vote-control";
 import { MarkConsumedButton } from "@/components/mark-consumed-button";
 import { ReviewForm } from "@/components/review-form";
+import { MediaComments } from "@/components/media-comments";
 import { EmptyState } from "@/components/empty-state";
 import { AddTitleDialog } from "@/components/add-title-dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { MEDIA_TYPES } from "@/lib/media-types";
 import { cn } from "@/lib/utils";
 import type {
+  CommentsResponse,
   GroupMembersResponse,
   GroupsResponse,
   ReviewsResponse,
@@ -28,6 +30,7 @@ type TitleWithScore = TitlesResponse<{
   addedBy?: UsersResponse;
   votes_via_title?: VotesResponse[];
   reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
+  comments_via_title?: CommentsResponse<{ user?: UsersResponse }>[];
 }> & {
   score: number;
   userVote?: "up" | "down";
@@ -39,9 +42,13 @@ interface GroupContentViewProps {
   proposed: TitleWithScore[];
   consumed: TitleWithScore[];
   currentUserId: string;
+  currentUserRole?: string;
+  isAdmin?: boolean;
   onVote: (titleId: string, value: "up" | "down") => Promise<void>;
   onMarkConsumed: (titleId: string) => Promise<void>;
   onSubmitReview: (titleId: string, formData: FormData) => Promise<void>;
+  onAddComment?: (titleId: string, formData: FormData) => Promise<void>;
+  onDeleteComment?: (commentId: string) => Promise<void>;
 }
 
 export function GroupContentView({
@@ -50,9 +57,13 @@ export function GroupContentView({
   proposed,
   consumed,
   currentUserId,
+  currentUserRole,
+  isAdmin,
   onVote,
   onMarkConsumed,
   onSubmitReview,
+  onAddComment,
+  onDeleteComment,
 }: GroupContentViewProps) {
   const [activeTab, setActiveTab] = useState<"proposed" | "consumed">("proposed");
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
@@ -204,9 +215,22 @@ export function GroupContentView({
                                 {title.expand?.addedBy?.name || title.expand?.addedBy?.email || "üye"}
                               </span>
                             </p>
-                            <MarkConsumedButton
-                              onMark={() => onMarkConsumed(title.id)}
-                            />
+                            <div className="flex items-center gap-1.5">
+                              <MediaComments
+                                titleId={title.id}
+                                groupId={group.id}
+                                titleName={title.title}
+                                comments={title.expand?.comments_via_title ?? []}
+                                currentUserId={currentUserId}
+                                currentUserRole={currentUserRole}
+                                isAdmin={isAdmin}
+                                onAddComment={onAddComment}
+                                onDeleteComment={onDeleteComment}
+                              />
+                              <MarkConsumedButton
+                                onMark={() => onMarkConsumed(title.id)}
+                              />
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -247,35 +271,48 @@ export function GroupContentView({
                       >
                         <CardContent className="p-4 sm:p-5 space-y-4">
                           {/* Title Header */}
-                          <div className="flex items-start gap-3 sm:gap-4">
-                            <MediaCover
-                              src={title.coverUrl}
-                              alt={title.title}
-                              size="md"
-                              className="shrink-0"
-                            />
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <MediaBadge type={title.mediaType} size="sm" />
-                                {avg !== null && (
-                                  <div className="inline-flex items-center gap-1 text-xs font-semibold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                    <Star className="size-3 fill-amber-500 text-amber-500" />
-                                    <span>{avg.toFixed(1)}</span>
-                                    <span className="text-muted-foreground text-[10px] font-normal">
-                                      ({reviews.length} değerlendirme)
-                                    </span>
-                                  </div>
+                          <div className="flex items-start justify-between gap-3 sm:gap-4">
+                            <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                              <MediaCover
+                                src={title.coverUrl}
+                                alt={title.title}
+                                size="md"
+                                className="shrink-0"
+                              />
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <MediaBadge type={title.mediaType} size="sm" />
+                                  {avg !== null && (
+                                    <div className="inline-flex items-center gap-1 text-xs font-semibold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                      <Star className="size-3 fill-amber-500 text-amber-500" />
+                                      <span>{avg.toFixed(1)}</span>
+                                      <span className="text-muted-foreground text-[10px] font-normal">
+                                        ({reviews.length} değerlendirme)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <h3 className="text-base font-semibold text-foreground tracking-tight leading-snug">
+                                  {title.title}
+                                </h3>
+                                {title.creator && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {title.creator}
+                                  </p>
                                 )}
                               </div>
-                              <h3 className="text-base font-semibold text-foreground tracking-tight leading-snug">
-                                {title.title}
-                              </h3>
-                              {title.creator && (
-                                <p className="text-xs text-muted-foreground">
-                                  {title.creator}
-                                </p>
-                              )}
                             </div>
+                            <MediaComments
+                              titleId={title.id}
+                              groupId={group.id}
+                              titleName={title.title}
+                              comments={title.expand?.comments_via_title ?? []}
+                              currentUserId={currentUserId}
+                              currentUserRole={currentUserRole}
+                              isAdmin={isAdmin}
+                              onAddComment={onAddComment}
+                              onDeleteComment={onDeleteComment}
+                            />
                           </div>
 
                           {/* My Review Section */}

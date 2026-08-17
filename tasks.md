@@ -1,30 +1,29 @@
-# Tasks: Security Hardening, Automated Testing, and Documentation
+# Tasks: Language Fix, FAB Fix, and Media Comments Feature
 
-- [x] **Phase 1: Security & Concurrency Remediations**
-  - [x] 1.1 Update `pb_migrations/1755280800_initial_schema.js` to enable passwordAuth (`users.passwordAuth.enabled = true`).
-  - [x] 1.2 Fix authentication error codes in `src/lib/actions/auth.ts` and `src/app/login/page.tsx` (`InvalidCode`, `InvalidCredentials`, `InvalidPassword`, `EmailInUse`, `AccessDenied`).
-  - [x] 1.3 Fix race condition in `src/lib/actions/votes.ts` by catching `isNotFound` during concurrent vote toggle/delete operations.
-  - [x] 1.4 Prevent orphaned ownerless circles in `src/lib/actions/groups.ts:leaveGroup`.
-  - [x] 1.5 Enforce input length boundaries in `src/lib/actions/reviews.ts`, `profile.ts`, `auth.ts`, and `titles.ts`.
-  - [x] 1.6 Add `AbortSignal.timeout(8000)` to all fetch calls in `src/lib/providers/` (Google Books, TMDB, Spotify, iTunes).
-  - [x] 1.7 Add runtime type and URL protocol guards in `src/lib/actions/titles.ts` and `admin.ts`.
+- [x] **Phase 1: Bug Fixes (Language Toggle & FAB Trigger)**
+  - [x] 1.1 Fix `src/components/add-title-dialog.tsx` Base UI trigger `render` prop forwarding.
+  - [x] 1.2 Fix `src/lib/i18n/server.ts`, `client.tsx`, and `language-toggle.tsx` cookie handling (`NEXT_LOCALE` / `locale`) and synchronization.
+  - [x] 1.3 Add `metadata` property to `src/lib/i18n/types.ts`, `tr.ts`, and `en.ts`.
 
-- [x] **Phase 2: Automated Test Suite**
-  - [x] 2.1 Add `tests/vote-id.test.ts` (deterministic hashing, length, uniqueness).
-  - [x] 2.2 Add `tests/invite-code.test.ts` (charset, length, randomness).
-  - [x] 2.3 Add `tests/media-types.test.ts` (types, labels, runtime guard).
-  - [x] 2.4 Add `tests/membership.test.ts` (mocked IDOR authorization guards).
-  - [x] 2.5 Add `tests/providers.test.ts` (provider normalization, resilience, timeouts).
-  - [x] 2.6 Add `"test": "bun test"` script to `package.json`.
+- [x] **Phase 2: Database Migration & Schema Types for Comments**
+  - [x] 2.1 Create PocketBase migration `pb_migrations/1755280900_comments_schema.js` with cascade deletion and indexing.
+  - [x] 2.2 Add `CommentsRecord` and `CommentsResponse` to `src/types/pocketbase-types.ts`.
 
-- [x] **Phase 3: Documentation & Decision Tracking**
-  - [x] 3.1 Create `DECISIONS.md` recording ADRs (Responsive Shell, Deterministic Hash, Security Hardening, Provider Architecture).
-  - [x] 3.2 Update `README.md` with complete documentation, environment setup, testing guide, and deployment instructions.
-  - [x] 3.3 Update `AGENT_LOG.md` with recent overhaul and security milestones.
+- [x] **Phase 3: Server Actions & Automated Testing**
+  - [x] 3.1 Implement `addComment` and `deleteComment` in `src/lib/actions/comments.ts` with strict input validation and membership authorization.
+  - [x] 3.2 Write automated unit/integration tests in `tests/comments.test.ts`.
 
-- [x] **Phase 4: Verification & Push**
-  - [x] 4.1 Run `bun test` to ensure all tests pass.
-  - [x] 4.2 Run `bun run typecheck` (`tsc --noEmit`).
-  - [x] 4.3 Run `bun run lint` (`eslint`).
-  - [x] 4.4 Run `bun run build` (`next build`).
-  - [x] 4.5 Stage explicitly and git push to `main`.
+- [x] **Phase 4: Media Comments UI & Integration**
+  - [x] 4.1 Create `src/components/media-comments.tsx` with dialog/thread, avatar, relative timestamping, and delete actions.
+  - [x] 4.2 Integrate comments button and dialog in `src/app/groups/[groupId]/group-content-view.tsx` and `page.tsx`.
+  - [x] 4.3 Update `src/app/activity/page.tsx` to include comment events in the activity stream.
+
+- [x] **Phase 5: Localization (i18n) Completion**
+  - [x] 5.1 Add comments dictionary section to `types.ts`, `tr.ts`, and `en.ts`.
+  - [x] 5.2 Integrate `useTranslations` / `getServerTranslations` across UI components (sidebar, bottom-nav, app-shell, dialogs, forms).
+
+- [x] **Phase 6: Verification & QA**
+  - [x] 6.1 Run `bun test` to verify all test suites pass (28/28 tests passing).
+  - [x] 6.2 Run `bun run typecheck` (`tsc --noEmit`) to verify zero type errors.
+  - [x] 6.3 Run `bun run lint` to ensure clean code style.
+  - [x] 6.4 Run `bun run build` (`next build`) to verify optimized production build succeeds.
