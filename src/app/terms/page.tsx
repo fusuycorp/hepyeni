@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookmarkCheck, ArrowLeft, FileText, CheckCircle2, Users, AlertCircle } from "lucide-react";
+import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -25,6 +26,7 @@ export default function TermsOfServicePage() {
           </Link>
 
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <ThemeToggle />
             <Link
               href="/login"

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, BookmarkCheck } from "lucide-react";
 import { DesktopSidebar } from "./desktop-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
+import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -75,8 +76,9 @@ export function AppShell({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {headerActions}
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </header>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BookmarkCheck, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
@@ -23,7 +25,7 @@ import {
   signUpWithPassword,
   verifyEmailCode,
 } from "@/lib/actions/auth";
-import { peekOtpCookie } from "@/lib/pocketbase/session";
+import { getSession, peekOtpCookie } from "@/lib/pocketbase/session";
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "Bu hesap bir yönetici tarafından askıya alınmıştır.",
@@ -44,12 +46,16 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; step?: string; notice?: string }>;
 }) {
+  const session = await getSession();
+  if (session) redirect("/groups");
+
   const { error, step, notice } = await searchParams;
   const otp = step === "code" ? await peekOtpCookie() : null;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-radial from-muted/40 via-background to-background">
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-1">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
 

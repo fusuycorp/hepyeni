@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Users, Rss, User, Shield, LogOut, BookmarkCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,10 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
             </span>
           </div>
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-0.5">
+          <LanguageToggle />
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* Main Nav Links */}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Settings } from "lucide-react";
+import { Settings, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { AddTitleDialog } from "@/components/add-title-dialog";
 import { CopyInviteButton } from "@/components/copy-invite-button";
@@ -173,6 +173,24 @@ export default async function GroupPage({
           onMarkConsumed={handleMarkConsumed}
           onSubmitReview={handleSubmitReview}
         />
+
+        {/* Floating Action Button (Bottom Right FAB) */}
+        <div className="fixed bottom-20 sm:bottom-8 right-5 sm:right-8 z-40">
+          <AddTitleDialog
+            groupId={groupId}
+            groupName={group.name}
+            trigger={
+              <button
+                type="button"
+                className="group flex items-center gap-2 px-4 py-3 sm:px-5 sm:py-3.5 rounded-full bg-primary text-primary-foreground font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring cursor-pointer"
+                aria-label="Medya Öner"
+              >
+                <Plus className="size-4 sm:size-5 transition-transform group-hover:rotate-90" />
+                <span>Medya Öner</span>
+              </button>
+            }
+          />
+        </div>
       </div>
     </AppShell>
   );

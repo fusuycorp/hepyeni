@@ -25,10 +25,15 @@
      - Limitation of liability & account termination.
    - Add footer links to `/privacy` and `/terms` across `src/app/login/page.tsx`, `src/app/reset-password/page.tsx`, `src/app/profile/page.tsx`, and sidebar.
 
-3. **Turkish Language Support (i18n)**:
+3. **Turkish Language Support & Language Switcher (i18n)**:
    - Provide complete, native Turkish translation and localization across all pages, components, toasts, badges, and relative date formatters.
    - Zero-dependency, type-safe dictionary system (`src/lib/i18n/`).
+   - Add a language selection button (`LanguageToggle`) to header/sidebar/login allowing users to toggle between Turkish and English.
    - Maintain full test coverage and type-safety (`bun test`, `tsc --noEmit`, `bun run lint`).
+
+4. **UX Enhancements**:
+   - **Login Redirect**: When an already authenticated user accesses `/login`, immediately redirect them to the main page (`/groups`).
+   - **Floating Action Button (FAB)**: Add a floating "Medya Öner" button to the bottom right of the circle detail view (`/groups/[groupId]`).
 
 ---
 
