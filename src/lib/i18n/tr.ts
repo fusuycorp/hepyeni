@@ -236,7 +236,14 @@ export const tr: Translations = {
     finishedCountLabel: "tamamlanan",
     contentViewAria: "İçerik görünümü",
     emptyBacklogFilteredTitle: "İstek listesinde {type} türünde öğe yok",
+    filterByRecommender: "Önerene göre filtrele",
+    allRecommenders: "Tüm üyeler",
+    myRecommendations: "Benim önerilerim",
+    recommenderLabel: "Öneren",
+    noRecommendationsFilter: "{name} tarafından önerilen medya bulunamadı.",
+    clearFilters: "Filtreleri temizle",
   },
+
   titles: {
     proposeTitle: "Medyayı Arayın ve Önerin",
     proposeSubtitle: "Kitap, film, dizi, müzik veya podcast arayın ve grubunuzun listesine ekleyin.",

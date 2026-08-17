@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { CheckCircle2, Sparkles, Star, Users, Settings } from "lucide-react";
+import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
 import { VoteControl } from "@/components/vote-control";
@@ -85,108 +86,249 @@ export function GroupContentView({
 }: GroupContentViewProps) {
   const [activeTab, setActiveTab] = useState<"proposed" | "consumed">("proposed");
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
+  const [selectedRecommender, setSelectedRecommender] = useState<string>("all");
   const t = useTranslations();
 
-  const filteredProposed = proposed.filter((t) =>
-    selectedMediaType === "all" ? true : t.mediaType === selectedMediaType
-  );
+  const currentList = activeTab === "proposed" ? proposed : consumed;
 
-  const filteredConsumed = consumed.filter((t) =>
-    selectedMediaType === "all" ? true : t.mediaType === selectedMediaType
-  );
+  const recommenderCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of currentList) {
+      if (item.addedBy) {
+        counts[item.addedBy] = (counts[item.addedBy] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [currentList]);
+
+  const recommendersList = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; avatarUrl?: string; count: number }
+    >();
+
+    for (const m of members) {
+      const user = m.expand?.user;
+      const userId = m.user;
+      const count = recommenderCounts[userId] ?? 0;
+      if (count > 0 || userId === currentUserId) {
+        map.set(userId, {
+          id: userId,
+          name: getDisplayName(user),
+          avatarUrl: user?.avatarUrl,
+          count,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [members, recommenderCounts, currentUserId]);
+
+  const filterTitle = (item: TitleWithScore) => {
+    const matchesType =
+      selectedMediaType === "all" ? true : item.mediaType === selectedMediaType;
+    const matchesRecommender =
+      selectedRecommender === "all"
+        ? true
+        : selectedRecommender === "me"
+        ? item.addedBy === currentUserId
+        : item.addedBy === selectedRecommender;
+    return matchesType && matchesRecommender;
+  };
+
+  const filteredProposed = proposed.filter(filterTitle);
+  const filteredConsumed = consumed.filter(filterTitle);
+
+  const isFiltered =
+    selectedMediaType !== "all" || selectedRecommender !== "all";
+
+  const selectedMemberName =
+    selectedRecommender === "me"
+      ? t.groups.myRecommendations
+      : recommendersList.find((r) => r.id === selectedRecommender)?.name ??
+        t.groups.allRecommenders;
 
   return (
     <div className="flex flex-col gap-6">
-      {/* View Switcher & Media Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b">
-        {/* Main Tabs (Up Next vs Consumed) */}
-        <div
-          role="tablist"
-          aria-label={t.groups.contentViewAria}
-          className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
-        >
-          <button
-            type="button"
-            role="tab"
-            id="proposed-tab"
-            aria-selected={activeTab === "proposed"}
-            aria-controls="proposed-panel"
-            onClick={() => setActiveTab("proposed")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
-              activeTab === "proposed"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+      {/* View Switcher & Filters */}
+      <div className="space-y-3 pb-3 border-b">
+        {/* Main Tabs (Up Next vs Consumed) & Media Types */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Tabs */}
+          <div
+            role="tablist"
+            aria-label={t.groups.contentViewAria}
+            className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
           >
-            <Sparkles className="size-3.5 text-primary" />
-            <span>{t.media.upNext}</span>
-            <span className={cn(
-              "px-1.5 py-0.2 rounded-full text-[10px]",
-              activeTab === "proposed" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-            )}>
-              {proposed.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            id="consumed-tab"
-            aria-selected={activeTab === "consumed"}
-            aria-controls="consumed-panel"
-            onClick={() => setActiveTab("consumed")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
-              activeTab === "consumed"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <CheckCircle2 className="size-3.5 text-emerald-500" />
-            <span>{t.media.finished}</span>
-            <span className={cn(
-              "px-1.5 py-0.2 rounded-full text-[10px]",
-              activeTab === "consumed" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"
-            )}>
-              {consumed.length}
-            </span>
-          </button>
-        </div>
-
-        {/* Media Type Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          <button
-            type="button"
-            aria-pressed={selectedMediaType === "all"}
-            onClick={() => setSelectedMediaType("all")}
-            className={cn(
-              "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
-              selectedMediaType === "all"
-                ? "bg-foreground text-background border-foreground font-semibold"
-                : "bg-background text-muted-foreground border-border hover:bg-muted"
-            )}
-          >
-            {t.media.allTypes}
-          </button>
-          {MEDIA_TYPES.map((type) => (
             <button
-              key={type}
               type="button"
-              aria-pressed={selectedMediaType === type}
-              onClick={() => setSelectedMediaType(type)}
+              role="tab"
+              id="proposed-tab"
+              aria-selected={activeTab === "proposed"}
+              aria-controls="proposed-panel"
+              onClick={() => setActiveTab("proposed")}
               className={cn(
-                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap flex items-center gap-1",
-                selectedMediaType === type
+                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                activeTab === "proposed"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Sparkles className="size-3.5 text-primary" />
+              <span>{t.media.upNext}</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px]",
+                  activeTab === "proposed"
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {proposed.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              id="consumed-tab"
+              aria-selected={activeTab === "consumed"}
+              aria-controls="consumed-panel"
+              onClick={() => setActiveTab("consumed")}
+              className={cn(
+                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                activeTab === "consumed"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              <span>{t.media.finished}</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px]",
+                  activeTab === "consumed"
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {consumed.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Media Type Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            <button
+              type="button"
+              aria-pressed={selectedMediaType === "all"}
+              onClick={() => setSelectedMediaType("all")}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                selectedMediaType === "all"
                   ? "bg-foreground text-background border-foreground font-semibold"
                   : "bg-background text-muted-foreground border-border hover:bg-muted"
               )}
             >
-              <MediaBadge type={type} size="sm" showIcon={false} className="border-0 bg-transparent p-0" />
+              {t.media.allTypes}
             </button>
-          ))}
+            {MEDIA_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                aria-pressed={selectedMediaType === type}
+                onClick={() => setSelectedMediaType(type)}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap flex items-center gap-1",
+                  selectedMediaType === type
+                    ? "bg-foreground text-background border-foreground font-semibold"
+                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                )}
+              >
+                <MediaBadge
+                  type={type}
+                  size="sm"
+                  showIcon={false}
+                  className="border-0 bg-transparent p-0"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Secondary Filter: Recommender / Member Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs pt-1">
+          <div className="flex items-center gap-1 text-muted-foreground font-medium shrink-0 pr-1">
+            <User className="size-3.5" />
+            <span className="hidden sm:inline">{t.groups.recommenderLabel}:</span>
+          </div>
+
+          <button
+            type="button"
+            aria-pressed={selectedRecommender === "all"}
+            onClick={() => setSelectedRecommender("all")}
+            className={cn(
+              "px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+              selectedRecommender === "all"
+                ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
+                : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+            )}
+          >
+            {t.groups.allRecommenders}
+          </button>
+
+          {recommendersList.map((rec) => {
+            const isMe = rec.id === currentUserId;
+            const isSelected =
+              selectedRecommender === rec.id ||
+              (isMe && selectedRecommender === "me");
+            return (
+              <button
+                key={rec.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() =>
+                  setSelectedRecommender(isSelected ? "all" : rec.id)
+                }
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
+                    : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <span>{isMe ? t.groups.myRecommendations : rec.name}</span>
+                {rec.count > 0 && (
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      isSelected
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {rec.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMediaType("all");
+                setSelectedRecommender("all");
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap ml-auto"
+            >
+              <X className="size-3" />
+              <span>{t.groups.clearFilters}</span>
+            </button>
+          )}
         </div>
       </div>
+
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -276,25 +418,55 @@ export function GroupContentView({
                 </div>
               ) : (
                 <EmptyState
-                  icon={Sparkles}
+                  icon={isFiltered ? Filter : Sparkles}
                   title={
-                    selectedMediaType === "all"
-                      ? t.groups.emptyBacklogTitle
-                      : t.groups.emptyBacklogFilteredTitle.replace(
-                          "{type}",
-                          t.media[selectedMediaType as keyof typeof t.media] ?? selectedMediaType
-                        )
+                    isFiltered
+                      ? selectedRecommender !== "all"
+                        ? t.groups.noRecommendationsFilter.replace(
+                            "{name}",
+                            selectedMemberName
+                          )
+                        : t.groups.emptyBacklogFilteredTitle.replace(
+                            "{type}",
+                            t.media[selectedMediaType as keyof typeof t.media] ??
+                              selectedMediaType
+                          )
+                      : t.groups.emptyBacklogTitle
                   }
-                  description={t.groups.emptyBacklogDesc}
+                  description={
+                    isFiltered
+                      ? t.titles.cantFindMediaDesc
+                      : t.groups.emptyBacklogDesc
+                  }
                   action={
-                    <div className="mt-2">
-                      <AddTitleDialog groupId={group.id} groupName={group.name} />
-                    </div>
+                    isFiltered ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 gap-1.5 font-medium"
+                        onClick={() => {
+                          setSelectedMediaType("all");
+                          setSelectedRecommender("all");
+                        }}
+                      >
+                        <X className="size-3.5" />
+                        <span>{t.groups.clearFilters}</span>
+                      </Button>
+                    ) : (
+                      <div className="mt-2">
+                        <AddTitleDialog
+                          groupId={group.id}
+                          groupName={group.name}
+                        />
+                      </div>
+                    )
                   }
                 />
               )}
             </div>
           )}
+
 
           {activeTab === "consumed" && (
             <div id="consumed-panel" role="tabpanel" aria-labelledby="consumed-tab">
@@ -421,13 +593,48 @@ export function GroupContentView({
                 </div>
               ) : (
                 <EmptyState
-                  icon={CheckCircle2}
-                  title={t.groups.emptyFinishedTitle}
-                  description={t.groups.emptyFinishedDesc}
+                  icon={isFiltered ? Filter : CheckCircle2}
+                  title={
+                    isFiltered
+                      ? selectedRecommender !== "all"
+                        ? t.groups.noRecommendationsFilter.replace(
+                            "{name}",
+                            selectedMemberName
+                          )
+                        : t.groups.emptyBacklogFilteredTitle.replace(
+                            "{type}",
+                            t.media[selectedMediaType as keyof typeof t.media] ??
+                              selectedMediaType
+                          )
+                      : t.groups.emptyFinishedTitle
+                  }
+                  description={
+                    isFiltered
+                      ? t.titles.cantFindMediaDesc
+                      : t.groups.emptyFinishedDesc
+                  }
+                  action={
+                    isFiltered ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 gap-1.5 font-medium"
+                        onClick={() => {
+                          setSelectedMediaType("all");
+                          setSelectedRecommender("all");
+                        }}
+                      >
+                        <X className="size-3.5" />
+                        <span>{t.groups.clearFilters}</span>
+                      </Button>
+                    ) : undefined
+                  }
                 />
               )}
             </div>
           )}
+
         </div>
 
         {/* Right 1 Col: Group Info & Members Sidebar */}

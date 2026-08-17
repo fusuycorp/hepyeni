@@ -1,11 +1,11 @@
 # Repository Map
 
-Total mapped files: 144
+Total mapped files: 145
 
-- `.agents/activity.jsonl` (7655 B)
+- `.agents/activity.jsonl` (8136 B)
 - `.agents/decisions.md` (7222 B)
 - `.agents/memory.md` (4619 B)
-- `.agents/repo_map.md` (15156 B)
+- `.agents/repo_map.md` (15263 B)
 - `.claude/RESUME.md` (694 B)
 - `.dockerignore` (58 B)
 - `.env.example` (738 B)
@@ -118,13 +118,13 @@ Total mapped files: 144
     * const pb
     * const userRecord
     * const currentUser
-- `src/app/groups/[groupId]/group-content-view.tsx` (22754 B)
+- `src/app/groups/[groupId]/group-content-view.tsx` (30555 B)
     * type TitleWithScore
     * interface GroupContentViewProps
     * export function GroupContentView
     * const t
-    * const filteredProposed
-    * const filteredConsumed
+    * const currentList
+    * const recommenderCounts
 - `src/app/groups/[groupId]/page.tsx` (8270 B)
     * type TitleExpand
     * const session
@@ -426,7 +426,7 @@ Total mapped files: 144
     * const t
     * const setLocale
     * export function useI18n
-- `src/lib/i18n/en.ts` (17794 B)
+- `src/lib/i18n/en.ts` (18069 B)
     * export const en
 - `src/lib/i18n/index.ts` (1744 B)
     * const dictionaries
@@ -440,9 +440,9 @@ Total mapped files: 144
     * const localeCookie
     * const locale
     * const locale
-- `src/lib/i18n/tr.ts` (19620 B)
+- `src/lib/i18n/tr.ts` (19907 B)
     * export const tr
-- `src/lib/i18n/types.ts` (10597 B)
+- `src/lib/i18n/types.ts` (10785 B)
     * export type Locale
     * export interface Translations
 - `src/lib/invite-code.ts` (263 B)
@@ -561,6 +561,13 @@ Total mapped files: 144
     * const bookProvider
     * const bookResults
     * const musicProvider
+- `tests/recommender-filter.test.ts` (2428 B)
+    * const filterKeys
+    * const mockTitles
+    * const currentUserId
+    * const filterTitles
+    * const matchesType
+    * const matchesRecommender
 - `tests/vote-id.test.ts` (1142 B)
     * const id
     * const id1

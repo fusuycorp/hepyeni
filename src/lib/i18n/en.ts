@@ -235,8 +235,16 @@ export const en: Translations = {
     pendingCountLabel: "pending",
     finishedCountLabel: "finished",
     contentViewAria: "Content view",
+
     emptyBacklogFilteredTitle: "No {type} items in the backlog",
+    filterByRecommender: "Filter by recommender",
+    allRecommenders: "All members",
+    myRecommendations: "My recommendations",
+    recommenderLabel: "Recommender",
+    noRecommendationsFilter: "No recommendations found from {name}.",
+    clearFilters: "Clear filters",
   },
+
   titles: {
     proposeTitle: "Search & Propose Media",
     proposeSubtitle: "Search for books, movies, TV shows, music, or podcasts to add to your circle.",

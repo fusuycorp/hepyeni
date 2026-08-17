@@ -236,7 +236,15 @@ export interface Translations {
     finishedCountLabel: string;
     contentViewAria: string;
     emptyBacklogFilteredTitle: string;
+
+    filterByRecommender: string;
+    allRecommenders: string;
+    myRecommendations: string;
+    recommenderLabel: string;
+    noRecommendationsFilter: string;
+    clearFilters: string;
   };
+
   titles: {
     proposeTitle: string;
     proposeSubtitle: string;
