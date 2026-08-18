@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MediaBadge } from "@/components/media-badge";
 import { CopyInviteButton } from "@/components/copy-invite-button";
+import { SpoilerText } from "@/components/spoiler-text";
 import {
   adminDeleteReview,
   adminDeleteTitle,
@@ -161,8 +162,8 @@ export default async function AdminGroupDetailPage({
                                 </span>
                                 <span className="text-amber-500 font-semibold">★ {review.rating}</span>
                                 {review.reviewText && (
-                                  <span className="text-muted-foreground italic truncate max-w-xs">
-                                    &ldquo;{review.reviewText}&rdquo;
+                                  <span className="text-muted-foreground italic max-w-xs">
+                                    &ldquo;<SpoilerText text={review.reviewText} />&rdquo;
                                   </span>
                                 )}
                               </div>

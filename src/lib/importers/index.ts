@@ -1,0 +1,284 @@
+import { getField, normalizeHeaderKey, parseCsvToTable, parseSafeDate } from "./csv-parser";
+import { parseGoodreadsCsv } from "./goodreads";
+import { parseLetterboxdCsv } from "./letterboxd";
+import { parseStoryGraphCsv } from "./storygraph";
+import type { ImportSource, NormalizedImportItem, ParseResult } from "./types";
+import type {
+  TitlesMediaTypeOptions,
+  UserMediaProgressStatusOptions,
+  UserMediaProgressUnitOptions,
+} from "@/types/pocketbase-types";
+
+export * from "./types";
+export * from "./csv-parser";
+export * from "./goodreads";
+export * from "./letterboxd";
+export * from "./storygraph";
+
+export function detectImportSource(
+  content: string,
+  filename?: string,
+): { source: ImportSource; parsedTable?: ReturnType<typeof parseCsvToTable> } {
+  const trimmed = content.trim();
+  const lowerFilename = (filename || "").toLowerCase();
+
+  // 1. Check for JSON
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed) || (parsed && typeof parsed === "object" && "items" in parsed)) {
+        return { source: "titirek_json" };
+      }
+    } catch {
+      // Not valid JSON, fall through to CSV
+    }
+  }
+
+  // 2. Parse CSV headers
+  const table = parseCsvToTable(content);
+  const normHeaders = new Set(table.normalizedHeaders);
+
+  // Goodreads signature
+  if (normHeaders.has("bookid") || (normHeaders.has("exclusiveshelf") && normHeaders.has("myrating"))) {
+    return { source: "goodreads", parsedTable: table };
+  }
+
+  // Letterboxd signature
+  if (
+    normHeaders.has("letterboxduri") ||
+    normHeaders.has("watcheddate") ||
+    lowerFilename.includes("letterboxd") ||
+    lowerFilename.endsWith("diary.csv") ||
+    lowerFilename.endsWith("watchlist.csv") ||
+    lowerFilename.endsWith("watched.csv")
+  ) {
+    return { source: "letterboxd", parsedTable: table };
+  }
+
+  // StoryGraph signature
+  if (
+    normHeaders.has("readstatus") ||
+    normHeaders.has("starrating") ||
+    normHeaders.has("lastdateread") ||
+    lowerFilename.includes("storygraph")
+  ) {
+    return { source: "storygraph", parsedTable: table };
+  }
+
+  return { source: "generic_csv", parsedTable: table };
+}
+
+function parseGenericCsv(content: string): NormalizedImportItem[] {
+  const table = parseCsvToTable(content);
+  const items: NormalizedImportItem[] = [];
+
+  const validMediaTypes = new Set(["book", "movie", "tv", "music", "podcast"]);
+  const validStatuses = new Set([
+    "in_progress",
+    "completed",
+    "plan_to_consume",
+    "on_hold",
+    "dropped",
+  ]);
+  const validUnits = new Set(["pages", "chapters", "episodes", "percent", "minutes"]);
+
+  for (const row of table.rows) {
+    const rawTitle = getField(row, "Title", "Name", "title", "name");
+    if (!rawTitle) continue;
+
+    const creator = getField(
+      row,
+      "Creator",
+      "Author",
+      "Director",
+      "Artist",
+      "creator",
+      "author",
+      "director",
+      "artist",
+    );
+
+    const rawMediaType = (
+      getField(row, "Media Type", "MediaType", "Type", "mediatype", "type") || "book"
+    ).toLowerCase();
+    const mediaType: TitlesMediaTypeOptions = validMediaTypes.has(rawMediaType)
+      ? (rawMediaType as TitlesMediaTypeOptions)
+      : "book";
+
+    const rawStatus = (
+      getField(row, "Status", "status", "State", "state") || "plan_to_consume"
+    ).toLowerCase().replace(/\s+/g, "_");
+    const status: UserMediaProgressStatusOptions = validStatuses.has(rawStatus)
+      ? (rawStatus as UserMediaProgressStatusOptions)
+      : "plan_to_consume";
+
+    const rawRating = getField(row, "Rating", "Score", "rating", "score");
+    const numRating = rawRating ? parseInt(rawRating, 10) : 0;
+    const rating = numRating >= 1 && numRating <= 5 ? numRating : undefined;
+
+    const rawProgressCurrent = getField(
+      row,
+      "Progress Current",
+      "ProgressCurrent",
+      "Current",
+      "progresscurrent",
+    );
+    const progressCurrent = rawProgressCurrent ? parseInt(rawProgressCurrent, 10) : undefined;
+
+    const rawProgressTotal = getField(
+      row,
+      "Progress Total",
+      "ProgressTotal",
+      "Total",
+      "Pages",
+      "progresstotal",
+    );
+    const progressTotal = rawProgressTotal ? parseInt(rawProgressTotal, 10) : undefined;
+
+    const rawUnit = (
+      getField(row, "Progress Unit", "ProgressUnit", "Unit", "progressunit", "unit") || ""
+    ).toLowerCase();
+    const progressUnit: UserMediaProgressUnitOptions | undefined = validUnits.has(rawUnit)
+      ? (rawUnit as UserMediaProgressUnitOptions)
+      : undefined;
+
+    const notes = getField(row, "Notes", "Review", "Comment", "notes", "review", "comment");
+    const dateAdded = parseSafeDate(
+      getField(row, "Started At", "Date Added", "Created At", "dateadded", "startedat", "createdat"),
+    );
+    const dateFinished = parseSafeDate(
+      getField(
+        row,
+        "Completed At",
+        "Date Finished",
+        "Date Read",
+        "datefinished",
+        "completedat",
+        "dateread",
+      ),
+    );
+
+    items.push({
+      title: rawTitle,
+      creator,
+      mediaType,
+      status,
+      rating,
+      progressCurrent: progressCurrent && !isNaN(progressCurrent) ? progressCurrent : undefined,
+      progressTotal: progressTotal && !isNaN(progressTotal) ? progressTotal : undefined,
+      progressUnit,
+      notes,
+      dateAdded,
+      dateFinished,
+      externalSource: getField(row, "External Source", "externalsource"),
+      externalId: getField(row, "External Id", "externalid"),
+    });
+  }
+
+  return items;
+}
+
+function parseTitirekJson(content: string): NormalizedImportItem[] {
+  const parsed = JSON.parse(content);
+  const rawList: Record<string, unknown>[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.items)
+    ? parsed.items
+    : [];
+
+  const items: NormalizedImportItem[] = [];
+  const validMediaTypes = new Set(["book", "movie", "tv", "music", "podcast"]);
+  const validStatuses = new Set([
+    "in_progress",
+    "completed",
+    "plan_to_consume",
+    "on_hold",
+    "dropped",
+  ]);
+  const validUnits = new Set(["pages", "chapters", "episodes", "percent", "minutes"]);
+
+  for (const raw of rawList) {
+    if (!raw || typeof raw !== "object") continue;
+    const title = typeof raw.title === "string" ? raw.title.trim() : "";
+    if (!title) continue;
+
+    const mediaType =
+      typeof raw.mediaType === "string" && validMediaTypes.has(raw.mediaType)
+        ? (raw.mediaType as TitlesMediaTypeOptions)
+        : "book";
+
+    const status =
+      typeof raw.status === "string" && validStatuses.has(raw.status)
+        ? (raw.status as UserMediaProgressStatusOptions)
+        : "plan_to_consume";
+
+    const rating =
+      typeof raw.rating === "number" && raw.rating >= 1 && raw.rating <= 5
+        ? raw.rating
+        : undefined;
+
+    const progressUnit =
+      typeof raw.progressUnit === "string" && validUnits.has(raw.progressUnit)
+        ? (raw.progressUnit as UserMediaProgressUnitOptions)
+        : undefined;
+
+    items.push({
+      title,
+      creator: typeof raw.creator === "string" ? raw.creator : undefined,
+      mediaType,
+      status,
+      rating,
+      progressCurrent: typeof raw.progressCurrent === "number" ? raw.progressCurrent : undefined,
+      progressTotal: typeof raw.progressTotal === "number" ? raw.progressTotal : undefined,
+      progressUnit,
+      currentLabel: typeof raw.currentLabel === "string" ? raw.currentLabel : undefined,
+      notes: typeof raw.notes === "string" ? raw.notes : undefined,
+      dateAdded: typeof raw.startedAt === "string" ? raw.startedAt : undefined,
+      dateFinished: typeof raw.completedAt === "string" ? raw.completedAt : undefined,
+      externalSource: typeof raw.externalSource === "string" ? raw.externalSource : undefined,
+      externalId: typeof raw.externalId === "string" ? raw.externalId : undefined,
+    });
+  }
+
+  return items;
+}
+
+export function parseImportFile(content: string, filename?: string): ParseResult {
+  const errors: string[] = [];
+  if (!content || !content.trim()) {
+    return { source: "generic_csv", items: [], errors: ["Dosya boş."] };
+  }
+
+  try {
+    const { source } = detectImportSource(content, filename);
+
+    let items: NormalizedImportItem[] = [];
+    switch (source) {
+      case "goodreads":
+        items = parseGoodreadsCsv(content);
+        break;
+      case "letterboxd":
+        items = parseLetterboxdCsv(content, filename);
+        break;
+      case "storygraph":
+        items = parseStoryGraphCsv(content);
+        break;
+      case "titirek_json":
+        items = parseTitirekJson(content);
+        break;
+      case "generic_csv":
+      default:
+        items = parseGenericCsv(content);
+        break;
+    }
+
+    if (items.length === 0) {
+      errors.push("Dosyada içe aktarılabilecek geçerli kayıt bulunamadı.");
+    }
+
+    return { source, items, errors };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Dosya ayrıştırılırken hata oluştu.";
+    return { source: "generic_csv", items: [], errors: [msg] };
+  }
+}

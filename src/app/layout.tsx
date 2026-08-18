@@ -4,6 +4,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getLocale, getServerTranslations } from "@/lib/i18n/server";
+import { FeatureFlagsProvider } from "@/lib/flags/client";
+import { getFeatureFlags } from "@/lib/flags/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +32,10 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const locale = await getLocale();
+  const [locale, flags] = await Promise.all([
+    getLocale(),
+    getFeatureFlags(),
+  ]);
 
   return (
     <html
@@ -53,7 +58,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           disableTransitionOnChange
         >
           <I18nProvider initialLocale={locale}>
-            {children}
+            <FeatureFlagsProvider initialFlags={flags}>
+              {children}
+            </FeatureFlagsProvider>
           </I18nProvider>
           <Toaster />
         </ThemeProvider>

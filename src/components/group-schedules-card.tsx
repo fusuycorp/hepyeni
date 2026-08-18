@@ -9,6 +9,7 @@ import {
   Clock,
   ChevronRight,
   Flag,
+  Flame,
   Loader2,
   Sparkles,
 } from "lucide-react";
@@ -38,11 +39,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MilestoneCampfireDialog } from "@/components/milestone-campfire-dialog";
 import {
   createGroupSchedule,
   deleteGroupSchedule,
   toggleMilestoneCheckin,
   type GroupScheduleWithMilestones,
+  type MilestoneWithCheckins,
 } from "@/lib/actions/schedules";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/client";
@@ -70,6 +73,10 @@ export function GroupSchedulesCard({
   const [isPending, startTransition] = useTransition();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const [campfireMilestone, setCampfireMilestone] = useState<{
+    milestone: MilestoneWithCheckins;
+    scheduleName: string;
+  } | null>(null);
 
   // Form State
   const [name, setName] = useState("");
@@ -494,8 +501,39 @@ export function GroupSchedulesCard({
                             </div>
                           </div>
 
-                          {/* Member check-in avatars & progress bar */}
-                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                          {/* Campfire Discussion Button & Member check-in avatars / progress */}
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              onClick={() =>
+                                setCampfireMilestone({
+                                  milestone: m,
+                                  scheduleName: schedule.name,
+                                })
+                              }
+                              className={cn(
+                                "h-7 px-2 gap-1.5 text-xs rounded-lg transition-colors font-medium",
+                                m.hasCheckedIn
+                                  ? "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                              )}
+                              title={t.campfires.openCampfire}
+                            >
+                              <Flame
+                                className={cn(
+                                  "size-3.5",
+                                  m.hasCheckedIn
+                                    ? "text-amber-500 fill-amber-500/20"
+                                    : "text-muted-foreground",
+                                )}
+                              />
+                              <span>
+                                {m.commentCount > 0 ? m.commentCount : t.campfires.openCampfire}
+                              </span>
+                            </Button>
+
                             <div className="flex -space-x-1.5 overflow-hidden">
                               {m.checkins.slice(0, 4).map((c) => (
                                 <Avatar key={c.id} className="size-5 border border-background">
@@ -512,7 +550,7 @@ export function GroupSchedulesCard({
                               )}
                             </div>
 
-                            <div className="text-right min-w-[50px]">
+                            <div className="text-right min-w-[45px]">
                               <span className="text-[10px] font-semibold text-foreground">
                                 %{completionRate}
                               </span>
@@ -531,6 +569,32 @@ export function GroupSchedulesCard({
           )}
         </CardContent>
       </Card>
+
+      {/* Milestone Campfire Discussion Dialog */}
+      <MilestoneCampfireDialog
+        open={Boolean(campfireMilestone)}
+        onOpenChange={(open) => !open && setCampfireMilestone(null)}
+        milestone={campfireMilestone?.milestone ?? null}
+        scheduleName={campfireMilestone?.scheduleName}
+        groupId={groupId}
+        isMember={isMember}
+        onCheckinToggle={(milestoneId) => {
+          if (campfireMilestone) {
+            handleToggleCheckin(milestoneId, "");
+            setCampfireMilestone((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    milestone: {
+                      ...prev.milestone,
+                      hasCheckedIn: !prev.milestone.hasCheckedIn,
+                    },
+                  }
+                : null,
+            );
+          }
+        }}
+      />
 
       {/* Accessible Base UI AlertDialog for Deletion Confirmation */}
       <AlertDialog open={!!scheduleToDelete} onOpenChange={(open) => !open && setScheduleToDelete(null)}>

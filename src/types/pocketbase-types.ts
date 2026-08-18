@@ -31,6 +31,7 @@ export const Collections = {
   GroupSchedules: "group_schedules",
   ScheduleMilestones: "schedule_milestones",
   MilestoneCheckins: "milestone_checkins",
+  MilestoneComments: "milestone_comments",
 } as const;
 export type Collections = (typeof Collections)[keyof typeof Collections];
 
@@ -254,6 +255,15 @@ export type MilestoneCheckinsRecord = {
   completedAt: IsoAutoDateString;
 };
 
+export type MilestoneCommentsRecord = {
+  milestone: RecordIdString;
+  user: RecordIdString;
+  group: RecordIdString;
+  content: string;
+  isSpoiler?: boolean;
+  createdAt: IsoAutoDateString;
+};
+
 // Response types include system fields and match responses from the PocketBase API
 export type CommentsResponse<Texpand = unknown> =
   Required<CommentsRecord> & BaseSystemFields<Texpand>;
@@ -277,6 +287,8 @@ export type ScheduleMilestonesResponse<Texpand = unknown> =
   Required<ScheduleMilestonesRecord> & BaseSystemFields<Texpand>;
 export type MilestoneCheckinsResponse<Texpand = unknown> =
   Required<MilestoneCheckinsRecord> & BaseSystemFields<Texpand>;
+export type MilestoneCommentsResponse<Texpand = unknown> =
+  Required<MilestoneCommentsRecord> & BaseSystemFields<Texpand>;
 
 // Types containing all Records and Responses, useful for creating typing helper functions
 
@@ -292,6 +304,7 @@ export type CollectionRecords = {
   group_schedules: GroupSchedulesRecord;
   schedule_milestones: ScheduleMilestonesRecord;
   milestone_checkins: MilestoneCheckinsRecord;
+  milestone_comments: MilestoneCommentsRecord;
 };
 
 export type CollectionResponses = {
@@ -306,6 +319,7 @@ export type CollectionResponses = {
   group_schedules: GroupSchedulesResponse;
   schedule_milestones: ScheduleMilestonesResponse;
   milestone_checkins: MilestoneCheckinsResponse;
+  milestone_comments: MilestoneCommentsResponse;
 };
 
 // Type for usage with a type-asserted PocketBase instance

@@ -17,6 +17,7 @@ import type {
   GroupSchedulesResponse,
   GroupSchedulesStatusOptions,
   MilestoneCheckinsResponse,
+  MilestoneCommentsResponse,
   ScheduleMilestonesRecord,
   ScheduleMilestonesResponse,
   TitlesResponse,
@@ -24,6 +25,30 @@ import type {
 } from "@/types/pocketbase-types";
 
 export type { ActionResult };
+
+export interface MilestoneCommentItem {
+  id: string;
+  milestone: string;
+  user: string;
+  group: string;
+  content?: string;
+  isSpoiler?: boolean;
+  createdAt: string;
+  isLocked?: boolean;
+  author?: {
+    id: string;
+    name?: string;
+    email?: string;
+    avatarUrl?: string;
+  };
+}
+
+export interface MilestoneCommentsResult {
+  comments: MilestoneCommentItem[];
+  isLocked: boolean;
+  lockedCount: number;
+  hasCheckedIn: boolean;
+}
 
 function toIsoDate(val?: string | null): string | null {
   if (!val || typeof val !== "string" || !val.trim()) return null;
@@ -61,6 +86,7 @@ export interface CreateGroupScheduleInput {
 export interface MilestoneWithCheckins extends ScheduleMilestonesResponse {
   checkins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[];
   hasCheckedIn: boolean;
+  commentCount: number;
 }
 
 export interface GroupScheduleWithMilestones extends GroupSchedulesResponse {
@@ -105,13 +131,20 @@ export async function getGroupSchedules(
 
     // Fetch all checkins for these milestones
     let allCheckins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[] = [];
+    let allComments: MilestoneCommentsResponse[] = [];
     if (milestoneIds.length > 0) {
-      allCheckins = await pb
-        .collection("milestone_checkins")
-        .getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
-          filter: milestoneIds.map((id) => `milestone = "${id}"`).join(" || "),
+      const milestoneFilter = milestoneIds.map((id) => `milestone = "${id}"`).join(" || ");
+      const [checkinsRes, commentsRes] = await Promise.all([
+        pb.collection("milestone_checkins").getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
+          filter: milestoneFilter,
           expand: "user",
-        });
+        }),
+        pb.collection("milestone_comments").getFullList<MilestoneCommentsResponse>({
+          filter: milestoneFilter,
+        }),
+      ]);
+      allCheckins = checkinsRes;
+      allComments = commentsRes;
     }
 
     const checkinsByMilestone = new Map<
@@ -124,18 +157,26 @@ export async function getGroupSchedules(
       checkinsByMilestone.set(c.milestone, list);
     }
 
+    const commentCountsByMilestone = new Map<string, number>();
+    for (const comment of allComments) {
+      const count = commentCountsByMilestone.get(comment.milestone) || 0;
+      commentCountsByMilestone.set(comment.milestone, count + 1);
+    }
+
     const milestonesBySchedule = new Map<string, MilestoneWithCheckins[]>();
     for (const m of allMilestones) {
       const checkins = checkinsByMilestone.get(m.id) || [];
       const hasCheckedIn = session?.id
         ? checkins.some((c) => c.user === session.id)
         : false;
+      const commentCount = commentCountsByMilestone.get(m.id) || 0;
 
       const list = milestonesBySchedule.get(m.schedule) || [];
       list.push({
         ...m,
         checkins,
         hasCheckedIn,
+        commentCount,
       });
       milestonesBySchedule.set(m.schedule, list);
     }
@@ -327,5 +368,224 @@ export async function toggleMilestoneCheckin(
   } catch (err) {
     const diag = logDiagnostic(err, { action: "toggleMilestoneCheckin", milestoneId, groupId });
     return { success: false, error: "Kontrol noktası güncellenemedi.", traceId: diag.traceId };
+  }
+}
+
+export async function getMilestoneComments(
+  milestoneId: string,
+  groupId: string,
+): Promise<ActionResult<MilestoneCommentsResult>> {
+  const session = await getSession();
+  try {
+    const access = await resolveCircleAccess(groupId, session?.id);
+    if (!access.isMember && !access.group.isPublic) {
+      return { success: false, error: "Bu çembere erişim yetkiniz bulunmuyor." };
+    }
+
+    await requireMilestoneInGroup(milestoneId, groupId);
+    const pb = await getSuperuserClient();
+
+    let hasCheckedIn = false;
+    if (session?.id) {
+      const checkin = await pb
+        .collection("milestone_checkins")
+        .getFirstListItem<MilestoneCheckinsResponse>(
+          pb.filter("milestone = {:milestoneId} && user = {:userId}", {
+            milestoneId,
+            userId: session.id,
+          }),
+        )
+        .catch(() => null);
+      hasCheckedIn = Boolean(checkin);
+    }
+
+    const records = await pb
+      .collection("milestone_comments")
+      .getFullList<MilestoneCommentsResponse<{ user?: UsersResponse }>>({
+        filter: pb.filter("milestone = {:milestoneId}", { milestoneId }),
+        expand: "user",
+        sort: "createdAt",
+      });
+
+    if (!hasCheckedIn) {
+      // Redact comment bodies to protect user from spoilers before checkin
+      const redactedComments: MilestoneCommentItem[] = records.map((c) => ({
+        id: c.id,
+        milestone: c.milestone,
+        user: c.user,
+        group: c.group,
+        isSpoiler: c.isSpoiler,
+        createdAt: c.createdAt,
+        isLocked: true,
+        author: c.expand?.user
+          ? {
+              id: c.expand.user.id,
+              name: c.expand.user.name,
+              email: c.expand.user.email,
+              avatarUrl: c.expand.user.avatarUrl,
+            }
+          : undefined,
+      }));
+
+      return {
+        success: true,
+        data: {
+          comments: redactedComments,
+          isLocked: true,
+          lockedCount: records.length,
+          hasCheckedIn: false,
+        },
+      };
+    }
+
+    const fullComments: MilestoneCommentItem[] = records.map((c) => ({
+      id: c.id,
+      milestone: c.milestone,
+      user: c.user,
+      group: c.group,
+      content: c.content,
+      isSpoiler: c.isSpoiler,
+      createdAt: c.createdAt,
+      isLocked: false,
+      author: c.expand?.user
+        ? {
+            id: c.expand.user.id,
+            name: c.expand.user.name,
+            email: c.expand.user.email,
+            avatarUrl: c.expand.user.avatarUrl,
+          }
+        : undefined,
+    }));
+
+    return {
+      success: true,
+      data: {
+        comments: fullComments,
+        isLocked: false,
+        lockedCount: 0,
+        hasCheckedIn: true,
+      },
+    };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "getMilestoneComments", milestoneId, groupId });
+    return {
+      success: false,
+      error: "Aşama yorumları yüklenemedi.",
+      traceId: diag.traceId,
+    };
+  }
+}
+
+export async function addMilestoneComment(
+  milestoneId: string,
+  groupId: string,
+  formData: FormData,
+): Promise<ActionResult<MilestoneCommentItem>> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
+  }
+
+  const rawContent = String(formData.get("content") ?? "").trim();
+  if (!rawContent) {
+    return { success: false, error: "Yorum içeriği boş olamaz." };
+  }
+  if (rawContent.length > 2000) {
+    return { success: false, error: "Yorum 2000 karakterden uzun olamaz." };
+  }
+
+  const isSpoiler =
+    formData.get("isSpoiler") === "true" ||
+    formData.get("isSpoiler") === "on" ||
+    formData.get("isSpoiler") === "1";
+
+  try {
+    await requireMembership(groupId, session.id);
+    await requireMilestoneInGroup(milestoneId, groupId);
+    const pb = await getSuperuserClient();
+
+    const record = await pb
+      .collection("milestone_comments")
+      .create<MilestoneCommentsResponse<{ user?: UsersResponse }>>({
+        milestone: milestoneId,
+        user: session.id,
+        group: groupId,
+        content: rawContent,
+        isSpoiler,
+      }, {
+        expand: "user",
+      });
+
+    const author =
+      record.expand?.user ??
+      (await pb.collection("users").getOne<UsersResponse>(session.id).catch(() => undefined));
+
+    revalidatePath(`/groups/${groupId}`);
+    return {
+      success: true,
+      data: {
+        id: record.id,
+        milestone: record.milestone,
+        user: record.user,
+        group: record.group,
+        content: record.content,
+        isSpoiler: record.isSpoiler,
+        createdAt: record.createdAt,
+        isLocked: false,
+        author: author
+          ? {
+              id: author.id,
+              name: author.name,
+              email: author.email,
+              avatarUrl: author.avatarUrl,
+            }
+          : undefined,
+      },
+    };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "addMilestoneComment", milestoneId, groupId });
+    return {
+      success: false,
+      error: "Yorum eklenirken bir hata oluştu.",
+      traceId: diag.traceId,
+    };
+  }
+}
+
+export async function deleteMilestoneComment(
+  commentId: string,
+  groupId: string,
+): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Lütfen önce giriş yapın." };
+  }
+
+  try {
+    const access = await resolveCircleAccess(groupId, session.id);
+    const pb = await getSuperuserClient();
+    const comment = await pb
+      .collection("milestone_comments")
+      .getOne<MilestoneCommentsResponse>(commentId);
+
+    if (comment.group !== groupId) {
+      return { success: false, error: "Yorum bu çembere ait değil." };
+    }
+
+    const isOwn = comment.user === session.id;
+    if (!isOwn && !access.isOwner && !session.isAdmin) {
+      return { success: false, error: "Bu yorumu silme yetkiniz bulunmuyor." };
+    }
+
+    await pb.collection("milestone_comments").delete(commentId);
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "deleteMilestoneComment", commentId, groupId });
+    return {
+      success: false,
+      error: "Yorum silinemedi.",
+      traceId: diag.traceId,
+    };
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   BookOpen,
   Plus,
@@ -13,6 +14,7 @@ import {
   Users,
   EyeOff,
   Sparkles,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -100,7 +102,17 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
           </p>
         </div>
 
-        <div className="w-full sm:w-auto shrink-0">
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+          <Link href="/shelf/import-export">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1.5 h-9"
+            >
+              <ArrowUpDown className="size-3.5" />
+              <span>{t.shelf.importExport}</span>
+            </Button>
+          </Link>
           <AddToShelfDialog />
         </div>
       </div>

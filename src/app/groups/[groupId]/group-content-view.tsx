@@ -16,6 +16,7 @@ import { GroupSchedulesCard } from "@/components/group-schedules-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { SpoilerText } from "@/components/spoiler-text";
 import { MEDIA_TYPES } from "@/lib/media-types";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -683,9 +684,9 @@ export function GroupContentView({
                                       </div>
                                     </div>
                                     {r.reviewText && (
-                                      <p className="text-muted-foreground leading-relaxed">
-                                        &ldquo;{r.reviewText}&rdquo;
-                                      </p>
+                                      <div className="text-muted-foreground leading-relaxed">
+                                        &ldquo;<SpoilerText text={r.reviewText} />&rdquo;
+                                      </div>
                                     )}
                                   </div>
                                 ))}

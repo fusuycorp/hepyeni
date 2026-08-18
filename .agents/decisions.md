@@ -68,7 +68,8 @@
   - Implemented `user_media_progress` collection indexed on `(user, externalSource, externalId)` for single-source-of-truth progress across all circles.
   - Progress on circle titles resolved automatically by matching either `groupTitle` or `(externalSource && externalId)`.
   - Avoided denormalizing milestones into unindexed JSON blobs. Created normalized 1:N `group_schedules` $\rightarrow$ `schedule_milestones` (`orderIndex`, `targetDate`, `targetUnit`) and normalized `milestone_checkins` junction table with `UNIQUE(milestone, user)` index.
-  - Implemented `/shelf` personal dashboard, `<CircleTitleProgress />` on media title pages, and `<GroupSchedulesCard />` with active member check-ins.
+  - **Consequences**: Pure relational normalization, fast indexed milestone progress queries, cross-circle progress syncing, and complete privacy controls (`isSharedWithCircles`).
+
 ## ADR-009: Unified ActionResult<T> Pattern, Zero Unhandled Server Action Exceptions & Accessible AlertDialog Invariant
 - **Status**: Accepted & Implemented (2026-08-17)
 - **Context**: In Next.js production builds, throwing unhandled exceptions across the Server Action RPC boundary causes Next.js to sanitize the error into opaque hashes (`digest: '...'`). Clients receive generic messages, losing field validation details and trace IDs. Additionally, ad-hoc browser `confirm()` and `alert()` calls degraded accessibility and consistency.
@@ -79,5 +80,11 @@
   - Strict sub-resource multi-tenant guards: `requireTitleInGroup`, `requireScheduleInGroup`, and `requireMilestoneInGroup` enforced on all nested database mutations.
 - **Consequences**: Zero masked production digests, complete error transparency with traceable reference codes, uniform user feedback in toasts without form resets, and accessible confirmation dialogs across the whole application.
 
-
-
+## ADR-010: Titirek Labs Feature Flag Engine, Data Portability Hub & Dual-Layer Spoiler Protection
+- **Status**: Accepted & Implemented (2026-08-18)
+- **Context**: Rapid product evolution requires a safe way to introduce and test experimental capabilities (e.g. Data Portability, Spoilers, Campfires, Marginalia, Moods) without compromising core stability or introducing third-party vendor bloat. Furthermore, users migrating from Goodreads/Letterboxd/StoryGraph needed a zero-friction import path, and communal pacing required strict server-level spoiler guarantees.
+- **Decision**:
+  - **Feature Flag Engine (`src/lib/flags/`)**: Zero-dependency, multi-scope (`global`, `user`, `circle`) evaluation pipeline resolving environment variables (`FLAG_ENABLE_*`) -> circle settings -> user cookies (`titirek_flags`) -> registry defaults. Integrated via `<FeatureFlagsProvider />`, `useFeatureFlag()`, `isFeatureEnabled()`, and `requireFeature()`.
+  - **Data Portability Hub (`/shelf/import-export`)**: Pure zero-dependency RFC 4180 streaming CSV parsers for Goodreads, Letterboxd, and StoryGraph with automatic format detection, interactive preview tables, and lossless exports (full-fidelity JSON, universal CSV, and Obsidian/Logseq Markdown ZIP with YAML frontmatter).
+  - **Dual-Layer Spoiler Protection**: Inline `||spoiler||` token parsing with interactive accessible Base UI blur overlays (`<SpoilerText />`), combined with server-side body redaction for `milestone_comments` when the caller has not checked in to that milestone.
+- **Consequences**: Zero third-party analytics/flag overhead, full user data sovereignty, leak-proof communal spoiler gating, and self-service opt-in/out for experimental features via Titirek Labs on `/profile`.

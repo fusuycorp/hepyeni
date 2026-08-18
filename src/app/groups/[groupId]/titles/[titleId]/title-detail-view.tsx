@@ -27,6 +27,7 @@ import { MarkConsumedButton } from "@/components/mark-consumed-button";
 import { ReviewForm } from "@/components/review-form";
 import { CommentThread, type DisplayComment } from "@/components/comment-thread";
 import { CircleTitleProgress } from "@/components/circle-title-progress";
+import { SpoilerText } from "@/components/spoiler-text";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -534,9 +535,9 @@ export function TitleDetailView({
                         </div>
 
                         {r.reviewText && (
-                          <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed pl-8">
-                            &ldquo;{r.reviewText}&rdquo;
-                          </p>
+                          <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed pl-8">
+                            &ldquo;<SpoilerText text={r.reviewText} />&rdquo;
+                          </div>
                         )}
                       </div>
                     );

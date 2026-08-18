@@ -21,8 +21,9 @@ import { canDeleteComment, organizeCommentsTree } from "@/lib/comments";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
 import { formatRelativeTime } from "@/lib/i18n";
 import { getDisplayName, getInitials } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { useTranslations, useLocale } from "@/lib/i18n/client";
+import { SpoilerText } from "@/components/spoiler-text";
+import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/types/actions";
 import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
@@ -339,9 +340,9 @@ export function CommentThread({
                     </div>
                   </div>
 
-                  <p className="text-foreground/90 whitespace-pre-wrap break-words leading-relaxed pl-8">
-                    {root.content}
-                  </p>
+                  <div className="text-foreground/90 whitespace-pre-wrap break-words leading-relaxed pl-8">
+                    <SpoilerText text={root.content} />
+                  </div>
                 </div>
 
                 {/* +1 Depth Nested Replies */}
@@ -445,9 +446,9 @@ export function CommentThread({
                             )}
                           </div>
 
-                          <p className="text-foreground/90 whitespace-pre-wrap break-words leading-relaxed pl-5 text-[11px]">
-                            {reply.content}
-                          </p>
+                          <div className="text-foreground/90 whitespace-pre-wrap break-words leading-relaxed pl-5 text-[11px]">
+                            <SpoilerText text={reply.content} />
+                          </div>
                         </div>
                       );
                     })}

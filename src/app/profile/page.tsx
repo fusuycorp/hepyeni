@@ -10,6 +10,7 @@ import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { SendResetLinkButton } from "@/components/send-reset-link-button";
 import { InlineTextForm } from "@/components/inline-text-form";
 import { DiagnosticModal } from "@/components/diagnostic-modal";
+import { LabsCard } from "@/components/labs-card";
 
 import { signOutAction, getUserAuthMethods } from "@/lib/actions/auth";
 import { deleteAccount, updateProfileName } from "@/lib/actions/profile";
@@ -171,6 +172,9 @@ export default async function ProfilePage() {
             </Link>
           </CardContent>
         </Card>
+
+        {/* Titirek Labs */}
+        <LabsCard />
 
         {/* Developer Diagnostics / Troubleshooting */}
         <Card className="border-border/70 shadow-xs">

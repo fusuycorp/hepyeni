@@ -582,6 +582,7 @@ export interface Translations {
     circleMembersProgress: string;
     updateMyProgress: string;
     currentlySavoringInCircle: string;
+    importExport: string;
   };
   schedules: {
     schedulesTitle: string;
@@ -611,6 +612,124 @@ export interface Translations {
     scheduleCreated: string;
     scheduleDeleted: string;
     deleteScheduleConfirm: string;
+  };
+  importExport: {
+    pageTitle: string;
+    pageSubtitle: string;
+    backToShelf: string;
+    importTab: string;
+    exportTab: string;
+    dropzoneTitle: string;
+    dropzoneDesc: string;
+    dropzoneDragActive: string;
+    dropzoneBrowse: string;
+    dropzoneSupportedFormats: string;
+    detectedFormat: string;
+    itemsFound: string;
+    parsingError: string;
+    emptyFile: string;
+    changeFile: string;
+    clearFile: string;
+    formatGoodreads: string;
+    formatLetterboxd: string;
+    formatStorygraph: string;
+    formatTitirekJson: string;
+    formatGenericCsv: string;
+    formatUnknown: string;
+    previewTitle: string;
+    previewSubtitle: string;
+    selectAll: string;
+    deselectAll: string;
+    selectedCount: string;
+    importSelected: string;
+    importing: string;
+    columnTitle: string;
+    columnCreator: string;
+    columnType: string;
+    columnStatus: string;
+    columnRating: string;
+    columnProgress: string;
+    noItemsSelected: string;
+    importSuccess: string;
+    importFailed: string;
+    importSummarySuccess: string;
+    exportTitle: string;
+    exportSubtitle: string;
+    exportJsonTitle: string;
+    exportJsonDesc: string;
+    exportJsonButton: string;
+    exportCsvTitle: string;
+    exportCsvDesc: string;
+    exportCsvButton: string;
+    exportMarkdownTitle: string;
+    exportMarkdownDesc: string;
+    exportMarkdownButton: string;
+    exporting: string;
+    exportSuccess: string;
+    exportFailed: string;
+    noDataToExport: string;
+    confirmImportTitle: string;
+    confirmImportDesc: string;
+    confirmButton: string;
+  };
+  spoilers: {
+    reveal: string;
+    hide: string;
+    spoilerBadge: string;
+    markAsSpoiler: string;
+    spoilerSyntaxHint: string;
+  };
+  campfires: {
+    campfireTitle: string;
+    campfireSubtitle: string;
+    openCampfire: string;
+    lockedTitle: string;
+    lockedDesc: string;
+    checkInToUnlock: string;
+    lockedCommentPlaceholder: string;
+    deleteMessageConfirm: string;
+    noComments: string;
+    addMessage: string;
+    posting: string;
+    postMessage: string;
+    messageAdded: string;
+    messageAddFailed: string;
+    messageDeleted: string;
+    messageDeleteFailed: string;
+  };
+  labs: {
+    title: string;
+    badge: string;
+    subtitle: string;
+    description: string;
+    toggleSuccess: string;
+    toggleFailed: string;
+    flags: {
+      spoiler_blur: {
+        name: string;
+        desc: string;
+      };
+      milestone_campfires: {
+        name: string;
+        desc: string;
+      };
+      data_portability: {
+        name: string;
+        desc: string;
+      };
+      digital_marginalia: {
+        name: string;
+        desc: string;
+      };
+      mood_pace_folksonomy: {
+        name: string;
+        desc: string;
+      };
+      blind_pick_wheel: {
+        name: string;
+        desc: string;
+      };
+    };
   };
 }
 

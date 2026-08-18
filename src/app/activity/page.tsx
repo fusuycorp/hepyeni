@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
+import { SpoilerText } from "@/components/spoiler-text";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { formatRelativeTime } from "@/lib/i18n";
@@ -276,9 +277,9 @@ export default async function ActivityPage() {
                             </div>
 
                             {review.reviewText && (
-                              <p className="text-xs text-muted-foreground leading-relaxed italic">
-                                &ldquo;{review.reviewText}&rdquo;
-                              </p>
+                              <div className="text-xs text-muted-foreground leading-relaxed italic">
+                                &ldquo;<SpoilerText text={review.reviewText} />&rdquo;
+                              </div>
                             )}
                           </div>
                         </div>
