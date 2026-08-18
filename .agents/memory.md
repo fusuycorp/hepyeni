@@ -50,3 +50,11 @@
 bun test && bun x tsc --noEmit && bun next build
 ```
 All three must pass. Skipping `next build` = silently broken production deploy.
+
+## Review-Hardening Invariants (2026-08-18)
+
+- **Deployment proxy contract (S6)**: `getRequestOrigin()` now prefers `APP_URL`; `x-forwarded-host`/`x-forwarded-proto` are honored ONLY when `TRUST_FORWARDED_HEADERS=1|true|on` is set. Without `APP_URL` or the trust flag, a host-header-only request falls back to `http://localhost:3000`. Set `APP_URL` in production before deploying.
+- **Auth-methods semantics (C1)**: `getUserAuthMethods().hasPassword/hasOtp` reflect *collection-level* method availability (`listAuthMethods()`), NOT per-user credential state — PocketBase does not expose per-user password presence. UI copy shows "Active"/"Not Connected" accordingly.
+- **Group list payload (P1)**: the group page strips `reviewText` from `reviews_via_title` before RSC serialization — the consumed-tab list shows avg + reviewer names only; full review bodies live on title-detail. Pagination is the deferred scalability fix (`ponytail:` note in page.tsx).
+- **Import/export caps**: `batchImportProgress` rejects > 5000 items; `exportShelfData` rejects > 10000 rows; CSV export neutralizes formula-leading cells (`=`, `+`, `-`, `@`, tab, CR) and import neutralizes `notes`/`currentLabel`.
+- **Subagent worktree gotchas** (orchestration, not app code): pi-subagents patch capture can silently return a 0-byte patch for a completed child (verify `changed: true` + non-empty diff before trusting it); fresh worktrees lack `.next/types/**` so `tsc` reports a phantom `LayoutProps` error in layout.tsx (ignore; generated at build); forbid workers from local PocketBase setup (`pb_migrations/` regen / `.db` files) — it burns the whole budget.
