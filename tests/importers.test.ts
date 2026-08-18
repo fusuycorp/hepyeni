@@ -248,3 +248,25 @@ describe("Auto Detection & Unified parseImportFile", () => {
     expect(whitespaceResult.items).toHaveLength(0);
   });
 });
+
+describe("CSV Formula-Injection Round-Trip (CWE-1236)", () => {
+  it("parser preserves formula-leading cells verbatim (neutralization happens at the action boundary)", () => {
+    const csv = [
+      'Title,Author,Rating,Notes',
+      '"Dune","Frank Herbert",5,"=HYPERLINK(""http://evil.example/"",""Click"")"',
+      '"Neuromancer","William Gibson",4,"+cmd|\'/C calc\'!A0"',
+      '"Solaris","Stanislaw Lem",3,"@SUM(A1:A2)"',
+    ].join("\n");
+
+    const table = parseCsvToTable(csv);
+
+    // The RFC-4180 parser must not mangle or drop attacker-controlled cells:
+    // they flow through to batchImportProgress, which neutralizes the
+    // free-text fields via neutralizeFormulaPrefix, and exportShelfToCsv
+    // neutralizes every field at the spreadsheet boundary.
+    expect(table.rows).toHaveLength(3);
+    expect(table.rows[0]["Notes"]).toBe('=HYPERLINK("http://evil.example/","Click")');
+    expect(table.rows[1]["Notes"]).toBe("+cmd|'/C calc'!A0");
+    expect(table.rows[2]["Notes"]).toBe("@SUM(A1:A2)");
+  });
+});

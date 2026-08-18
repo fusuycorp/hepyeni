@@ -10,6 +10,11 @@ import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
+// ponytail: action-layer error strings are hardcoded English (unified from a
+// TR/EN mix). Ceiling: actions should return stable error codes mapped to
+// client-side translations (useTranslations) for full TR/EN parity; until then
+// EN keeps every locale's toasts readable and consistent.
+
 export async function addComment(
   titleId: string,
   groupId: string,
@@ -17,13 +22,13 @@ export async function addComment(
 ): Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
     const access = await resolveCircleAccess(groupId, session.id);
     if (!access.canComment) {
-      return { success: false, error: "Bu çemberde yorum yapma yetkiniz bulunmuyor." };
+      return { success: false, error: "You do not have permission to comment in this circle." };
     }
     await requireTitleInGroup(titleId, groupId);
 
@@ -41,12 +46,12 @@ export async function addComment(
           .collection("comments")
           .getOne<CommentsResponse>(cleanParentId);
         if (parent.title !== titleId || parent.group !== groupId) {
-          return { success: false, error: "Geçersiz üst yorum." };
+          return { success: false, error: "Invalid parent comment." };
         }
         // Enforce +1 depth max: If parent is already a reply, attach to its root parent
         parentId = parent.parentId || parent.id;
       } catch (err) {
-        if (isNotFound(err)) return { success: false, error: "Üst yorum bulunamadı." };
+        if (isNotFound(err)) return { success: false, error: "Parent comment not found." };
         throw err;
       }
     }
@@ -71,7 +76,7 @@ export async function addComment(
     return { success: true, data: comment };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "addComment", titleId, groupId });
-    return { success: false, error: "Yorum eklenirken bir hata oluştu.", traceId: diag.traceId };
+    return { success: false, error: "Failed to add comment.", traceId: diag.traceId };
   }
 }
 
@@ -107,7 +112,7 @@ export async function deleteComment(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
@@ -117,12 +122,12 @@ export async function deleteComment(
     try {
       comment = await pb.collection("comments").getOne<CommentsResponse>(commentId);
     } catch (err) {
-      if (isNotFound(err)) return { success: false, error: "Yorum bulunamadı." };
+      if (isNotFound(err)) return { success: false, error: "Comment not found." };
       throw err;
     }
 
     if (comment.group !== groupId) {
-      return { success: false, error: "Yorum bu gruba ait değil." };
+      return { success: false, error: "Comment does not belong to this group." };
     }
 
     const allowed = canDeleteComment({
@@ -133,7 +138,7 @@ export async function deleteComment(
     });
 
     if (!allowed) {
-      return { success: false, error: "Bu yorumu silme yetkiniz bulunmuyor." };
+      return { success: false, error: "You do not have permission to delete this comment." };
     }
 
     await pb.collection("comments").delete(commentId);
@@ -144,6 +149,6 @@ export async function deleteComment(
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "deleteComment", commentId, groupId });
-    return { success: false, error: "Yorum silinemedi.", traceId: diag.traceId };
+    return { success: false, error: "Failed to delete comment.", traceId: diag.traceId };
   }
 }

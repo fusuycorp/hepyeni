@@ -29,4 +29,17 @@ describe("voteRecordId", () => {
     const id2 = await voteRecordId("def", "abc");
     expect(id1).not.toBe(id2);
   });
+
+  it("remains collision-free across a large set of distinct pairs", async () => {
+    // Sanity check for the entropy claim in the comment: ~500 distinct
+    // (title, user) pairs must all map to distinct 15-char ids.
+    const ids = new Set<string>();
+    for (let i = 0; i < 500; i++) {
+      ids.add(await voteRecordId(`title_${i}`, `user_${i % 50}`));
+    }
+    expect(ids.size).toBe(500);
+    for (const id of ids) {
+      expect(id).toMatch(/^[a-z0-9]{15}$/);
+    }
+  });
 });

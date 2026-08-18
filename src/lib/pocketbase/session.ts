@@ -89,24 +89,66 @@ export type OAuth2State = {
 
 // Must be byte-identical between the redirect-to-Google step and the
 // callback step, or the OAuth2 provider rejects the code exchange.
+//
+// Proxy-contract for host resolution (security boundary):
+//  1. APP_URL set  -> it is the single authoritative origin; forwarded and Host
+//     headers are ignored so a spoofable header can never steer the redirect.
+//  2. TRUST_FORWARDED_HEADERS=1|true|on -> x-forwarded-host / -proto are honored
+//     (only for a reverse proxy that overwrites them; never for direct trust of
+//     client-supplied values). Lowers the open-redirect / OAuth redirect_uri
+//     tampering surface described in the security review.
+//  3. default -> the validated Host header wins, proto assumed https.
+// In every case the effective host must match a strict host[:port] pattern, and
+// 0.0.0.0 / localhost fall through so a container's internal Host can never be
+// emitted as a public origin.
+// Env is read at call time (like APP_URL below) so tests and config changes take
+// effect per call rather than being frozen at module load.
+function trustForwardedHeaders(): boolean {
+  return ["1", "true", "on"].includes(
+    (process.env.TRUST_FORWARDED_HEADERS ?? "").toLowerCase(),
+  );
+}
+
+// host[:port] allowlist — rejects userinfo (@), paths (/), query/fragment
+// (?/#), whitespace, control characters, and other header-injection vectors.
+function isValidHost(host: string | null | undefined): host is string {
+  return (
+    typeof host === "string" &&
+    /^[a-zA-Z0-9.-]+(?::[0-9]{1,5})?$/.test(host)
+  );
+}
+
+function normalizeProto(proto: string | null | undefined): string {
+  return proto === "http" ? "http" : "https";
+}
+
 export function getRequestOrigin(req?: {
   headers: { get: (name: string) => string | null };
 }): string {
-  if (req) {
-    const host =
-      req.headers.get("x-forwarded-host") || req.headers.get("host");
-    const proto =
-      req.headers.get("x-forwarded-proto") || "https";
-
-    if (host && !host.includes("0.0.0.0")) {
-      return `${proto}://${host}`;
-    }
-  }
-
+  // 1. APP_URL is authoritative when configured.
   if (process.env.APP_URL && !process.env.APP_URL.includes("0.0.0.0")) {
     return process.env.APP_URL.replace(/\/$/, "");
   }
 
+  if (req) {
+    let host: string | null = null;
+    let proto: string | null = null;
+
+    if (trustForwardedHeaders()) {
+      host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+      proto = req.headers.get("x-forwarded-proto");
+    } else {
+      // Host only — do not honor forwarded headers unless explicitly trusted.
+      host = req.headers.get("host");
+      proto = null;
+    }
+
+    if (isValidHost(host) && !host.includes("0.0.0.0")) {
+      return `${normalizeProto(proto)}://${host}`;
+    }
+  }
+
+  // 3. Last-resort dev fallback; never reaches a real deployment origin.
   return "http://localhost:3000";
 }
 

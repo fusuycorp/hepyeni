@@ -8,6 +8,11 @@ import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 
+// ponytail: action-layer error strings are hardcoded English (unified from a
+// TR/EN mix). Ceiling: actions should return stable error codes mapped to
+// client-side translations (useTranslations) for full TR/EN parity; until then
+// EN keeps every locale's toasts readable and consistent.
+
 export async function submitReview(
   titleId: string,
   groupId: string,
@@ -15,19 +20,19 @@ export async function submitReview(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
     const access = await resolveCircleAccess(groupId, session.id);
     if (!access.canReview) {
-      return { success: false, error: "Bu çemberde inceleme yazma yetkiniz bulunmuyor." };
+      return { success: false, error: "You do not have permission to review in this circle." };
     }
     await requireTitleInGroup(titleId, groupId);
 
     const rating = Number(formData.get("rating"));
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      return { success: false, error: "Puan 1 ile 5 arasında tam sayı olmalıdır." };
+      return { success: false, error: "Rating must be an integer between 1 and 5." };
     }
     const rawReview = String(formData.get("reviewText") ?? "").trim();
     const reviewText = rawReview ? rawReview.slice(0, 5000) : null;
@@ -59,6 +64,6 @@ export async function submitReview(
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "submitReview", titleId, groupId });
-    return { success: false, error: "İnceleme kaydedilirken bir hata oluştu.", traceId: diag.traceId };
+    return { success: false, error: "Failed to save review.", traceId: diag.traceId };
   }
 }

@@ -3,6 +3,34 @@ import { en } from "@/lib/i18n/en";
 import { tr } from "@/lib/i18n/tr";
 import type { UserAuthMethods } from "@/lib/actions/auth";
 
+// Mirror of the pure mapping inside getUserAuthMethods (src/lib/actions/auth.ts).
+// PocketBase's listAuthMethods() reports COLLECTION-level availability; the public
+// API never exposes an individual user's password/OTP state. So hasPassword/hasOtp
+// are app-level capabilities (is this sign-in method offered at all), NOT a claim
+// about a specific account's credentials. This is why they are derived from the
+// methods flags rather than hardcoded to true.
+type AuthMethodsShape = {
+  password?: { enabled: boolean };
+  otp?: { enabled: boolean };
+};
+
+function deriveUserAuthMethods(
+  rawExternalAuths: Array<{ provider?: string }>,
+  methods?: AuthMethodsShape,
+): UserAuthMethods {
+  const oauthProviders = rawExternalAuths
+    .map((item) =>
+      typeof item.provider === "string" ? item.provider.toLowerCase().trim() : "",
+    )
+    .filter((p): p is string => Boolean(p));
+
+  return {
+    hasPassword: Boolean(methods?.password?.enabled),
+    hasOtp: Boolean(methods?.otp?.enabled),
+    oauthProviders,
+  };
+}
+
 describe("Auth Methods & Connected Accounts - Profile Display", () => {
   const authKeys = [
     "authMethodsTitle",
@@ -53,34 +81,38 @@ describe("Auth Methods & Connected Accounts - Profile Display", () => {
     expect(tr.profile.active).toBe("Aktif");
   });
 
+  it("maps collection-level auth-method availability to hasPassword/hasOtp (not hardcoded)", () => {
+    // Both methods enabled
+    expect(
+      deriveUserAuthMethods([], {
+        password: { enabled: true },
+        otp: { enabled: true },
+      }),
+    ).toEqual({ hasPassword: true, hasOtp: true, oauthProviders: [] });
+
+    // Password disabled, OTP enabled (a deployment with OTP-only)
+    expect(
+      deriveUserAuthMethods([], {
+        password: { enabled: false },
+        otp: { enabled: true },
+      }).hasPassword,
+    ).toBe(false);
+
+    // Neither exposed -> fails closed
+    expect(deriveUserAuthMethods([], undefined).hasPassword).toBe(false);
+    expect(deriveUserAuthMethods([], undefined).hasOtp).toBe(false);
+  });
+
   it("extracts and normalizes oauth providers from external auth records", () => {
-    function extractAuthMethods(
-      rawExternalAuths: Array<{ provider?: string }>,
-    ): UserAuthMethods {
-      const oauthProviders = rawExternalAuths
-        .map((item) =>
-          typeof item.provider === "string" ? item.provider.toLowerCase().trim() : "",
-        )
-        .filter((p): p is string => Boolean(p));
-
-      return {
-        hasPassword: true,
-        hasOtp: true,
-        oauthProviders,
-      };
-    }
-
-    const empty = extractAuthMethods([]);
-    expect(empty.hasPassword).toBe(true);
-    expect(empty.hasOtp).toBe(true);
+    const empty = deriveUserAuthMethods([]);
     expect(empty.oauthProviders).toEqual([]);
 
-    const googleUser = extractAuthMethods([{ provider: "Google" }]);
+    const googleUser = deriveUserAuthMethods([{ provider: "Google" }]);
     expect(googleUser.oauthProviders).toEqual(["google"]);
     expect(googleUser.oauthProviders.includes("google")).toBe(true);
     expect(googleUser.oauthProviders.includes("apple")).toBe(false);
 
-    const multiAuthUser = extractAuthMethods([
+    const multiAuthUser = deriveUserAuthMethods([
       { provider: "google" },
       { provider: "Apple" },
       { provider: "" },
@@ -92,18 +124,23 @@ describe("Auth Methods & Connected Accounts - Profile Display", () => {
   });
 
   it("computes correct badges and connection status for each method", () => {
-    const methodsState: UserAuthMethods = {
-      hasPassword: true,
-      hasOtp: true,
-      oauthProviders: ["google"],
-    };
+    // Google connected, password and OTP both offered by the collection
+    const methodsState = deriveUserAuthMethods(
+      [{ provider: "google" }],
+      { password: { enabled: true }, otp: { enabled: true } },
+    );
 
-    const isGoogleConnected = methodsState.oauthProviders.includes("google");
-    const isAppleConnected = methodsState.oauthProviders.includes("apple");
-
-    expect(isGoogleConnected).toBe(true);
-    expect(isAppleConnected).toBe(false);
+    expect(methodsState.oauthProviders.includes("google")).toBe(true);
+    expect(methodsState.oauthProviders.includes("apple")).toBe(false);
     expect(methodsState.hasPassword).toBe(true);
     expect(methodsState.hasOtp).toBe(true);
+
+    // OAuth-only provider list but password auth disabled -> must not claim Active
+    const oauthOnlyDeployment = deriveUserAuthMethods(
+      [{ provider: "google" }],
+      { password: { enabled: false }, otp: { enabled: false } },
+    );
+    expect(oauthOnlyDeployment.hasPassword).toBe(false);
+    expect(oauthOnlyDeployment.hasOtp).toBe(false);
   });
 });

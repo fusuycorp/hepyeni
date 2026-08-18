@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { Shield, Ban } from "lucide-react";
+import Link from "next/link";
+import { Shield, Ban, ChevronLeft, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,16 +12,32 @@ import { getInitials } from "@/lib/format";
 import { getServerTranslations, getLocale } from "@/lib/i18n/server";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
-export default async function AdminUsersPage() {
+const USERS_PER_PAGE = 25;
+
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const { page: pageParam } = await searchParams;
+  const currentPage = Math.max(1, Number(pageParam) || 1);
+
   const pb = await getSuperuserClient();
-  const allUsers = await pb
-    .collection("users")
-    .getFullList<UsersResponse>({ sort: "-created" });
-  const t = await getServerTranslations();
-  const locale = await getLocale();
+  // P5 (perf): paginated getList instead of an unbounded getFullList of the
+  // whole users table; totalItems doubles as the count for the header badge.
+  const [result, t, locale] = await Promise.all([
+    pb.collection("users").getList<UsersResponse>(currentPage, USERS_PER_PAGE, {
+      sort: "-created",
+    }),
+    getServerTranslations(),
+    getLocale(),
+  ]);
+  const allUsers = result.items;
+  const totalUsers = result.totalItems;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE));
 
   return (
     <div className="space-y-6">
@@ -34,7 +51,7 @@ export default async function AdminUsersPage() {
           </p>
         </div>
         <Badge variant="secondary" className="text-xs">
-          {t.admin.totalUsersCount.replace("{n}", String(allUsers.length))}
+          {t.admin.totalUsersCount.replace("{n}", String(totalUsers))}
         </Badge>
       </div>
 
@@ -127,6 +144,36 @@ export default async function AdminUsersPage() {
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 text-xs text-muted-foreground">
+          <span>
+            {t.common.pageOf
+              .replace("{current}", String(currentPage))
+              .replace("{total}", String(totalPages))}
+          </span>
+          <div className="flex items-center gap-2">
+            {currentPage > 1 && (
+              <Link
+                href={`/admin/users?page=${currentPage - 1}`}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border/70 hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="size-3.5" />
+                <span>{t.common.previous}</span>
+              </Link>
+            )}
+            {currentPage < totalPages && (
+              <Link
+                href={`/admin/users?page=${currentPage + 1}`}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border/70 hover:bg-muted transition-colors"
+              >
+                <span>{t.common.next}</span>
+                <ChevronRight className="size-3.5" />
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

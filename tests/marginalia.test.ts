@@ -1,6 +1,7 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { en } from "@/lib/i18n/en";
 import { tr } from "@/lib/i18n/tr";
+import { logDiagnostic, getRecentDiagnostics } from "@/lib/errors";
 import {
   validateQuoteInput,
   parseTags,
@@ -304,6 +305,329 @@ describe("Phase 3: Digital Marginalia & Quote Snaps", () => {
 
         expect(placeholdersEn).toEqual(placeholdersTr);
       }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Server-action privacy gates (S1, S5, C5, S2) — exercised with module mocks
+// so the actions run without a live PocketBase. The mock client mirrors the
+// pb.filter() parameter binding used by the real PocketBase SDK.
+// ---------------------------------------------------------------------------
+
+type FakeQuote = {
+  user: string;
+  titleName: string;
+  isSharedWithCircles: string[];
+};
+
+const db = {
+  session: null as { id: string } | null,
+  quotes: new Map<string, FakeQuote>(),
+  memberCircles: new Set<string>(),
+  userIsAdmin: false,
+  failNextWrite: null as Error | null,
+  failNextRead: null as Error | null,
+};
+
+function resetDb() {
+  db.session = null;
+  db.quotes.clear();
+  db.memberCircles.clear();
+  db.userIsAdmin = false;
+  db.failNextWrite = null;
+  db.failNextRead = null;
+}
+
+function makePbClient() {
+  return {
+    filter: (expr: string, params: Record<string, unknown>) => {
+      let out = expr;
+      for (const [k, v] of Object.entries(params)) {
+        out = out.replaceAll(`{:${k}}`, JSON.stringify(v));
+      }
+      return out;
+    },
+    collection: (name: string) => {
+      if (name === "shelf_quotes") {
+        return {
+          getFullList: async (opts: { filter?: string } = {}) => {
+            if (db.failNextRead) throw db.failNextRead;
+            let rows = [...db.quotes.entries()].map(([id, q]) => ({ id, ...q }));
+            const userMatch = opts.filter?.match(/user = "([^"]+)"/);
+            if (userMatch) rows = rows.filter((r) => r.user === userMatch[1]);
+            const circleMatch = opts.filter?.match(/isSharedWithCircles ~ "([^"]+)"/);
+            if (circleMatch) rows = rows.filter((r) => r.isSharedWithCircles.includes(circleMatch[1]));
+            return rows;
+          },
+          create: async (payload: Record<string, unknown>) => {
+            if (db.failNextWrite) throw db.failNextWrite;
+            const id = `quote-${db.quotes.size + 1}`;
+            db.quotes.set(id, {
+              user: payload.user as string,
+              titleName: payload.titleName as string,
+              isSharedWithCircles: (payload.isSharedWithCircles ?? []) as string[],
+            });
+            return { id, ...payload };
+          },
+          getOne: async (id: string) => {
+            if (db.failNextRead) throw db.failNextRead;
+            const found = db.quotes.get(id);
+            if (!found) {
+              const err = new Error("not found") as Error & { status?: number };
+              err.status = 404;
+              throw err;
+            }
+            return { id, ...found };
+          },
+          update: async (id: string, payload: object) => {
+            if (db.failNextWrite) throw db.failNextWrite;
+            const existing = db.quotes.get(id);
+            if (!existing) throw new Error("not found");
+            const merged = { ...existing, ...payload };
+            db.quotes.set(id, merged);
+            return { id, ...merged };
+          },
+          delete: async () => {
+            if (db.failNextWrite) throw db.failNextWrite;
+            return true;
+          },
+        };
+      }
+      if (name === "group_members") {
+        return {
+          getFullList: async () =>
+            [...db.memberCircles].map((group) => ({
+              id: `member-${group}`,
+              group,
+              user: db.session?.id,
+            })),
+          getFirstListItem: async () => {
+            throw new Error("not found");
+          },
+        };
+      }
+      if (name === "users") {
+        return {
+          getOne: async () => ({ id: db.session?.id, isAdmin: db.userIsAdmin }),
+        };
+      }
+      throw new Error(`unexpected collection: ${name}`);
+    },
+  };
+}
+
+const { getUserQuotes, getCircleQuotes, addQuote, deleteQuote, toggleShareQuoteWithCircle } =
+  await import("@/lib/actions/marginalia");
+const { getDiagnosticsAction } = await import("@/lib/actions/diagnostics");
+
+const sessionModule = await import("@/lib/pocketbase/session");
+const superuserModule = await import("@/lib/pocketbase/superuser");
+const flagsServerModule = await import("@/lib/flags/server");
+const membershipModule = await import("@/lib/membership");
+
+describe("Server-Action Privacy Gates (mocked PocketBase)", () => {
+  beforeEach(() => {
+    resetDb();
+    // spyOn patches individual exports; the module namespaces remain intact
+    // so sibling test files sharing this process are unaffected.
+    spyOn(sessionModule, "getSession").mockImplementation(async () => db.session as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(makePbClient() as never);
+    spyOn(flagsServerModule, "requireFeature").mockResolvedValue(undefined as never);
+    spyOn(membershipModule, "requireMembership").mockImplementation(
+      async (circleId: string) => {
+        if (!db.session) throw new Error("not authenticated");
+        if (circleId && !db.memberCircles.has(circleId)) {
+          throw new Error("You're not a member of this group");
+        }
+        return { id: "member-ok", role: "member" } as never;
+      },
+    );
+  });
+
+  afterAll(() => {
+    // Restore every spy so mocks do not leak into sibling test files that
+    // share this process's module namespace (bun test runs files in one
+    // process by default).
+    mock.restore();
+  });
+
+  describe("getUserQuotes (S1 — no anonymous leak)", () => {
+    it("returns an empty list for anonymous callers even with a harvested userId", async () => {
+      db.quotes.set("q1", {
+        user: "victim-user",
+        titleName: "Private journal",
+        isSharedWithCircles: [],
+      });
+      expect(db.session).toBeNull();
+
+      const result = await getUserQuotes("victim-user");
+      expect(result).toEqual([]);
+    });
+
+    it("returns the owner's quotes unfiltered when the caller is the owner", async () => {
+      db.session = { id: "me" };
+      db.quotes.set("q1", { user: "me", titleName: "Mine", isSharedWithCircles: [] });
+      db.quotes.set("q2", { user: "other", titleName: "Theirs", isSharedWithCircles: [] });
+
+      const result = await getUserQuotes("me");
+      expect(result.map((r) => r.id)).toEqual(["q1"]);
+    });
+
+    it("filters another user's quotes through mutual-circle membership", async () => {
+      db.session = { id: "me" };
+      db.memberCircles.add("circle-scifi");
+      db.quotes.set("q-shared", {
+        user: "other",
+        titleName: "Shared",
+        isSharedWithCircles: ["circle-scifi"],
+      });
+      db.quotes.set("q-private", {
+        user: "other",
+        titleName: "Private",
+        isSharedWithCircles: [],
+      });
+
+      const result = await getUserQuotes("other");
+      expect(result.map((r) => r.id)).toEqual(["q-shared"]);
+    });
+  });
+
+  describe("getCircleQuotes (S5 — membership mandatory)", () => {
+    it("returns an empty list for anonymous callers", async () => {
+      db.quotes.set("q1", {
+        user: "member-user",
+        titleName: "Circle quote",
+        isSharedWithCircles: ["circle-secret"],
+      });
+
+      const result = await getCircleQuotes("circle-secret");
+      expect(result).toEqual([]);
+    });
+
+    it("rejects non-members of a private circle with an empty list", async () => {
+      db.session = { id: "outsider" };
+      db.quotes.set("q1", {
+        user: "owner-user",
+        titleName: "Secret",
+        isSharedWithCircles: ["circle-private"],
+      });
+
+      const result = await getCircleQuotes("circle-private");
+      expect(result).toEqual([]);
+    });
+
+    it("returns only quotes shared with the caller's circle for members", async () => {
+      db.session = { id: "member" };
+      db.memberCircles.add("circle-scifi");
+      db.quotes.set("q-shared", {
+        user: "owner",
+        titleName: "Shared",
+        isSharedWithCircles: ["circle-scifi"],
+      });
+      db.quotes.set("q-other", {
+        user: "owner",
+        titleName: "Different circle",
+        isSharedWithCircles: ["circle-bookclub"],
+      });
+
+      const result = await getCircleQuotes("circle-scifi");
+      expect(result.map((r) => r.id)).toEqual(["q-shared"]);
+    });
+  });
+
+  describe("C5 — generic safe error surface (no raw error passthrough)", () => {
+    function createErrorWithSensitiveMessage(): Error {
+      const err = new Error(
+        "PocketBase validation failed: field 'quoteText' must not contain <script>alert(1)</script>; trace=secret-internal-123",
+      );
+      err.name = "ClientResponseError";
+      return err;
+    }
+
+    it("addQuote returns a generic message and a traceId, never the raw error", async () => {
+      db.session = { id: "me" };
+      const boom = createErrorWithSensitiveMessage();
+      db.failNextWrite = boom;
+
+      const result = await addQuote({
+        titleName: "Dune",
+        quoteText: "Fear is the mind-killer.",
+      });
+
+      expect(result.success).toBe(false);
+      if (result.success) throw new Error("expected failure");
+      expect(result.error).toBe("Failed to add quote");
+      expect(result.error).not.toContain(boom.message);
+      expect(result.traceId).toBeDefined();
+      expect(result.traceId?.startsWith("ERR-")).toBe(true);
+      expect(result.traceId).not.toContain("secret-internal-123");
+    });
+
+    it("deleteQuote returns a generic message and a traceId, never the raw error", async () => {
+      db.session = { id: "me" };
+      db.quotes.set("q1", { user: "me", titleName: "Mine", isSharedWithCircles: [] });
+      db.failNextWrite = new Error("users: forbidden internal detail 0xc0ffee");
+
+      const result = await deleteQuote("q1");
+      expect(result.success).toBe(false);
+      if (result.success) throw new Error("expected failure");
+      expect(result.error).toBe("Failed to delete quote");
+      expect(result.error).not.toContain("0xc0ffee");
+      expect(result.traceId?.startsWith("ERR-")).toBe(true);
+    });
+
+    it("toggleShareQuoteWithCircle returns a generic message and a traceId", async () => {
+      db.session = { id: "me" };
+      db.memberCircles.add("circle-scifi");
+      db.quotes.set("q1", { user: "me", titleName: "Mine", isSharedWithCircles: [] });
+      db.failNextWrite = new Error("cannot parse payload: POST /api/x");
+
+      const result = await toggleShareQuoteWithCircle("q1", "circle-scifi");
+      expect(result.success).toBe(false);
+      if (result.success) throw new Error("expected failure");
+      expect(result.error).toBe("Failed to toggle circle share");
+      expect(result.error).not.toContain("POST /api/x");
+      expect(result.traceId?.startsWith("ERR-")).toBe(true);
+    });
+
+    it("does not log the raw quote payload in the diagnostic buffer", async () => {
+      db.session = { id: "me" };
+      const secret = "THE-SECRET-QUOTE-CONTENT-7f8a";
+      db.failNextWrite = new Error("boom");
+
+      await addQuote({ titleName: "Dune", quoteText: secret });
+
+      const recent = getRecentDiagnostics();
+      expect(JSON.stringify(recent)).not.toContain(secret);
+    });
+  });
+
+  describe("getDiagnosticsAction (S2 — admin-only)", () => {
+    it("returns an empty list for anonymous callers", async () => {
+      logDiagnostic(new Error("seed"), { action: "test-any" });
+      const result = await getDiagnosticsAction();
+      expect(result).toEqual([]);
+    });
+
+    it("rejects authenticated non-admin users", async () => {
+      db.session = { id: "regular-user" };
+      db.userIsAdmin = false;
+      logDiagnostic(new Error("seed"), { action: "test-nonadmin" });
+
+      const result = await getDiagnosticsAction();
+      expect(result).toEqual([]);
+    });
+
+    it("returns the diagnostics buffer for admins", async () => {
+      db.session = { id: "admin-user" };
+      db.userIsAdmin = true;
+      logDiagnostic(new Error("seed"), { action: "test-admin" });
+
+      const result = await getDiagnosticsAction();
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+      expect(result.some((e) => e.action === "test-admin")).toBe(true);
     });
   });
 });

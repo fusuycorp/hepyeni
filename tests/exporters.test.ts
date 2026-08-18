@@ -8,6 +8,7 @@ import {
   calculateCrc32,
   createZipArchive,
   uint8ArrayToBase64,
+  neutralizeFormulaPrefix,
 } from "@/lib/exporters";
 import { parseCsvToTable } from "@/lib/importers";
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
@@ -95,6 +96,74 @@ describe("CSV Exporter & Roundtrip", () => {
     expect(table.rows[0]["Notes"]).toBe('Spectacular cinematic experience! "Masterpiece" of modern sci-fi.');
     expect(table.rows[1]["Creator"]).toBe("Yaşar Kemal");
     expect(table.rows[1]["Progress Total"]).toBe("436");
+  });
+});
+
+describe("CSV Formula-Injection Guard (CWE-1236)", () => {
+  it("neutralizeFormulaPrefix prefixes dangerous leading characters", () => {
+    expect(neutralizeFormulaPrefix("=HYPERLINK(&quot;http://evil/&quot;,&quot;click&quot;)")).toBe("'=HYPERLINK(&quot;http://evil/&quot;,&quot;click&quot;)");
+    expect(neutralizeFormulaPrefix("+cmd|'/C calc'!A0")).toBe("'+cmd|'/C calc'!A0");
+    expect(neutralizeFormulaPrefix("-1+2")).toBe("'-1+2");
+    expect(neutralizeFormulaPrefix("@SUM(A1:A2)")).toBe("'@SUM(A1:A2)");
+    expect(neutralizeFormulaPrefix("\t=SUM(A1)")).toBe("'\t=SUM(A1)");
+    expect(neutralizeFormulaPrefix("\r=SUM(A1)")).toBe("'\r=SUM(A1)");
+  });
+
+  it("neutralizeFormulaPrefix detects dangerous prefixes after leading whitespace", () => {
+    expect(neutralizeFormulaPrefix("  =SUM(A1)")).toBe("'  =SUM(A1)");
+    expect(neutralizeFormulaPrefix("\n@SUM(A1)")).toBe("'\n@SUM(A1)");
+  });
+
+  it("neutralizeFormulaPrefix leaves safe values untouched", () => {
+    expect(neutralizeFormulaPrefix("Dune")).toBe("Dune");
+    expect(neutralizeFormulaPrefix("")).toBe("");
+    expect(neutralizeFormulaPrefix("     ")).toBe("     ");
+    expect(neutralizeFormulaPrefix("already-prefixed")).toBe("already-prefixed");
+    expect(neutralizeFormulaPrefix("Chapter 12")).toBe("Chapter 12");
+    expect(neutralizeFormulaPrefix("İnce Memed")).toBe("İnce Memed");
+  });
+
+  it("escapeCsvField neutralizes formula cells in the exported CSV", () => {
+    const injectionItems = [
+      {
+        id: "rec_evil",
+        collectionId: "col_1",
+        collectionName: "user_media_progress",
+        user: "usr_1",
+        title: "Dune",
+        creator: "",
+        mediaType: "book",
+        status: "completed",
+        rating: 1,
+        progressCurrent: 100,
+        progressTotal: 100,
+        progressUnit: "pages",
+        currentLabel: "@SUM(A1)",
+        notes: "=HYPERLINK(&quot;http://evil.example/&quot;,&quot;Click here&quot;)",
+        isSharedWithCircles: true,
+        startedAt: "2024-01-01T00:00:00.000Z",
+        completedAt: "2024-01-02T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-02T00:00:00.000Z",
+        externalSource: "goodreads",
+        externalId: "123",
+        coverUrl: "",
+        groupTitle: "",
+      },
+    ] as unknown as UserMediaProgressResponse[];
+
+    const csvStr = exportShelfToCsv(injectionItems);
+    // Formula-leading cells must never surface as raw formulas in the file.
+    expect(csvStr).not.toContain(",=HYPERLINK");
+    expect(csvStr).not.toContain(",@SUM(A1)");
+    expect(csvStr).toContain("'=HYPERLINK(&quot;http://evil.example/&quot;,&quot;Click here&quot;)");
+    expect(csvStr).toContain("'@SUM(A1)");
+
+    // Round-trip: the neutralized cell parses back cleanly and stays text.
+    const table = parseCsvToTable(csvStr);
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0]["Notes"]).toBe("'=HYPERLINK(&quot;http://evil.example/&quot;,&quot;Click here&quot;)");
+    expect(table.rows[0]["Current Label"]).toBe("'@SUM(A1)");
   });
 });
 

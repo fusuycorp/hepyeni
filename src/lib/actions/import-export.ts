@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { toIsoDate } from "@/lib/date";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { logDiagnostic } from "@/lib/errors";
@@ -8,7 +9,10 @@ import type { ActionResult } from "@/types/actions";
 import type { NormalizedImportItem } from "@/lib/importers/types";
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 import { exportShelfToJson } from "@/lib/exporters/json-exporter";
-import { exportShelfToCsv } from "@/lib/exporters/csv-exporter";
+import {
+  exportShelfToCsv,
+  neutralizeFormulaPrefix,
+} from "@/lib/exporters/csv-exporter";
 import { exportShelfToMarkdownZip } from "@/lib/exporters/markdown-exporter";
 import { uint8ArrayToBase64 } from "@/lib/exporters/zip";
 
@@ -31,23 +35,35 @@ function normalizeTitleKey(title: string): string {
     .replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-function toIsoDate(val?: string | null): string | null {
-  if (!val || typeof val !== "string" || !val.trim()) return null;
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
+// Hard server-side caps at the trust boundary: a fabricated client can post an
+// array of any size, so the import/dedup write-amplification and the export
+// RSC payload both need an upper bound (perf H3 / P7).
+const MAX_IMPORT_ITEMS = 5000;
+const MAX_EXPORT_ROWS = 10000;
+
+// ponytail: action errors are plain English strings shown verbatim in client
+// toasts (matching auth.ts / admin.ts). Upgrade path: stable error codes
+// mapped through src/lib/i18n client-side so the user's locale is respected.
+// The export/import caps above are the network/write bounds; streaming export
+// via a route handler / signed URL is the deferred replacement (perf M7).
 
 export async function batchImportProgress(
   items: NormalizedImportItem[],
 ): Promise<ActionResult<BatchImportResult>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   if (!Array.isArray(items) || items.length === 0) {
-    return { success: false, error: "İçe aktarılacak geçerli öğe bulunamadı." };
+    return { success: false, error: "No valid items to import." };
+  }
+
+  if (items.length > MAX_IMPORT_ITEMS) {
+    return {
+      success: false,
+      error: `Import limit exceeded: a maximum of ${MAX_IMPORT_ITEMS} items can be imported at once.`,
+    };
   }
 
   try {
@@ -138,8 +154,18 @@ export async function batchImportProgress(
             ? Math.max(1, item.progressTotal)
             : null,
         progressUnit: item.progressUnit || null,
-        currentLabel: item.currentLabel ? item.currentLabel.trim().slice(0, 100) : null,
-        notes: item.notes ? item.notes.trim().slice(0, 3000) : null,
+        // Formula-leading bytes are neutralized at the import boundary for the
+        // free-text fields only: notes/currentLabel are the realistic carrier
+        // for CSV-injection payloads, while title/creator keep display fidelity
+        // and machine identifiers (e.g. Goodreads "=0441478123" ISBNs) stay
+        // untouched. escapeCsvField neutralizes every field at export time, so
+        // anything stored verbatim is still safe when written to a spreadsheet.
+        currentLabel: item.currentLabel
+          ? neutralizeFormulaPrefix(item.currentLabel.trim()).slice(0, 100)
+          : null,
+        notes: item.notes
+          ? neutralizeFormulaPrefix(item.notes.trim()).slice(0, 3000)
+          : null,
         rating:
           typeof item.rating === "number" && item.rating >= 1 && item.rating <= 5
             ? item.rating
@@ -187,7 +213,7 @@ export async function batchImportProgress(
     });
     return {
       success: false,
-      error: "Kayıtlar içe aktarılırken bir hata oluştu.",
+      error: "An error occurred while importing your records.",
       traceId: diag.traceId,
     };
   }
@@ -198,7 +224,7 @@ export async function exportShelfData(
 ): Promise<ActionResult<ExportResult>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
@@ -209,6 +235,13 @@ export async function exportShelfData(
         filter: pb.filter("user = {:userId}", { userId: session.id }),
         sort: "-createdAt",
       });
+
+    if (items.length > MAX_EXPORT_ROWS) {
+      return {
+        success: false,
+        error: `Export limit exceeded: your shelf has ${items.length} items but the maximum export size is ${MAX_EXPORT_ROWS}.`,
+      };
+    }
 
     const dateStr = new Date().toISOString().slice(0, 10);
 
@@ -252,12 +285,12 @@ export async function exportShelfData(
       };
     }
 
-    return { success: false, error: "Desteklenmeyen dışa aktarma biçimi." };
+    return { success: false, error: "Unsupported export format." };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "exportShelfData", format });
     return {
       success: false,
-      error: "Dışa aktarma oluşturulurken bir hata oluştu.",
+      error: "An error occurred while creating the export.",
       traceId: diag.traceId,
     };
   }

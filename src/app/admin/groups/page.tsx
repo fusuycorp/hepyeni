@@ -7,12 +7,7 @@ import { CopyInviteButton } from "@/components/copy-invite-button";
 import { adminDeleteGroup } from "@/lib/actions/admin";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
-import type {
-  GroupMembersResponse,
-  GroupsResponse,
-  TitlesResponse,
-  UsersResponse,
-} from "@/types/pocketbase-types";
+import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AdminGroupsPage() {
   const pb = await getSuperuserClient();
@@ -25,18 +20,25 @@ export default async function AdminGroupsPage() {
       expand: "createdBy",
     });
 
-  const [memberCounts, titleCounts] = await Promise.all([
-    pb.collection("group_members").getFullList<GroupMembersResponse>(),
-    pb.collection("titles").getFullList<TitlesResponse>(),
-  ]);
-
-  const countBy = (rows: { group: string }[]) => {
-    const counts = new Map<string, number>();
-    for (const row of rows) counts.set(row.group, (counts.get(row.group) ?? 0) + 1);
-    return counts;
-  };
-  const membersPerGroup = countBy(memberCounts);
-  const titlesPerGroup = countBy(titleCounts);
+  // P5 (perf): per-group count queries (getList(1,1).totalItems) instead of
+  // scanning the entire group_members and titles tables into memory and
+  // tallying them in JS.
+  const membersPerGroup = new Map<string, number>();
+  const titlesPerGroup = new Map<string, number>();
+  await Promise.all(
+    groups.map(async (group) => {
+      const [memberPage, titlePage] = await Promise.all([
+        pb.collection("group_members").getList(1, 1, {
+          filter: pb.filter("group = {:groupId}", { groupId: group.id }),
+        }),
+        pb.collection("titles").getList(1, 1, {
+          filter: pb.filter("group = {:groupId}", { groupId: group.id }),
+        }),
+      ]);
+      membersPerGroup.set(group.id, memberPage.totalItems);
+      titlesPerGroup.set(group.id, titlePage.totalItems);
+    }),
+  );
 
   return (
     <div className="space-y-6">

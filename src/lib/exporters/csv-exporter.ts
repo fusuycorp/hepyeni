@@ -1,8 +1,20 @@
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 
+// Spreadsheet apps evaluate cells starting with = + - @ (or a tab/CR) as
+// formulas (CWE-1236, CSV injection). Prefixing such cells with a single
+// quote turns them into literal text. Shared by the exporter (escapeCsvField)
+// and the importer boundary (batchImportProgress) so the two sides cannot
+// drift — the stored value may be verbatim user content, but anything that
+// reaches a spreadsheet-capable format is neutralized here.
+const FORMULA_PREFIX_RE = /^[=+\-@\t\r]/;
+
+export function neutralizeFormulaPrefix(val: string): string {
+  return FORMULA_PREFIX_RE.test(val.trim()) ? `'${val}` : val;
+}
+
 function escapeCsvField(val: unknown): string {
   if (val === null || val === undefined) return "";
-  const str = String(val);
+  const str = neutralizeFormulaPrefix(String(val));
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

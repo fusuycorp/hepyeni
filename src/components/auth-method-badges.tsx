@@ -203,13 +203,20 @@ export function AuthMethodsCard({
                         <span>{translations.notConnected}</span>
                       </Badge>
                     )
-                  ) : (
+                  ) : method.connected ? (
                     <Badge
                       variant="secondary"
                       className="text-[10px] gap-1 py-0.5 px-2 font-medium"
                     >
                       <Check className="size-2.5 text-primary" />
                       <span>{translations.active}</span>
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] py-0.5 px-2 text-muted-foreground border-dashed border-border"
+                    >
+                      <span>{translations.notConnected}</span>
                     </Badge>
                   )}
                 </div>

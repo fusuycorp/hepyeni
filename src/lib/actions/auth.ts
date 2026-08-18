@@ -29,7 +29,17 @@ export async function getUserAuthMethods(
 ): Promise<UserAuthMethods> {
   try {
     const pb = await getSuperuserClient();
-    const externalAuths = await pb.collection("users").listExternalAuths(userId);
+    // OAuth providers are genuinely per-user; password/OTP are NOT. PocketBase's
+    // public API never exposes an individual user's password/OTP state (the
+    // password hash is not returned), so hasPassword/hasOtp can only truthfully
+    // report collection-level availability via listAuthMethods() — i.e. whether
+    // the users collection accepts password / OTP sign-in at all. The UI treats
+    // these as app-level capabilities, never as a claim about a specific user's
+    // credentials.
+    const [externalAuths, methods] = await Promise.all([
+      pb.collection("users").listExternalAuths(userId),
+      pb.collection("users").listAuthMethods(),
+    ]);
     const oauthProviders = externalAuths
       .map((item) =>
         typeof item.provider === "string" ? item.provider.toLowerCase() : "",
@@ -37,15 +47,17 @@ export async function getUserAuthMethods(
       .filter((p): p is string => Boolean(p));
 
     return {
-      hasPassword: true,
-      hasOtp: true,
+      hasPassword: Boolean(methods?.password?.enabled),
+      hasOtp: Boolean(methods?.otp?.enabled),
       oauthProviders,
     };
   } catch (err) {
     logDiagnostic(err, { action: "getUserAuthMethods", userId });
+    // Failing closed (false, not true) avoids asserting a method is available
+    // when we could not verify it.
     return {
-      hasPassword: true,
-      hasOtp: true,
+      hasPassword: false,
+      hasOtp: false,
       oauthProviders: [],
     };
   }

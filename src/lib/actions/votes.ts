@@ -10,6 +10,11 @@ import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 import type { VotesResponse } from "@/types/pocketbase-types";
 
+// ponytail: action-layer error strings are hardcoded English (unified from a
+// TR/EN mix). Ceiling: actions should return stable error codes mapped to
+// client-side translations (useTranslations) for full TR/EN parity; until then
+// EN keeps every locale's toasts readable and consistent.
+
 export async function voteOnTitle(
   titleId: string,
   groupId: string,
@@ -17,17 +22,17 @@ export async function voteOnTitle(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   if (value !== "up" && value !== "down") {
-    return { success: false, error: "Geçersiz oy değeri." };
+    return { success: false, error: "Invalid vote value." };
   }
 
   try {
     const access = await resolveCircleAccess(groupId, session.id);
     if (!access.canVote) {
-      return { success: false, error: "Bu çemberde oy kullanma yetkiniz bulunmuyor." };
+      return { success: false, error: "You do not have permission to vote in this circle." };
     }
     await requireTitleInGroup(titleId, groupId);
 
@@ -61,6 +66,6 @@ export async function voteOnTitle(
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "voteOnTitle", titleId, groupId, value });
-    return { success: false, error: "Oy kaydedilirken bir hata oluştu.", traceId: diag.traceId };
+    return { success: false, error: "Failed to record vote.", traceId: diag.traceId };
   }
 }

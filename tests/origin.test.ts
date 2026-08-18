@@ -1,8 +1,19 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { getRequestOrigin, oauth2RedirectUrl } from "@/lib/pocketbase/session";
 
 describe("Reverse-Proxy Origin Resolution & OAuth URL Protocol", () => {
-  it("resolves public HTTPS domain from x-forwarded-* headers behind reverse proxy", () => {
+  const savedAppUrl = process.env.APP_URL;
+  const savedTrust = process.env.TRUST_FORWARDED_HEADERS;
+
+  afterEach(() => {
+    if (savedAppUrl === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = savedAppUrl;
+    if (savedTrust === undefined) delete process.env.TRUST_FORWARDED_HEADERS;
+    else process.env.TRUST_FORWARDED_HEADERS = savedTrust;
+  });
+
+  it("honors x-forwarded-* behind a reverse proxy when forwarded headers are trusted", () => {
+    process.env.TRUST_FORWARDED_HEADERS = "1";
     const mockReq = {
       headers: new Headers({
         "x-forwarded-host": "hepyeni.net",
@@ -16,7 +27,8 @@ describe("Reverse-Proxy Origin Resolution & OAuth URL Protocol", () => {
     expect(oauth2RedirectUrl(origin)).toBe("https://hepyeni.net/api/auth/oauth2-callback");
   });
 
-  it("handles custom reverse-proxy port in x-forwarded-host", () => {
+  it("handles custom reverse-proxy port in x-forwarded-host when trusted", () => {
+    process.env.TRUST_FORWARDED_HEADERS = "true";
     const mockReq = {
       headers: new Headers({
         "x-forwarded-host": "stage.titirek.app:8443",
@@ -27,9 +39,20 @@ describe("Reverse-Proxy Origin Resolution & OAuth URL Protocol", () => {
 
     const origin = getRequestOrigin(mockReq);
     expect(origin).toBe("https://stage.titirek.app:8443");
-    expect(oauth2RedirectUrl(origin)).toBe(
-      "https://stage.titirek.app:8443/api/auth/oauth2-callback",
-    );
+  });
+
+  it("ignores x-forwarded-* when not trusted and falls back to the validated Host header", () => {
+    delete process.env.TRUST_FORWARDED_HEADERS; // default off
+    const mockReq = {
+      headers: new Headers({
+        "x-forwarded-host": "evil.example.com",
+        "x-forwarded-proto": "http",
+        host: "hepyeni.net",
+      }),
+    };
+
+    // forwarded host is NOT honored; the real Host wins and proto defaults to https
+    expect(getRequestOrigin(mockReq)).toBe("https://hepyeni.net");
   });
 
   it("never outputs 0.0.0.0:3000 when container host header is 0.0.0.0", () => {
@@ -50,19 +73,42 @@ describe("Reverse-Proxy Origin Resolution & OAuth URL Protocol", () => {
       }),
     };
 
-    const origin = getRequestOrigin(mockReq);
-    expect(origin).toBe("https://localhost:3000");
+    expect(getRequestOrigin(mockReq)).toBe("https://localhost:3000");
+  });
+
+  it("rejects header-injection / malformed hosts instead of echoing them", () => {
+    const bad = [
+      "hepyeni.net@evil.example",
+      "hepyeni.net/path",
+      "hepyeni.net?#frag",
+      "host with space",
+      "",
+    ];
+
+    for (const h of bad) {
+      const origin = getRequestOrigin({ headers: new Headers({ host: h }) });
+      expect(origin).not.toBe(String(h));
+      // falls back to a safe localhost dev origin when nothing valid resolves
+      expect(origin.startsWith("http://localhost")).toBe(true);
+    }
+  });
+
+  it("prefers sanitized APP_URL as the authoritative origin even when request headers are present", () => {
+    process.env.APP_URL = "https://mycircle.app/";
+    const mockReq = {
+      headers: new Headers({
+        host: "localhost:3000",
+        "x-forwarded-host": "evil.example.com",
+        "x-forwarded-proto": "http",
+      }),
+    };
+
+    expect(getRequestOrigin(mockReq)).toBe("https://mycircle.app");
+    expect(oauth2RedirectUrl()).toBe("https://mycircle.app/api/auth/oauth2-callback");
   });
 
   it("falls back to sanitized APP_URL if no request headers are passed", () => {
-    const originalEnv = process.env.APP_URL;
-    try {
-      process.env.APP_URL = "https://mycircle.app/";
-      const origin = getRequestOrigin();
-      expect(origin).toBe("https://mycircle.app");
-      expect(oauth2RedirectUrl()).toBe("https://mycircle.app/api/auth/oauth2-callback");
-    } finally {
-      process.env.APP_URL = originalEnv;
-    }
+    process.env.APP_URL = "https://mycircle.app/";
+    expect(getRequestOrigin()).toBe("https://mycircle.app");
   });
 });

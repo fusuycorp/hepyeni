@@ -50,9 +50,19 @@ export default async function TitleDetailPage({
   const group = access.group;
   const pb = await getSuperuserClient();
 
+  // S3-title (security): never ship review records (full reviewText + reviewer
+  // identity) to viewers without review visibility — mirror the comments
+  // server-gating pattern used on the group page. Voter/reviewer identity under
+  // blind pick is stripped from the client-bound copy by redactProposedTitles
+  // (src/lib/moods.ts); the score/userVote scalars below are computed from the
+  // server-side records before redaction.
+  const titleExpand = access.canViewReviews
+    ? "addedBy,votes_via_title,reviews_via_title.user"
+    : "addedBy,votes_via_title";
+
   const [titleRecord, userRecord, comments, memberProgress] = await Promise.all([
     pb.collection("titles").getOne<TitlesResponse<TitleExpand>>(titleId, {
-      expand: "addedBy,votes_via_title,reviews_via_title.user",
+      expand: titleExpand,
     }),
     session?.id
       ? pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null)

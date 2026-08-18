@@ -40,7 +40,7 @@ interface TitleItem extends Partial<TitlesResponse> {
   title: string;
   creator?: string;
   coverUrl?: string;
-  mediaType?: any;
+  mediaType?: TitlesResponse["mediaType"];
   score?: number;
 }
 

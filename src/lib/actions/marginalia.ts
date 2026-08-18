@@ -66,10 +66,11 @@ export async function addQuote(
     revalidatePath("/shelf");
     return { success: true, data: record };
   } catch (err) {
-    const diag = logDiagnostic(err, { action: "addQuote", input });
+    // S2: never log the raw user input payload (quote text is private).
+    const diag = logDiagnostic(err, { action: "addQuote" });
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to add quote",
+      error: "Failed to add quote",
       traceId: diag.traceId,
     };
   }
@@ -100,7 +101,7 @@ export async function deleteQuote(quoteId: string): Promise<ActionResult<void>> 
     const diag = logDiagnostic(err, { action: "deleteQuote", quoteId });
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to delete quote",
+      error: "Failed to delete quote",
       traceId: diag.traceId,
     };
   }
@@ -112,23 +113,29 @@ export async function getUserQuotes(
   try {
     await requireFeature("digital_marginalia");
     const session = await getSession();
-    const targetUserId = userId || session?.id;
+    // S1: never expose quotes to anonymous callers — user ids are publicly
+    // harvestable, so an unauthenticated request must get an empty list.
+    if (!session) return [];
+
+    const targetUserId = userId || session.id;
     if (!targetUserId) return [];
 
     const pb = await getSuperuserClient();
     const records = await pb.collection("shelf_quotes").getFullList<ShelfQuotesResponse<QuoteExpand>>({
-      filter: `user = "${targetUserId}"`,
+      filter: pb.filter("user = {:userId}", { userId: targetUserId }),
       sort: "-createdAt",
       expand: "user,progressItem",
     });
 
-    if (!session || session.id === targetUserId) {
+    // Only the owner sees their quotes unfiltered. Every other viewer goes
+    // through the mutual-circle filter — never short-circuit past it.
+    if (session.id === targetUserId) {
       return records;
     }
 
     // If viewing another user's quotes, get mutual circle memberships
     const userMemberships = await pb.collection("group_members").getFullList({
-      filter: `user = "${session.id}"`,
+      filter: pb.filter("user = {:userId}", { userId: session.id }),
     });
     const circleIds = userMemberships.map((m) => m.group);
     return filterQuotesForViewer(records, session.id, circleIds);
@@ -144,12 +151,17 @@ export async function getCircleQuotes(
   try {
     await requireFeature("digital_marginalia");
     const session = await getSession();
-    if (session) {
-      await requireMembership(circleId, session.id);
-    }
+    // S5: quote sharing with a circle is only ever meant for that circle's
+    // members. Anonymous callers get nothing, members are verified
+    // unconditionally — never skip the membership check.
+    if (!session) return [];
+    await requireMembership(circleId, session.id);
 
     const pb = await getSuperuserClient();
     const records = await pb.collection("shelf_quotes").getFullList<ShelfQuotesResponse<QuoteExpand>>({
+      // Perf M1: narrow the scan server-side (JSON array containment); the
+      // strict JS-side include check below stays as the authoritative gate.
+      filter: pb.filter("isSharedWithCircles ~ {:circleId}", { circleId }),
       sort: "-createdAt",
       expand: "user,progressItem",
     });
@@ -218,7 +230,7 @@ export async function toggleShareQuoteWithCircle(
     });
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to toggle circle share",
+      error: "Failed to toggle circle share",
       traceId: diag.traceId,
     };
   }
