@@ -1,7 +1,13 @@
 # Project Memory
 
 ## Active Epics & Tasks
-- **Current State**: Shipped Phase 0 Titirek Labs Feature Flag Engine (`src/lib/flags/` with cookie, env `FLAG_ENABLE_*`, circle overrides, and Profile Labs UI card), Phase 2 Dual-Layer Spoiler Protection (`<SpoilerText>` inline parser and Base UI blur filter) & Milestone Campfire Discussions (`milestone_comments` collection, server actions, and `<MilestoneCampfireDialog>` with pre-checkin spoiler redaction), Personal Shelf & Progress Tracking (`/shelf` with *Currently Savoring*, *Finished & Log*, *Plan to Experience*, quick stepper, notes, ratings, and circle visibility controls), Circle Member Title Progress Synchronization (`<CircleTitleProgress />` on media title pages), Group Pacing Schedules & Milestones (`<GroupSchedulesCard />` with timeline countdowns and member check-ins), Circle Guest Management & Granular Public Access Controls (`isPublic` + `guestSettings` for visibility & permissions), Active Login Types Display on Profile (`getUserAuthMethods` with Google, Apple, Password, and Email OTP status cards), slow-living Public Landing Page at `/`, Recommended Title Detail Page (`/groups/[groupId]/titles/[titleId]`), nested comment replies (+1 depth max constraint with `parentId` relations and root-level attachment enforcement), modernized "Mark as Finished" / "Bitti Olarak İşaretle" consumer-grade UX copy, Custom Media recommendation mode, and Recommender Filter chips. Full i18n parity across TR and EN maintained with 181 automated unit tests passing.
+- **Current State**: Shipped full 5-phase modular evolution:
+  1. **Phase 0 (Titirek Labs & Feature Flags)**: Zero-dependency flag engine (`src/lib/flags/`) with multi-scope evaluation, cookie persistence, and Profile Labs UI card.
+  2. **Phase 1 (Universal Data Portability Hub)**: `/shelf/import-export` with streaming CSV parsers for Goodreads, Letterboxd, and StoryGraph, plus Obsidian Markdown ZIP, JSON, and CSV exporters.
+  3. **Phase 2 (Dual-Layer Spoiler Protection & Campfires)**: `<SpoilerText>` interactive inline `||spoiler||` blur filters, `milestone_comments` collection, and server-gated pre-checkin milestone campfire discussions.
+  4. **Phase 3 (Digital Marginalia & Quote Snaps)**: `shelf_quotes` collection, `<QuoteCard>`, `<AddQuoteDialog>`, and Quotes gallery tab on `/shelf` with dual private/circle sharing.
+  5. **Phase 4 (Mood & Pace Folksonomy + Blind Pick Wheel)**: 9 moods and 3 paces taxonomy, `<MoodSelector>`, backlog vibe filters, `<DecisionWheelDialog>` spinning wheel, and blind proposal identity redaction.
+  - Complete i18n parity between Turkish (`tr.ts`) and English (`en.ts`), Test-First (TDD) invariant enforced with 229 passing unit tests across 26 test suites.
 - **Core Stack**: Next.js (App Router, Server Actions, Route Handlers), TailwindCSS, Base UI, PocketBase (SQLite backend), Bun runtime.
 
 
