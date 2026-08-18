@@ -110,3 +110,15 @@
 - **Consequences**: Unbiased group voting dynamics, friction-free random selection, expressive folksonomy categorization, and 100% test & translation parity.
 
 
+
+## ADR-013: "use server" File Boundary Invariant & Mandatory Build Verification
+- **Status**: Accepted & Enforced (2026-08-18)
+- **Context**: A class of build failures was introduced and pushed to main undetected. Synchronous utility functions (`parseTags`, `formatAttribution`, `toIsoDate`, `filterMilestoneCommentsForViewer`, etc.) were exported directly from `"use server"` files. The error was invisible to both `bun test` and `bun x tsc --noEmit` — it only surfaced at `next build` time via Turbopack's Server Action constraint enforcement.
+- **Why it slipped through**: The pre-commit verification chain was `bun test && bun x tsc --noEmit`. Neither tool checks the Next.js `"use server"` constraint:
+  - `tsc` validates TypeScript types only — it has no knowledge of Server Action rules.
+  - `bun test` runs unit tests that import modules directly via path aliases, bypassing the Next.js compiler entirely.
+  - `next build` is the only tool that enforces the "every export in a `use server` file must be async" rule.
+- **Decision — Two permanent invariants**:
+  1. **`"use server"` files may only export `async` functions and `type` re-exports.** Pure sync utility functions, constants, and class instances must live in plain lib modules (e.g. `src/lib/date.ts`, `src/lib/marginalia.ts`, `src/lib/schedules.ts`). They can be imported and used internally by `"use server"` files but never exported from them — not even via `export { fn } from "..."` re-exports.
+  2. **The mandatory verification command before any commit that touches `src/` is `bun test && bun x tsc --noEmit && bun next build`.** `bun test` alone is not sufficient. `tsc --noEmit` alone is not sufficient. All three must pass.
+- **Consequences**: Zero silent build regressions. Clear module boundary: `src/lib/actions/*.ts` = async Server Actions only; `src/lib/*.ts` = pure sync business logic, shared utilities, and types.

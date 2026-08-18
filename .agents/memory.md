@@ -36,3 +36,17 @@
   1. `new Collection({ fields: [ ... ] })`: The constructor options array expects plain object descriptors: `{ type: "relation" | "text" | "number" | "bool" | "select" | "json" | "date" | "autodate", name: "...", ... }`. Passing class instances like `new RelationField(...)` inside the `fields` option array causes Goja map unmarshaling to drop the fields, leaving columns missing in SQLite.
   2. `collection.fields.add(field)`: Modifying an existing collection requires an instantiated `core.Field` constructor (e.g. `new RelationField(...)`, `new BoolField(...)`, `new JSONField(...)`, `new TextField(...)`). Passing plain objects `{ type: "json" }` to `fields.add()` fails with `TypeError: could not convert [object Object] to core.Field`.
 
+
+## Critical Invariants (ADR-013)
+
+**`"use server"` file boundary rule** (NEVER violate):
+- `src/lib/actions/*.ts` files may export ONLY `async` functions and `export type` re-exports.
+- Sync helpers, constants, and pure functions MUST live in `src/lib/*.ts` (e.g. `src/lib/marginalia.ts`, `src/lib/date.ts`, `src/lib/schedules.ts`).
+- Even `export { syncFn } from "..."` re-exports inside a `"use server"` file are REJECTED by the Next.js Turbopack compiler.
+- `tsc --noEmit` and `bun test` DO NOT catch this — only `next build` does.
+
+**Mandatory pre-commit verification for any change touching `src/`**:
+```
+bun test && bun x tsc --noEmit && bun next build
+```
+All three must pass. Skipping `next build` = silently broken production deploy.
