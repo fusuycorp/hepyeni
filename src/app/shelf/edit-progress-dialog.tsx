@@ -157,7 +157,7 @@ export function EditProgressDialog({
             {/* Status Select */}
             <div className="space-y-1.5">
               <Label className="text-xs">{t.shelf.quickUpdate}</Label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                 {(
                   [
                     "in_progress",
@@ -181,7 +181,7 @@ export function EditProgressDialog({
                       type="button"
                       onClick={() => setStatus(s)}
                       className={cn(
-                        "p-2 rounded-lg text-xs font-medium border text-center transition-all cursor-pointer",
+                        "p-2 rounded-lg text-xs font-medium border text-center transition-all cursor-pointer truncate",
                         isSelected
                           ? "bg-primary text-primary-foreground border-primary shadow-2xs font-semibold"
                           : "bg-background border-border/70 hover:bg-muted text-muted-foreground",

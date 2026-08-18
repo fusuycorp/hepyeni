@@ -87,10 +87,10 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
   return (
     <div className="space-y-6">
       {/* Header & Main Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/50">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <BookOpen className="size-5 text-primary" />
+            <BookOpen className="size-5 text-primary shrink-0" />
             <h1 className="text-xl font-bold tracking-tight text-foreground">
               {t.shelf.pageTitle}
             </h1>
@@ -100,31 +100,35 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
           </p>
         </div>
 
-        <AddToShelfDialog />
+        <div className="w-full sm:w-auto shrink-0">
+          <AddToShelfDialog />
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit">
-        {[
-          { id: "in_progress" as const, label: t.shelf.tabInProgress },
-          { id: "completed" as const, label: t.shelf.tabCompleted },
-          { id: "plan_to_consume" as const, label: t.shelf.tabPlanToConsume },
-          { id: "all" as const, label: t.shelf.tabAll },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === tab.id
-                ? "bg-background text-foreground shadow-2xs font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="w-full overflow-x-auto scrollbar-none pb-1">
+        <div className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 min-w-full sm:min-w-fit">
+          {[
+            { id: "in_progress" as const, label: t.shelf.tabInProgress },
+            { id: "completed" as const, label: t.shelf.tabCompleted },
+            { id: "plan_to_consume" as const, label: t.shelf.tabPlanToConsume },
+            { id: "all" as const, label: t.shelf.tabAll },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 text-center",
+                activeTab === tab.id
+                  ? "bg-background text-foreground shadow-2xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Media Items Grid */}
@@ -266,7 +270,7 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
                   )}
 
                   {/* Bottom Controls */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
                     {/* Quick Step Buttons for Active items */}
                     {item.status === "in_progress" ? (
                       <div className="flex items-center gap-1">
@@ -276,7 +280,7 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
                           size="xs"
                           disabled={isPending || !item.progressCurrent}
                           onClick={() => handleQuickStep(item, -1)}
-                          className="size-7 p-0"
+                          className="size-7 p-0 shrink-0"
                           title="-1"
                         >
                           <Minus className="size-3" />
@@ -287,7 +291,7 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
                           size="xs"
                           disabled={isPending}
                           onClick={() => handleQuickStep(item, 1)}
-                          className="h-7 px-2 text-xs font-mono gap-1"
+                          className="h-7 px-2 text-xs font-mono gap-1 shrink-0"
                           title="+1"
                         >
                           <Plus className="size-3" />
@@ -303,7 +307,7 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
                       variant="ghost"
                       size="xs"
                       onClick={() => setEditingItem(item)}
-                      className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      className="gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto shrink-0"
                     >
                       <Settings2 className="size-3.5" />
                       <span>{t.shelf.editProgress}</span>

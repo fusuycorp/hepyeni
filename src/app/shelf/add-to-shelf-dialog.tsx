@@ -136,7 +136,7 @@ export function AddToShelfDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" className="gap-2 shadow-xs font-medium">
+          <Button size="sm" className="w-full sm:w-auto gap-2 shadow-xs font-medium">
             <Plus className="size-4" />
             <span>{t.shelf.addToShelf}</span>
           </Button>
@@ -300,7 +300,7 @@ export function AddToShelfDialog() {
                     type="button"
                     onClick={() => setStatus(s.id as UserMediaProgressStatusOptions)}
                     className={cn(
-                      "py-2 px-2.5 rounded-lg border text-xs font-medium transition-all text-center",
+                      "py-2 px-1.5 rounded-lg border text-xs font-medium transition-all text-center truncate",
                       status === s.id
                         ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
                         : "border-border/60 hover:bg-muted/40 text-muted-foreground",
