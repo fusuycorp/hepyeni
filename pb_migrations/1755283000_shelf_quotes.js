@@ -13,55 +13,64 @@ migrate((app) => {
     updateRule: null,
     deleteRule: null,
     fields: [
-      new RelationField({
+      {
+        type: "relation",
         name: "user",
         required: true,
         collectionId: users.id,
         cascadeDelete: true,
         maxSelect: 1,
-      }),
-      new RelationField({
+      },
+      {
+        type: "relation",
         name: "progressItem",
         required: false,
         collectionId: userMediaProgress ? userMediaProgress.id : "user_media_progress",
         cascadeDelete: false,
         maxSelect: 1,
-      }),
-      new TextField({
+      },
+      {
+        type: "text",
         name: "mediaType",
         required: false,
         max: 50,
-      }),
-      new TextField({
+      },
+      {
+        type: "text",
         name: "titleName",
         required: true,
         min: 1,
         max: 200,
-      }),
-      new TextField({
+      },
+      {
+        type: "text",
         name: "quoteText",
         required: true,
         min: 1,
         max: 3000,
-      }),
-      new TextField({
+      },
+      {
+        type: "text",
         name: "attribution",
         required: false,
         max: 200,
-      }),
-      new JSONField({
+      },
+      {
+        type: "json",
         name: "tags",
         required: false,
-      }),
-      new JSONField({
+      },
+      {
+        type: "json",
         name: "isSharedWithCircles",
         required: false,
-      }),
-      new AutodateField({
+      },
+      {
+        type: "autodate",
         name: "createdAt",
         onCreate: true,
         onUpdate: false,
-      }),
+      },
     ],
   });
   shelfQuotes.addIndex("idx_shelf_quotes_user", false, "user, createdAt");

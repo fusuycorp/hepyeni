@@ -14,42 +14,48 @@ migrate((app) => {
     updateRule: null,
     deleteRule: null,
     fields: [
-      new RelationField({
+      {
+        type: "relation",
         name: "milestone",
         required: true,
         collectionId: scheduleMilestones.id,
         cascadeDelete: true,
         maxSelect: 1,
-      }),
-      new RelationField({
+      },
+      {
+        type: "relation",
         name: "user",
         required: true,
         collectionId: users.id,
         cascadeDelete: true,
         maxSelect: 1,
-      }),
-      new RelationField({
+      },
+      {
+        type: "relation",
         name: "group",
         required: true,
         collectionId: groups.id,
         cascadeDelete: true,
         maxSelect: 1,
-      }),
-      new TextField({
+      },
+      {
+        type: "text",
         name: "content",
         required: true,
         min: 1,
         max: 2000,
-      }),
-      new BoolField({
+      },
+      {
+        type: "bool",
         name: "isSpoiler",
         required: false,
-      }),
-      new AutodateField({
+      },
+      {
+        type: "autodate",
         name: "createdAt",
         onCreate: true,
         onUpdate: false,
-      }),
+      },
     ],
   });
   milestoneComments.addIndex("idx_milestone_comments_milestone", false, "milestone, createdAt");
