@@ -17,6 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MediaBadge } from "@/components/media-badge";
 import { MediaCover } from "@/components/media-cover";
+import { MoodSelector } from "@/components/mood-selector";
+import { useFeatureFlag } from "@/lib/flags/client";
+import type { MoodType, PaceType } from "@/lib/moods";
 import { saveMediaProgress } from "@/lib/actions/progress";
 import { useTranslations } from "@/lib/i18n/client";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
@@ -52,6 +55,10 @@ export function AddToShelfDialog() {
   const [notes, setNotes] = useState("");
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [isSharedWithCircles, setIsSharedWithCircles] = useState(true);
+  const [selectedMoods, setSelectedMoods] = useState<MoodType[]>([]);
+  const [selectedPace, setSelectedPace] = useState<PaceType | undefined>(undefined);
+
+  const moodFeatureEnabled = useFeatureFlag("mood_pace_folksonomy");
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +113,8 @@ export function AddToShelfDialog() {
           currentLabel: currentLabel || undefined,
           notes: notes || undefined,
           rating,
+          moods: selectedMoods.length > 0 ? selectedMoods : undefined,
+          pace: selectedPace,
           isSharedWithCircles,
         });
 
@@ -124,6 +133,8 @@ export function AddToShelfDialog() {
         setQuery("");
         setCustomTitle("");
         setCustomCreator("");
+        setSelectedMoods([]);
+        setSelectedPace(undefined);
         setIsCustomMode(false);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : t.common.error;
@@ -374,6 +385,18 @@ export function AddToShelfDialog() {
                 className="text-xs min-h-[60px] resize-none"
               />
             </div>
+
+            {/* Mood & Pace Selector */}
+            {moodFeatureEnabled && (
+              <div className="p-3 rounded-xl bg-card border border-border/60">
+                <MoodSelector
+                  selectedMoods={selectedMoods}
+                  onChangeMoods={setSelectedMoods}
+                  selectedPace={selectedPace}
+                  onChangePace={setSelectedPace}
+                />
+              </div>
+            )}
 
             {/* Circle Sharing Toggle */}
             <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">

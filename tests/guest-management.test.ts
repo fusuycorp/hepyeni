@@ -15,6 +15,7 @@ function createMockGroup(overrides: Partial<GroupsResponse> = {}): GroupsRespons
     inviteCode: "CINEMA42",
     createdBy: "usr_owner",
     isPublic: false,
+    isBlindPickEnabled: false,
     guestSettings: null,
     createdAt: "2026-08-17T12:00:00.000Z" as any,
     collectionId: "col_groups",

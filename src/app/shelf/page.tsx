@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ShelfView } from "./shelf-view";
 import { getPersonalShelf } from "@/lib/actions/progress";
+import { getUserQuotes } from "@/lib/actions/marginalia";
+import { isFeatureEnabled } from "@/lib/flags/server";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
@@ -11,9 +13,12 @@ export default async function ShelfPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [t, items, pb] = await Promise.all([
+  const isMarginaliaEnabled = await isFeatureEnabled("digital_marginalia");
+
+  const [t, items, quotes, pb] = await Promise.all([
     getServerTranslations(),
     getPersonalShelf(),
+    isMarginaliaEnabled ? getUserQuotes(session.id) : Promise.resolve([]),
     getSuperuserClient(),
   ]);
 
@@ -32,7 +37,12 @@ export default async function ShelfPage() {
 
   return (
     <AppShell user={currentUser} maxWidth="wide">
-      <ShelfView initialItems={items} />
+      <ShelfView
+        initialItems={items}
+        initialQuotes={quotes}
+        currentUserId={session.id}
+        isAdmin={session.isAdmin}
+      />
     </AppShell>
   );
 }

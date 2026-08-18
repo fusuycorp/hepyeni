@@ -15,6 +15,7 @@ import {
   EyeOff,
   Sparkles,
   ArrowUpDown,
+  Quote,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,21 +25,38 @@ import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
 import { AddToShelfDialog } from "./add-to-shelf-dialog";
 import { EditProgressDialog } from "./edit-progress-dialog";
+import { QuotesTab } from "./quotes-tab";
 import { updateProgressQuickStep } from "@/lib/actions/progress";
+import { useFeatureFlag } from "@/lib/flags/client";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import type {
+  ShelfQuotesResponse,
   UserMediaProgressResponse,
-  UserMediaProgressStatusOptions,
+  UsersResponse,
 } from "@/types/pocketbase-types";
 
 interface ShelfViewProps {
   initialItems: UserMediaProgressResponse[];
+  initialQuotes?: ShelfQuotesResponse<{
+    user?: UsersResponse;
+    progressItem?: UserMediaProgressResponse;
+  }>[];
+  currentUserId?: string;
+  isAdmin?: boolean;
 }
 
-export function ShelfView({ initialItems }: ShelfViewProps) {
+export function ShelfView({
+  initialItems,
+  initialQuotes = [],
+  currentUserId,
+  isAdmin,
+}: ShelfViewProps) {
   const t = useTranslations();
-  const [activeTab, setActiveTab] = useState<"in_progress" | "completed" | "plan_to_consume" | "all">("in_progress");
+  const isMarginaliaEnabled = useFeatureFlag("digital_marginalia");
+  const [activeTab, setActiveTab] = useState<
+    "in_progress" | "completed" | "plan_to_consume" | "all" | "quotes"
+  >("in_progress");
   const [editingItem, setEditingItem] = useState<UserMediaProgressResponse | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -86,6 +104,16 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
     }
   };
 
+  const tabs = [
+    { id: "in_progress" as const, label: t.shelf.tabInProgress },
+    { id: "completed" as const, label: t.shelf.tabCompleted },
+    { id: "plan_to_consume" as const, label: t.shelf.tabPlanToConsume },
+    { id: "all" as const, label: t.shelf.tabAll },
+    ...(isMarginaliaEnabled
+      ? [{ id: "quotes" as const, label: t.marginalia.tabTitle }]
+      : []),
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header & Main Actions */}
@@ -120,12 +148,7 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
       {/* Tabs */}
       <div className="w-full overflow-x-auto scrollbar-none pb-1">
         <div className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 min-w-full sm:min-w-fit">
-          {[
-            { id: "in_progress" as const, label: t.shelf.tabInProgress },
-            { id: "completed" as const, label: t.shelf.tabCompleted },
-            { id: "plan_to_consume" as const, label: t.shelf.tabPlanToConsume },
-            { id: "all" as const, label: t.shelf.tabAll },
-          ].map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -143,8 +166,15 @@ export function ShelfView({ initialItems }: ShelfViewProps) {
         </div>
       </div>
 
-      {/* Media Items Grid */}
-      {filteredItems.length === 0 ? (
+      {/* Content depending on active tab */}
+      {activeTab === "quotes" && isMarginaliaEnabled ? (
+        <QuotesTab
+          initialQuotes={initialQuotes}
+          shelfItems={initialItems}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+        />
+      ) : filteredItems.length === 0 ? (
         <div className="p-12 text-center rounded-2xl border border-dashed border-border/70 bg-card/40 space-y-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground mx-auto">
             <Sparkles className="size-5" />

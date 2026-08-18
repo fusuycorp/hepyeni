@@ -731,6 +731,77 @@ export interface Translations {
       };
     };
   };
+  marginalia: {
+    tabTitle: string;
+    captureQuote: string;
+    dialogTitle: string;
+    dialogSubtitle: string;
+    quoteTextLabel: string;
+    quotePlaceholder: string;
+    titleLabel: string;
+    titlePlaceholder: string;
+    attributionLabel: string;
+    attributionPlaceholder: string;
+    tagsLabel: string;
+    tagsPlaceholder: string;
+    linkToShelfItem: string;
+    noLinkedMedia: string;
+    shareWithCircles: string;
+    shareWithCirclesDesc: string;
+    emptyQuotes: string;
+    filterByTag: string;
+    filterByMedia: string;
+    allTags: string;
+    allMedia: string;
+    copyQuote: string;
+    copySuccess: string;
+    deleteQuote: string;
+    deleteConfirm: string;
+    quoteDeleted: string;
+    quoteSaved: string;
+    characterCount: string;
+  };
+  moods: {
+    allMoods: string;
+    filterByMood: string;
+    selectMoods: string;
+    paceLabel: string;
+    moodsLabel: string;
+    cozy: string;
+    dark: string;
+    melancholic: string;
+    mind_bending: string;
+    uplifting: string;
+    nostalgic: string;
+    whimsical: string;
+    tense: string;
+    philosophical: string;
+    slow_burn: string;
+    gentle: string;
+    fast_paced: string;
+  };
+  wheel: {
+    spinWheel: string;
+    spinning: string;
+    spinToDecide: string;
+    winnerTitle: string;
+    winnerAnnounce: string;
+    respin: string;
+    viewWinner: string;
+    needBacklogItems: string;
+    candidatesCount: string;
+  };
+  blindPick: {
+    title: string;
+    description: string;
+    toggleLabel: string;
+    enabledStatus: string;
+    disabledStatus: string;
+    anonymousRecommender: string;
+    modeNotice: string;
+    updatedSuccess: string;
+    updatedFailed: string;
+  };
 }
 
 

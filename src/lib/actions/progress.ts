@@ -5,6 +5,7 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess } from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
+import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { ActionResult } from "@/types/actions";
 import type {
   GroupMembersResponse,
@@ -53,6 +54,8 @@ export interface SaveMediaProgressInput {
   currentLabel?: string;
   notes?: string;
   rating?: number;
+  moods?: MoodType[] | string[] | null;
+  pace?: PaceType | string | null;
   isSharedWithCircles?: boolean;
   startedAt?: string;
   completedAt?: string;
@@ -101,6 +104,9 @@ export async function saveMediaProgress(
   try {
     const pb = await getSuperuserClient();
 
+    const normalizedMoods = normalizeMoods(input.moods);
+    const normalizedPace = normalizePace(input.pace);
+
     const data: Record<string, unknown> = {
       user: session.id,
       mediaType: input.mediaType,
@@ -125,6 +131,8 @@ export async function saveMediaProgress(
         typeof input.rating === "number" && input.rating >= 1 && input.rating <= 5
           ? input.rating
           : null,
+      moods: normalizedMoods.length > 0 ? normalizedMoods : null,
+      pace: normalizedPace || null,
       isSharedWithCircles: input.isSharedWithCircles ?? true,
     };
 

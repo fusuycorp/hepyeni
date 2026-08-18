@@ -7,6 +7,7 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { requireMembership, requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { getProvider } from "@/lib/providers";
+import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
@@ -17,6 +18,11 @@ export type SearchTitlesResponse = {
   error?: string;
   traceId?: string;
 };
+
+export interface AddTitleOptions {
+  moods?: MoodType[] | string[];
+  pace?: PaceType | string;
+}
 
 export async function searchTitles(
   mediaType: MediaType,
@@ -54,6 +60,7 @@ export async function addTitle(
   groupId: string,
   mediaType: MediaType,
   result: NormalizedSearchResult,
+  options?: AddTitleOptions,
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
@@ -82,6 +89,14 @@ export async function addTitle(
         ? result.coverUrl.slice(0, 2000)
         : null;
 
+    const normalizedMoods = normalizeMoods(options?.moods ?? result.metadata?.moods);
+    const normalizedPace = normalizePace(options?.pace ?? result.metadata?.pace);
+    const metadata: Record<string, unknown> | null = {
+      ...(result.metadata ?? {}),
+      ...(normalizedMoods.length > 0 ? { moods: normalizedMoods } : {}),
+      ...(normalizedPace ? { pace: normalizedPace } : {}),
+    };
+
     const pb = await getSuperuserClient();
     try {
       await pb.collection("titles").create({
@@ -92,7 +107,7 @@ export async function addTitle(
         title,
         creator,
         coverUrl,
-        metadata: result.metadata ?? null,
+        metadata: Object.keys(metadata).length > 0 ? metadata : null,
         status: "proposed",
         addedBy: session.id,
       });
@@ -115,6 +130,8 @@ export type CustomTitleInput = {
   creator?: string;
   coverUrl?: string;
   description?: string;
+  moods?: MoodType[] | string[];
+  pace?: PaceType | string;
 };
 
 export async function addCustomTitle(
@@ -154,6 +171,15 @@ export async function addCustomTitle(
 
     const customId = `custom_${crypto.randomUUID()}`;
 
+    const normalizedMoods = normalizeMoods(data.moods);
+    const normalizedPace = normalizePace(data.pace);
+    const metadata: Record<string, unknown> = {
+      ...(cleanDesc ? { description: cleanDesc } : {}),
+      custom: true,
+      ...(normalizedMoods.length > 0 ? { moods: normalizedMoods } : {}),
+      ...(normalizedPace ? { pace: normalizedPace } : {}),
+    };
+
     const pb = await getSuperuserClient();
     await pb.collection("titles").create({
       group: groupId,
@@ -163,9 +189,7 @@ export async function addCustomTitle(
       title: cleanTitle,
       creator: cleanCreator,
       coverUrl: cleanCover,
-      metadata: cleanDesc
-        ? { description: cleanDesc, custom: true }
-        : { custom: true },
+      metadata,
       status: "proposed",
       addedBy: session.id,
     });

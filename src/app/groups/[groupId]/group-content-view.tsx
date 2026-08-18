@@ -21,6 +21,10 @@ import { MEDIA_TYPES } from "@/lib/media-types";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTranslations, useLocale } from "@/lib/i18n/client";
+import { useFeatureFlag } from "@/lib/flags/client";
+import { DecisionWheelDialog } from "@/components/decision-wheel-dialog";
+import { MOODS, MOOD_DETAILS, type MoodType } from "@/lib/moods";
+import { Smile } from "lucide-react";
 import type { ActionResult } from "@/types/actions";
 import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
 import type {
@@ -40,6 +44,8 @@ type TitleWithScore = TitlesResponse<{
 }> & {
   score: number;
   userVote?: "up" | "down";
+  moods?: MoodType[] | null;
+  pace?: string | null;
 };
 
 interface GroupContentViewProps {
@@ -112,7 +118,11 @@ export function GroupContentView({
   const [activeTab, setActiveTab] = useState<"proposed" | "consumed" | "schedules">(defaultTab);
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedRecommender, setSelectedRecommender] = useState<string>("all");
+  const [selectedMood, setSelectedMood] = useState<string>("all");
   const t = useTranslations();
+
+  const moodFeatureEnabled = useFeatureFlag("mood_pace_folksonomy");
+  const wheelFeatureEnabled = useFeatureFlag("blind_pick_wheel");
 
   const currentList = activeTab === "proposed" ? proposed : activeTab === "consumed" ? consumed : [];
 
@@ -157,14 +167,24 @@ export function GroupContentView({
         : selectedRecommender === "me"
         ? item.addedBy === currentUserId
         : item.addedBy === selectedRecommender;
-    return matchesType && matchesRecommender;
+    const itemMoods =
+      (Array.isArray(item.moods)
+        ? item.moods
+        : (item.metadata?.moods as string[] | undefined)) ?? [];
+    const matchesMood =
+      !moodFeatureEnabled || selectedMood === "all"
+        ? true
+        : itemMoods.includes(selectedMood);
+    return matchesType && matchesRecommender && matchesMood;
   };
 
   const filteredProposed = proposed.filter(filterTitle);
   const filteredConsumed = consumed.filter(filterTitle);
 
   const isFiltered =
-    selectedMediaType !== "all" || selectedRecommender !== "all";
+    selectedMediaType !== "all" ||
+    selectedRecommender !== "all" ||
+    (moodFeatureEnabled && selectedMood !== "all");
 
   const selectedMemberName =
     selectedRecommender === "me"
@@ -313,6 +333,16 @@ export function GroupContentView({
                 />
               </button>
             ))}
+
+            {wheelFeatureEnabled && canViewBacklog && proposed.length > 0 && activeTab === "proposed" && (
+              <div className="ml-auto pl-2">
+                <DecisionWheelDialog
+                  items={proposed}
+                  groupId={group.id}
+                  groupName={group.name}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -380,6 +410,7 @@ export function GroupContentView({
               onClick={() => {
                 setSelectedMediaType("all");
                 setSelectedRecommender("all");
+                setSelectedMood("all");
               }}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap ml-auto"
             >
@@ -388,6 +419,55 @@ export function GroupContentView({
             </button>
           )}
         </div>
+
+        {/* Tertiary Filter: Mood & Tone Pills (if flag enabled) */}
+        {moodFeatureEnabled && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs pt-1 border-t border-border/40">
+            <div className="flex items-center gap-1 text-muted-foreground font-medium shrink-0 pr-1">
+              <Smile className="size-3.5" />
+              <span className="hidden sm:inline">{t.moods.filterByMood}:</span>
+            </div>
+
+            <button
+              type="button"
+              aria-pressed={selectedMood === "all"}
+              onClick={() => setSelectedMood("all")}
+              className={cn(
+                "px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                selectedMood === "all"
+                  ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {t.moods.allMoods}
+            </button>
+
+            {MOODS.map((mood) => {
+              const isSelected = selectedMood === mood;
+              const detail = MOOD_DETAILS[mood];
+              return (
+                <button
+                  key={mood}
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectedMood(isSelected ? "all" : mood)}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
+                      : cn(
+                          "bg-background text-muted-foreground border-border hover:text-foreground",
+                          detail?.bgColor
+                        )
+                  )}
+                >
+                  <span>{detail?.emoji}</span>
+                  <span>{t.moods[mood]}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
 
@@ -465,13 +545,48 @@ export function GroupContentView({
                                 {title.creator}
                               </p>
                             )}
+
+                            {moodFeatureEnabled && (
+                              (() => {
+                                const rawMoods = (Array.isArray(title.moods)
+                                  ? title.moods
+                                  : (title.metadata?.moods as MoodType[] | undefined)) ?? [];
+                                const itemMoods: MoodType[] = Array.isArray(rawMoods)
+                                  ? (rawMoods.filter((x): x is MoodType => typeof x === "string" && x in MOOD_DETAILS))
+                                  : [];
+                                if (itemMoods.length === 0) return null;
+                                return (
+                                  <div className="flex flex-wrap gap-1 pt-1">
+                                    {itemMoods.map((m: MoodType) => {
+                                      const detail = MOOD_DETAILS[m];
+                                      return (
+                                        <span
+                                          key={m}
+                                          className={cn(
+                                            "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded-full font-medium border",
+                                            detail?.bgColor || "bg-muted",
+                                            detail?.borderColor || "border-border",
+                                            detail?.color || "text-foreground",
+                                          )}
+                                        >
+                                          <span>{detail?.emoji}</span>
+                                          <span>{t.moods[m] || m}</span>
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                             <p className="text-[11px] text-muted-foreground">
                               {t.media.addedBy}:{" "}
                               <span className="font-medium text-foreground">
-                                {getDisplayName(title.expand?.addedBy)}
+                                {title.expand?.addedBy
+                                  ? getDisplayName(title.expand.addedBy)
+                                  : t.blindPick.anonymousRecommender}
                               </span>
                             </p>
                             <div className="flex items-center gap-1.5">

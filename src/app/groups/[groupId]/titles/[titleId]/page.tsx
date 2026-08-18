@@ -10,6 +10,7 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { getServerTranslations } from "@/lib/i18n/server";
+import { redactProposedTitles } from "@/lib/moods";
 import type {
   CommentsResponse,
   ReviewsResponse,
@@ -82,8 +83,15 @@ export default async function TitleDetailPage({
     ? votes.find((v) => v.user === session.id)?.value
     : undefined;
 
+  const isOwnerOrAdmin = access.isOwner || Boolean(session?.isAdmin);
+  const [redactedTitle] = redactProposedTitles(
+    [titleRecord],
+    access.group.isBlindPickEnabled,
+    isOwnerOrAdmin,
+  );
+
   const titleWithScore = {
-    ...titleRecord,
+    ...redactedTitle,
     score,
     userVote,
   };

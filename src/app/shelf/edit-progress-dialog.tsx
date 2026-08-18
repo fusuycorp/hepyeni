@@ -26,6 +26,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
+import { MoodSelector } from "@/components/mood-selector";
+import { useFeatureFlag } from "@/lib/flags/client";
+import type { MoodType, PaceType } from "@/lib/moods";
 import { deleteMediaProgress, saveMediaProgress } from "@/lib/actions/progress";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -67,6 +70,14 @@ export function EditProgressDialog({
   const [isSharedWithCircles, setIsSharedWithCircles] = useState(
     item.isSharedWithCircles ?? true,
   );
+  const [selectedMoods, setSelectedMoods] = useState<MoodType[]>(
+    Array.isArray(item.moods) ? item.moods : [],
+  );
+  const [selectedPace, setSelectedPace] = useState<PaceType | undefined>(
+    item.pace || undefined,
+  );
+
+  const moodFeatureEnabled = useFeatureFlag("mood_pace_folksonomy");
 
   const handleSave = () => {
     startTransition(async () => {
@@ -86,6 +97,8 @@ export function EditProgressDialog({
         currentLabel: currentLabel || undefined,
         notes: notes || undefined,
         rating,
+        moods: selectedMoods.length > 0 ? selectedMoods : undefined,
+        pace: selectedPace,
         isSharedWithCircles,
       });
 
@@ -292,6 +305,18 @@ export function EditProgressDialog({
                 className="text-xs min-h-[60px] resize-none"
               />
             </div>
+
+            {/* Mood & Pace Selector */}
+            {moodFeatureEnabled && (
+              <div className="p-3 rounded-xl bg-card border border-border/60">
+                <MoodSelector
+                  selectedMoods={selectedMoods}
+                  onChangeMoods={setSelectedMoods}
+                  selectedPace={selectedPace}
+                  onChangePace={setSelectedPace}
+                />
+              </div>
+            )}
 
             {/* Privacy Checkbox */}
             <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer pt-1">

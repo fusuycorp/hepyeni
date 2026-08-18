@@ -13,6 +13,9 @@
 
 import type PocketBase from "pocketbase";
 import type { RecordService } from "pocketbase";
+import type { MoodType, PaceType } from "@/lib/moods";
+
+export type { MoodType, PaceType };
 
 export const Collections = {
   Authorigins: "_authOrigins",
@@ -32,6 +35,7 @@ export const Collections = {
   ScheduleMilestones: "schedule_milestones",
   MilestoneCheckins: "milestone_checkins",
   MilestoneComments: "milestone_comments",
+  ShelfQuotes: "shelf_quotes",
 } as const;
 export type Collections = (typeof Collections)[keyof typeof Collections];
 
@@ -105,6 +109,7 @@ export type GroupsRecord = {
   guestSettings?: GroupGuestSettings | null;
   id: string;
   inviteCode: string;
+  isBlindPickEnabled?: boolean;
   isPublic?: boolean;
   name: string;
 };
@@ -213,6 +218,8 @@ export type UserMediaProgressRecord = {
   currentLabel?: string;
   notes?: string;
   rating?: number;
+  moods?: MoodType[] | null;
+  pace?: PaceType | null;
   isSharedWithCircles?: boolean;
   startedAt?: IsoDateString;
   completedAt?: IsoDateString;
@@ -264,6 +271,18 @@ export type MilestoneCommentsRecord = {
   createdAt: IsoAutoDateString;
 };
 
+export type ShelfQuotesRecord = {
+  user: RecordIdString;
+  progressItem?: RecordIdString;
+  mediaType?: string;
+  titleName: string;
+  quoteText: string;
+  attribution?: string;
+  tags?: string[] | null;
+  isSharedWithCircles?: string[] | null;
+  createdAt: IsoAutoDateString;
+};
+
 // Response types include system fields and match responses from the PocketBase API
 export type CommentsResponse<Texpand = unknown> =
   Required<CommentsRecord> & BaseSystemFields<Texpand>;
@@ -289,6 +308,8 @@ export type MilestoneCheckinsResponse<Texpand = unknown> =
   Required<MilestoneCheckinsRecord> & BaseSystemFields<Texpand>;
 export type MilestoneCommentsResponse<Texpand = unknown> =
   Required<MilestoneCommentsRecord> & BaseSystemFields<Texpand>;
+export type ShelfQuotesResponse<Texpand = unknown> =
+  Required<ShelfQuotesRecord> & BaseSystemFields<Texpand>;
 
 // Types containing all Records and Responses, useful for creating typing helper functions
 
@@ -305,6 +326,7 @@ export type CollectionRecords = {
   schedule_milestones: ScheduleMilestonesRecord;
   milestone_checkins: MilestoneCheckinsRecord;
   milestone_comments: MilestoneCommentsRecord;
+  shelf_quotes: ShelfQuotesRecord;
 };
 
 export type CollectionResponses = {
@@ -320,6 +342,7 @@ export type CollectionResponses = {
   schedule_milestones: ScheduleMilestonesResponse;
   milestone_checkins: MilestoneCheckinsResponse;
   milestone_comments: MilestoneCommentsResponse;
+  shelf_quotes: ShelfQuotesResponse;
 };
 
 // Type for usage with a type-asserted PocketBase instance

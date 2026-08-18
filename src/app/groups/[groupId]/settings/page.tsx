@@ -8,6 +8,7 @@ import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { InlineTextForm } from "@/components/inline-text-form";
 import { GuestSettingsForm } from "./guest-settings-form";
+import { BlindPickToggleForm } from "./blind-pick-toggle-form";
 import {
   deleteGroup,
   leaveGroup,
@@ -152,11 +153,18 @@ export default async function GroupSettingsPage({
 
         {/* Public Access & Guest Permissions (Owner only) */}
         {isOwner && (
-          <GuestSettingsForm
-            groupId={groupId}
-            initialIsPublic={group.isPublic}
-            initialSettings={group.guestSettings}
-          />
+          <>
+            <GuestSettingsForm
+              groupId={groupId}
+              initialIsPublic={group.isPublic}
+              initialSettings={group.guestSettings}
+            />
+
+            <BlindPickToggleForm
+              groupId={groupId}
+              initialEnabled={group.isBlindPickEnabled}
+            />
+          </>
         )}
 
         {/* Member Management Roster */}

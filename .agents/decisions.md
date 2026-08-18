@@ -88,3 +88,25 @@
   - **Data Portability Hub (`/shelf/import-export`)**: Pure zero-dependency RFC 4180 streaming CSV parsers for Goodreads, Letterboxd, and StoryGraph with automatic format detection, interactive preview tables, and lossless exports (full-fidelity JSON, universal CSV, and Obsidian/Logseq Markdown ZIP with YAML frontmatter).
   - **Dual-Layer Spoiler Protection**: Inline `||spoiler||` token parsing with interactive accessible Base UI blur overlays (`<SpoilerText />`), combined with server-side body redaction for `milestone_comments` when the caller has not checked in to that milestone.
 - **Consequences**: Zero third-party analytics/flag overhead, full user data sovereignty, leak-proof communal spoiler gating, and self-service opt-in/out for experimental features via Titirek Labs on `/profile`.
+
+## ADR-011: Digital Marginalia, Quote Snaps & Multi-Scope Sharing Matrix
+- **Status**: Accepted & Implemented (2026-08-18)
+- **Context**: Media consumption involves memorable excerpts, quotations, and passages that users want to clip either privately to their shelf or share across specific reading/viewing circles.
+- **Decision**:
+  - Created `shelf_quotes` PocketBase collection with `user` relation, optional `progressItem` relation, `titleName` (max 200), `quoteText` (max 3000), `attribution` (max 200), `tags` (JSON), and `isSharedWithCircles` (JSON array of circle IDs).
+  - Server actions in `src/lib/actions/marginalia.ts` (`addQuote`, `deleteQuote`, `getUserQuotes`, `getCircleQuotes`, `toggleShareQuoteWithCircle`) enforce `requireFeature("digital_marginalia")`, typed `ActionResult<T>`, traceId diagnostics, and multi-scope privacy filtering.
+  - UI includes editorial serif `QuoteCard` with one-click copy and Base UI delete dialog, `AddQuoteDialog` modal for quick passage clipping, and `QuotesTab` gallery integrated into `/shelf` view.
+- **Consequences**: Fast indexed queries by user/progressItem, fine-grained circle sharing control, editorial typographic aesthetics, and 100% translation parity.
+
+## ADR-012: Mood & Pace Folksonomy, Blind Pick Identity Redaction & Decision Wheel
+- **Status**: Accepted & Implemented (2026-08-18)
+- **Context**: Circles often struggle with analysis paralysis when selecting the next group title, and backlog voting can suffer from social bias toward specific recommenders. Additionally, users wanted fine-grained mood and pacing tags for shelf and backlog items.
+- **Decision**:
+  - **Taxonomy (`src/lib/moods.ts`)**: 9 curated moods (`cozy`, `dark`, `melancholic`, `mind_bending`, `uplifting`, `nostalgic`, `whimsical`, `tense`, `philosophical`) and 3 paces (`slow_burn`, `gentle`, `fast_paced`) with normalization, validation typeguards, and filtering utilities.
+  - **Schema & Persistence**: Migration `1755284000_moods_and_blind_pick.js` adds `isBlindPickEnabled` (bool) to `groups`, and `moods` (JSON array) + `pace` (text) to `user_media_progress`. Updated `titles` metadata to carry mood/pace tags for group proposals.
+  - **Blind Pick Identity Redaction**: When `isBlindPickEnabled: true`, server and client redact `addedBy` and author identities for proposed backlog titles for non-owner/non-admin members during active voting, preventing social bias while preserving owner transparency.
+  - **Decision Wheel**: Tactile SVG/Canvas decision wheel modal sampling top-voted backlog candidates with decelerating physics animation, fair uniform randomizer, and winner reveal modal with direct navigation.
+  - **UI Controls**: `<MoodSelector>` multi-select badge picker for add/edit dialogs, mood filter chip bar in `GroupContentView`, and `<BlindPickToggleForm>` in circle settings.
+- **Consequences**: Unbiased group voting dynamics, friction-free random selection, expressive folksonomy categorization, and 100% test & translation parity.
+
+

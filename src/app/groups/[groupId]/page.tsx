@@ -15,6 +15,7 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess } from "@/lib/membership";
 import { getServerTranslations } from "@/lib/i18n/server";
+import { redactProposedTitles } from "@/lib/moods";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -102,7 +103,9 @@ export default async function GroupPage({
     return { ...title, score, userVote };
   });
 
-  const proposed = access.canViewBacklog
+  const isOwnerOrAdmin = currentUserRole === "owner" || Boolean(session?.isAdmin);
+
+  const rawProposed = access.canViewBacklog
     ? withScore
         .filter((t) => t.status === "proposed")
         .sort(
@@ -111,6 +114,11 @@ export default async function GroupPage({
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         )
     : [];
+  const proposed = redactProposedTitles(
+    rawProposed,
+    group.isBlindPickEnabled,
+    isOwnerOrAdmin,
+  );
   const consumed = access.canViewFinished
     ? withScore.filter((t) => t.status === "consumed")
     : [];

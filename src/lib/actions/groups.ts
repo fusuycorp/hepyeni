@@ -431,3 +431,30 @@ export async function updateGroupGuestSettings(
     return { success: false, error: "Failed to update guest settings", traceId: diag.traceId };
   }
 }
+
+export async function toggleBlindPickMode(
+  groupId: string,
+  enabled: boolean,
+): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Please sign in first" };
+  }
+
+  try {
+    await requireOwner(groupId, session.id);
+
+    const pb = await getSuperuserClient();
+    await pb.collection("groups").update(groupId, {
+      isBlindPickEnabled: Boolean(enabled),
+    });
+
+    revalidatePath("/groups");
+    revalidatePath(`/groups/${groupId}`);
+    revalidatePath(`/groups/${groupId}/settings`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "toggleBlindPickMode", groupId, enabled });
+    return { success: false, error: "Failed to toggle blind pick mode", traceId: diag.traceId };
+  }
+}

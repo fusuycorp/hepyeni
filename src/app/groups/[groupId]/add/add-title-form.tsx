@@ -11,6 +11,9 @@ import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
+import { MoodSelector } from "@/components/mood-selector";
+import { useFeatureFlag } from "@/lib/flags/client";
+import type { MoodType, PaceType } from "@/lib/moods";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { addTitle, addCustomTitle } from "@/lib/actions/titles";
 import { isProviderAvailable } from "@/lib/providers";
@@ -45,6 +48,10 @@ export function AddTitleForm({
   const [customCreator, setCustomCreator] = useState("");
   const [customCoverUrl, setCustomCoverUrl] = useState("");
   const [customDescription, setCustomDescription] = useState("");
+  const [selectedMoods, setSelectedMoods] = useState<MoodType[]>([]);
+  const [selectedPace, setSelectedPace] = useState<PaceType | undefined>(undefined);
+
+  const moodFeatureEnabled = useFeatureFlag("mood_pace_folksonomy");
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -113,6 +120,8 @@ export function AddTitleForm({
           creator: customCreator.trim() || undefined,
           coverUrl: customCoverUrl.trim() || undefined,
           description: customDescription.trim() || undefined,
+          moods: selectedMoods.length > 0 ? selectedMoods : undefined,
+          pace: selectedPace,
         });
         if (!res.success) {
           toast.error(res.error, {
@@ -288,6 +297,17 @@ export function AddTitleForm({
                       className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-2xs outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                     />
                   </div>
+
+                  {moodFeatureEnabled && (
+                    <div className="pt-2">
+                      <MoodSelector
+                        selectedMoods={selectedMoods}
+                        onChangeMoods={setSelectedMoods}
+                        selectedPace={selectedPace}
+                        onChangePace={setSelectedPace}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Cover Live Preview (1 col) */}
