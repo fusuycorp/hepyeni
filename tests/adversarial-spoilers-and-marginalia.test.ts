@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { parseSpoilerTokens, hasSpoilerTokens } from "@/components/spoiler-text";
-import { filterMilestoneCommentsForViewer } from "@/lib/actions/schedules";
+import { filterMilestoneCommentsForViewer } from "@/lib/schedules";
 import {
   canUserViewQuote,
   canUserDeleteQuote,
   filterQuotesForViewer,
-} from "@/lib/actions/marginalia";
+} from "@/lib/marginalia";
 import type { MilestoneCommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 describe("Adversarial Test Suite 1: Spoilers, Marginalia & Milestone Privacy", () => {

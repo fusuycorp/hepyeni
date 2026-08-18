@@ -35,13 +35,11 @@ import type {
   UserMediaProgressResponse,
   UsersResponse,
 } from "@/types/pocketbase-types";
+import type { QuoteExpand } from "@/lib/marginalia";
 
 interface ShelfViewProps {
   initialItems: UserMediaProgressResponse[];
-  initialQuotes?: ShelfQuotesResponse<{
-    user?: UsersResponse;
-    progressItem?: UserMediaProgressResponse;
-  }>[];
+  initialQuotes?: ShelfQuotesResponse<QuoteExpand>[];
   currentUserId?: string;
   isAdmin?: boolean;
 }

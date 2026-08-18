@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MediaBadge } from "@/components/media-badge";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { useTranslations } from "@/lib/i18n/client";
-import { canUserDeleteQuote } from "@/lib/actions/marginalia";
+import { canUserDeleteQuote } from "@/lib/marginalia";
 import type {
   ShelfQuotesResponse,
   UserMediaProgressResponse,

@@ -23,39 +23,16 @@ import type {
   TitlesResponse,
   UsersResponse,
 } from "@/types/pocketbase-types";
+import { toIsoDate } from "@/lib/date";
+import {
+  filterMilestoneCommentsForViewer,
+  type MilestoneCommentItem,
+  type MilestoneCommentsResult,
+} from "@/lib/schedules";
 
 export type { ActionResult };
+export type { MilestoneCommentItem, MilestoneCommentsResult } from "@/lib/schedules";
 
-export interface MilestoneCommentItem {
-  id: string;
-  milestone: string;
-  user: string;
-  group: string;
-  content?: string;
-  isSpoiler?: boolean;
-  createdAt: string;
-  isLocked?: boolean;
-  author?: {
-    id: string;
-    name?: string;
-    email?: string;
-    avatarUrl?: string;
-  };
-}
-
-export interface MilestoneCommentsResult {
-  comments: MilestoneCommentItem[];
-  isLocked: boolean;
-  lockedCount: number;
-  hasCheckedIn: boolean;
-}
-
-function toIsoDate(val?: string | null): string | null {
-  if (!val || typeof val !== "string" || !val.trim()) return null;
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const errObj = err as { data?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
@@ -371,72 +348,7 @@ export async function toggleMilestoneCheckin(
   }
 }
 
-export function filterMilestoneCommentsForViewer(
-  records: MilestoneCommentsResponse<{ user?: UsersResponse }>[],
-  hasCheckedIn: boolean,
-): MilestoneCommentsResult {
-  if (!records || !Array.isArray(records) || records.length === 0) {
-    return {
-      comments: [],
-      isLocked: !hasCheckedIn,
-      lockedCount: 0,
-      hasCheckedIn,
-    };
-  }
 
-  if (!hasCheckedIn) {
-    // Redact comment bodies to protect user from spoilers before checkin
-    const redactedComments: MilestoneCommentItem[] = records.map((c) => ({
-      id: c.id,
-      milestone: c.milestone,
-      user: c.user,
-      group: c.group,
-      isSpoiler: c.isSpoiler,
-      createdAt: c.createdAt,
-      isLocked: true,
-      author: c.expand?.user
-        ? {
-            id: c.expand.user.id,
-            name: c.expand.user.name,
-            avatarUrl: c.expand.user.avatarUrl,
-          }
-        : undefined,
-    }));
-
-    return {
-      comments: redactedComments,
-      isLocked: true,
-      lockedCount: records.length,
-      hasCheckedIn: false,
-    };
-  }
-
-  const fullComments: MilestoneCommentItem[] = records.map((c) => ({
-    id: c.id,
-    milestone: c.milestone,
-    user: c.user,
-    group: c.group,
-    content: c.content,
-    isSpoiler: c.isSpoiler,
-    createdAt: c.createdAt,
-    isLocked: false,
-    author: c.expand?.user
-      ? {
-          id: c.expand.user.id,
-          name: c.expand.user.name,
-          email: c.expand.user.email,
-          avatarUrl: c.expand.user.avatarUrl,
-        }
-      : undefined,
-  }));
-
-  return {
-    comments: fullComments,
-    isLocked: false,
-    lockedCount: 0,
-    hasCheckedIn: true,
-  };
-}
 
 export async function getMilestoneComments(
   milestoneId: string,

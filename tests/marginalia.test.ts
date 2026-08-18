@@ -9,7 +9,7 @@ import {
   canUserDeleteQuote,
   filterQuotesForViewer,
   type AddQuoteInput,
-} from "@/lib/actions/marginalia";
+} from "@/lib/marginalia";
 
 describe("Phase 3: Digital Marginalia & Quote Snaps", () => {
   describe("Input Boundaries & Content Validation", () => {

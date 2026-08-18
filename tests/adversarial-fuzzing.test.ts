@@ -5,7 +5,7 @@ import {
   parseTags,
   validateQuoteInput,
   type AddQuoteInput,
-} from "@/lib/actions/marginalia";
+} from "@/lib/marginalia";
 import {
   MOODS,
   PACES,
@@ -13,7 +13,7 @@ import {
   normalizePace,
 } from "@/lib/moods";
 import { getDisplayName, getInitials } from "@/lib/format";
-import { toIsoDate } from "@/lib/actions/progress";
+import { toIsoDate } from "@/lib/date";
 import { voteRecordId } from "@/lib/pocketbase/vote-id";
 
 describe("Adversarial Fuzzing: Input Validators & Sanitizers", () => {

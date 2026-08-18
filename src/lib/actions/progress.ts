@@ -17,23 +17,9 @@ import type {
   UserMediaProgressUnitOptions,
   UsersResponse,
 } from "@/types/pocketbase-types";
+import { toIsoDate } from "@/lib/date";
 
 export type { ActionResult };
-
-export function toIsoDate(val?: string | null): string | null {
-  if (!val || typeof val !== "string" || !val.trim()) return null;
-  const trimmed = val.trim();
-  if (/[;<>'"`]|--|\/\*/.test(trimmed)) return null;
-  const d = new Date(trimmed);
-  if (isNaN(d.getTime())) return null;
-  const year = d.getUTCFullYear();
-  if (year < 1000 || year > 9999) return null;
-  try {
-    return d.toISOString();
-  } catch {
-    return null;
-  }
-}
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const errObj = err as { data?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
