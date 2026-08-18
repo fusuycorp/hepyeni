@@ -21,7 +21,7 @@ export function parseLetterboxdCsv(csvContent: string, filename?: string): Norma
     let rating: number | undefined;
     if (rawRating) {
       const parsed = parseFloat(rawRating);
-      if (!isNaN(parsed) && parsed > 0) {
+      if (!isNaN(parsed) && parsed > 0 && parsed <= 5) {
         // Letterboxd uses 0.5-5.0 scale, map to 1-5 integer scale
         rating = Math.max(1, Math.min(5, Math.round(parsed)));
       }

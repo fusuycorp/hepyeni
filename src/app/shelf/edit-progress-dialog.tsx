@@ -104,7 +104,9 @@ export function EditProgressDialog({
 
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          description: res.traceId
+            ? t.common.refCode.replace("{code}", res.traceId)
+            : undefined,
         });
         return;
       }
@@ -122,7 +124,9 @@ export function EditProgressDialog({
         const res = await deleteMediaProgress(item.id);
         if (!res.success) {
           toast.error(res.error, {
-            description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+            description: res.traceId
+              ? t.common.refCode.replace("{code}", res.traceId)
+              : undefined,
           });
           return;
         }
@@ -227,7 +231,7 @@ export function EditProgressDialog({
                   min="1"
                   value={progressTotal}
                   onChange={(e) => setProgressTotal(e.target.value)}
-                  placeholder="e.g. 400"
+                  placeholder={t.shelf.targetUnitsPlaceholder}
                   className="h-8 text-xs"
                 />
               </div>
@@ -255,7 +259,7 @@ export function EditProgressDialog({
               <Input
                 value={currentLabel}
                 onChange={(e) => setCurrentLabel(e.target.value)}
-                placeholder="Örn: Bölüm 4 - Gizemli Yol"
+                placeholder={t.shelf.currentLabelPlaceholder}
                 className="h-8 text-xs"
               />
             </div>
@@ -268,6 +272,7 @@ export function EditProgressDialog({
                   <button
                     key={star}
                     type="button"
+                    aria-label={t.reviews.starAriaLabel.replace("{n}", String(star))}
                     onClick={() => setRating(rating === star ? undefined : star)}
                     className="p-1 hover:scale-110 transition-transform cursor-pointer"
                   >
@@ -301,7 +306,7 @@ export function EditProgressDialog({
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Kişisel düşünceleriniz ve notlarınız..."
+                placeholder={t.shelf.notesPlaceholder}
                 className="text-xs min-h-[60px] resize-none"
               />
             </div>

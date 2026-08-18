@@ -30,14 +30,14 @@ export function parseStoryGraphCsv(csvContent: string): NormalizedImportItem[] {
     let rating: number | undefined;
     if (rawRating) {
       const parsed = parseFloat(rawRating);
-      if (!isNaN(parsed) && parsed > 0) {
+      if (!isNaN(parsed) && parsed > 0 && parsed <= 5) {
         rating = Math.max(1, Math.min(5, Math.round(parsed)));
       }
     }
 
     const rawPages = getField(row, "Number of Pages", "numberofpages", "pages");
     const pages = rawPages ? parseInt(rawPages, 10) : undefined;
-    const progressTotal = pages && pages > 0 ? pages : undefined;
+    const progressTotal = pages && !isNaN(pages) && pages > 0 ? pages : undefined;
     const progressCurrent = status === "completed" && progressTotal ? progressTotal : undefined;
 
     const review = getField(row, "Review", "review");

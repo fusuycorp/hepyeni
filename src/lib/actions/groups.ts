@@ -231,9 +231,15 @@ export async function autoJoinPendingInvite(
   return joinGroupByCode(userId, pendingCode);
 }
 
-export async function setPendingInviteAction(code: string): Promise<void> {
-  const { setPendingInviteCookie } = await import("@/lib/pocketbase/session");
-  await setPendingInviteCookie(code);
+export async function setPendingInviteAction(code: string): Promise<ActionResult<void>> {
+  try {
+    const { setPendingInviteCookie } = await import("@/lib/pocketbase/session");
+    await setPendingInviteCookie(code);
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "setPendingInviteAction", code });
+    return { success: false, error: "Failed to record pending invite", traceId: diag.traceId };
+  }
 }
 
 export async function renameGroup(

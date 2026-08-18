@@ -356,7 +356,7 @@ export function TitleDetailView({
                   <Layers className="size-3.5 text-primary/80 shrink-0" />
                   <div>
                     <span className="block text-[10px] text-muted-foreground font-medium">
-                      Tracks
+                      {t.media.tracks}
                     </span>
                     <span className="font-semibold text-foreground">
                       {totalTracks}

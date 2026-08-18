@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { resolveCircleAccess } from "@/lib/membership";
+import { resolveCircleAccess, requireMembership } from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { ActionResult } from "@/types/actions";
@@ -20,11 +20,19 @@ import type {
 
 export type { ActionResult };
 
-function toIsoDate(val?: string | null): string | null {
+export function toIsoDate(val?: string | null): string | null {
   if (!val || typeof val !== "string" || !val.trim()) return null;
-  const d = new Date(val);
+  const trimmed = val.trim();
+  if (/[;<>'"`]|--|\/\*/.test(trimmed)) return null;
+  const d = new Date(trimmed);
   if (isNaN(d.getTime())) return null;
-  return d.toISOString();
+  const year = d.getUTCFullYear();
+  if (year < 1000 || year > 9999) return null;
+  try {
+    return d.toISOString();
+  } catch {
+    return null;
+  }
 }
 
 function extractErrorMessage(err: unknown, fallback: string): string {
@@ -137,7 +145,12 @@ export async function saveMediaProgress(
     };
 
     if (input.groupTitleId && input.groupTitleId.trim()) {
-      data.groupTitle = input.groupTitleId.trim();
+      const cleanGroupTitleId = input.groupTitleId.trim();
+      const titleRecord = await pb.collection("titles").getOne(cleanGroupTitleId);
+      if (titleRecord) {
+        await requireMembership(titleRecord.group, session.id);
+        data.groupTitle = cleanGroupTitleId;
+      }
     }
 
     const parsedStarted = toIsoDate(input.startedAt);

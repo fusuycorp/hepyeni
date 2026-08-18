@@ -70,7 +70,9 @@ export function ShelfView({
       const res = await updateProgressQuickStep(item.id, delta);
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          description: res.traceId
+            ? t.common.refCode.replace("{code}", res.traceId)
+            : undefined,
         });
       }
     });
@@ -147,11 +149,16 @@ export function ShelfView({
 
       {/* Tabs */}
       <div className="w-full overflow-x-auto scrollbar-none pb-1">
-        <div className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 min-w-full sm:min-w-fit">
+        <div
+          role="tablist"
+          className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 min-w-full sm:min-w-fit"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 text-center",
@@ -239,7 +246,7 @@ export function ShelfView({
                             </span>
                           ) : (
                             <span
-                              title="Private to shelf"
+                              title={t.shelf.privateToShelfTooltip}
                               className="text-muted-foreground/40"
                             >
                               <EyeOff className="size-3" />

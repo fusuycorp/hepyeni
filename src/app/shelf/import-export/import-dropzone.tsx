@@ -58,7 +58,7 @@ export function ImportDropzone({
 
     try {
       if (file.size > 15 * 1024 * 1024) {
-        throw new Error("File size exceeds 15MB limit.");
+        throw new Error(t.importExport.fileSizeExceeded);
       }
 
       const content = await file.text();
@@ -178,10 +178,19 @@ export function ImportDropzone({
   return (
     <div className="space-y-3">
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={t.importExport.dropzoneTitle}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         className={cn(
           "relative group cursor-pointer p-8 sm:p-10 rounded-2xl border-2 border-dashed transition-all duration-200 text-center flex flex-col items-center justify-center gap-3",
           isDragging

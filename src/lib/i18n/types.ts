@@ -57,6 +57,15 @@ export interface Translations {
     open: string;
     saving: string;
     manage: string;
+    refresh: string;
+    retry: string;
+    select: string;
+    deselect: string;
+    previous: string;
+    next: string;
+    pageOf: string;
+    errorCode: string;
+    refCode: string;
   };
   nav: {
     menu: string;
@@ -77,6 +86,7 @@ export interface Translations {
     tv: string;
     music: string;
     podcast: string;
+    tracks: string;
     allTypes: string;
     filterByType: string;
     topPick: string;
@@ -583,6 +593,13 @@ export interface Translations {
     updateMyProgress: string;
     currentlySavoringInCircle: string;
     importExport: string;
+    loadError: string;
+    loadErrorDesc: string;
+    privateToShelfTooltip: string;
+    bookTitlePlaceholder: string;
+    creatorPlaceholder: string;
+    targetUnitsPlaceholder: string;
+    currentLabelPlaceholder: string;
   };
   schedules: {
     schedulesTitle: string;
@@ -591,6 +608,8 @@ export interface Translations {
     createScheduleTitle: string;
     scheduleName: string;
     scheduleDesc: string;
+    scheduleNamePlaceholder: string;
+    scheduleDescPlaceholder: string;
     linkedTitle: string;
     noLinkedTitle: string;
     startDate: string;
@@ -628,6 +647,7 @@ export interface Translations {
     itemsFound: string;
     parsingError: string;
     emptyFile: string;
+    fileSizeExceeded: string;
     changeFile: string;
     clearFile: string;
     formatGoodreads: string;
@@ -755,6 +775,8 @@ export interface Translations {
     allMedia: string;
     copyQuote: string;
     copySuccess: string;
+    copyError: string;
+    privateToShelf: string;
     deleteQuote: string;
     deleteConfirm: string;
     quoteDeleted: string;
@@ -765,6 +787,7 @@ export interface Translations {
     allMoods: string;
     filterByMood: string;
     selectMoods: string;
+    selectedCount: string;
     paceLabel: string;
     moodsLabel: string;
     cozy: string;

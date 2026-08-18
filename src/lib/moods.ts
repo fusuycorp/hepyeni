@@ -154,7 +154,7 @@ export function shouldRedactProposalIdentity({
 
 export function redactProposedTitles<
   T extends {
-    status: string;
+    status?: string;
     addedBy?: string;
     expand?: {
       addedBy?: unknown;
@@ -166,15 +166,19 @@ export function redactProposedTitles<
   isBlindPickEnabled?: boolean,
   isOwnerOrAdmin?: boolean,
 ): T[] {
+  if (!titles || !Array.isArray(titles)) return [];
   if (!shouldRedactProposalIdentity({ isBlindPickEnabled, isOwnerOrAdmin })) {
     return titles;
   }
 
   return titles.map((item) => {
+    if (!item || typeof item !== "object") return item;
     if (item.status === "proposed") {
       const copy = { ...item, addedBy: "" };
       if (copy.expand) {
-        copy.expand = { ...copy.expand, addedBy: undefined };
+        const expandCopy = { ...copy.expand };
+        delete expandCopy.addedBy;
+        copy.expand = expandCopy;
       }
       return copy;
     }
@@ -186,23 +190,30 @@ export function sampleWheelCandidates<T extends { score?: number }>(
   items: T[],
   maxCandidates = 8,
 ): T[] {
-  if (!items || items.length === 0) return [];
+  if (!items || !Array.isArray(items) || items.length === 0) return [];
+  const limit = Math.max(0, isNaN(maxCandidates) ? 8 : maxCandidates);
   // Sort items by score descending
-  const sorted = [...items].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  return sorted.slice(0, maxCandidates);
+  const sorted = [...items].filter(Boolean).sort((a, b) => {
+    const scoreA = typeof a.score === "number" && !isNaN(a.score) ? a.score : 0;
+    const scoreB = typeof b.score === "number" && !isNaN(b.score) ? b.score : 0;
+    return scoreB - scoreA;
+  });
+  return sorted.slice(0, limit);
 }
 
 export function pickWheelWinner<T>(
   items: T[],
   rng: () => number = Math.random,
 ): { winner: T; index: number } | null {
-  if (!items || items.length === 0) return null;
-  const rawRng = rng();
-  const clampedRng = Math.max(0, Math.min(0.99999999, rawRng));
+  if (!items || !Array.isArray(items) || items.length === 0) return null;
+  const rawRng = typeof rng === "function" ? rng() : Math.random();
+  const safeRng = typeof rawRng === "number" && !isNaN(rawRng) ? rawRng : 0;
+  const clampedRng = Math.max(0, Math.min(0.99999999, safeRng));
   const index = Math.floor(clampedRng * items.length);
+  const safeIndex = Math.max(0, Math.min(items.length - 1, index));
   return {
-    winner: items[index],
-    index,
+    winner: items[safeIndex],
+    index: safeIndex,
   };
 }
 
@@ -217,14 +228,34 @@ export function calculateWheelRotation({
   minSpins?: number;
   extraOffset?: number;
 }): number {
-  if (totalSlices <= 0) return 0;
+  if (
+    typeof totalSlices !== "number" ||
+    isNaN(totalSlices) ||
+    totalSlices <= 0 ||
+    !isFinite(totalSlices)
+  ) {
+    return 0;
+  }
+  const safeWinnerIndex =
+    typeof winnerIndex === "number" && !isNaN(winnerIndex) && isFinite(winnerIndex)
+      ? Math.max(0, Math.min(totalSlices - 1, Math.floor(winnerIndex)))
+      : 0;
+  const safeMinSpins =
+    typeof minSpins === "number" && !isNaN(minSpins) && isFinite(minSpins)
+      ? Math.max(0, minSpins)
+      : 5;
+  const safeOffset =
+    typeof extraOffset === "number" && !isNaN(extraOffset) && isFinite(extraOffset)
+      ? extraOffset
+      : 0;
+
   const sliceDeg = 360 / totalSlices;
   // Center of the winning slice
   // When rotation is R degrees clockwise:
   // Top pointer (at 0°/270°) aligns with:
-  // (360 - (winnerIndex * sliceDeg + sliceDeg / 2))
-  const sliceCenter = winnerIndex * sliceDeg + sliceDeg / 2;
+  // (360 - (safeWinnerIndex * sliceDeg + sliceDeg / 2))
+  const sliceCenter = safeWinnerIndex * sliceDeg + sliceDeg / 2;
   const targetDegree = (360 - sliceCenter) % 360;
-  const baseRotation = minSpins * 360 + targetDegree + extraOffset;
+  const baseRotation = safeMinSpins * 360 + targetDegree + safeOffset;
   return baseRotation;
 }

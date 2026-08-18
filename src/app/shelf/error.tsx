@@ -29,16 +29,16 @@ export default function ShelfError({
 
           <div className="space-y-1">
             <h2 className="text-base font-bold text-foreground">
-              {t.shelf.pageTitle} Yüklenemedi
+              {t.shelf.loadError}
             </h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Kitaplık kayıtları yüklenirken bir problemle karşılaşıldı.
+              {t.shelf.loadErrorDesc}
             </p>
           </div>
 
           {error.digest && (
             <div className="w-full p-2 rounded bg-muted/40 border border-border/60 text-[10px] font-mono text-muted-foreground">
-              Hata Kodu: {error.digest}
+              {t.common.errorCode.replace("{error}", error.digest)}
             </div>
           )}
 
@@ -48,7 +48,7 @@ export default function ShelfError({
             className="gap-2 text-xs font-medium"
           >
             <RefreshCw className="size-3.5" />
-            <span>Yeniden Dene</span>
+            <span>{t.common.retry}</span>
           </Button>
         </CardContent>
       </Card>

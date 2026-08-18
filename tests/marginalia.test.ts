@@ -153,6 +153,8 @@ describe("Phase 3: Digital Marginalia & Quote Snaps", () => {
     it("handles partial structured attribution gracefully", () => {
       expect(formatAttribution({ page: "p. 100" })).toBe("(p. 100)");
       expect(formatAttribution({ chapter: "Act II, Scene 1" })).toBe("Act II, Scene 1");
+      expect(formatAttribution({ author: "Plato", page: "p. 50" })).toBe("Plato (p. 50)");
+      expect(formatAttribution({ work: "The Matrix", timestamp: "00:42:15" })).toBe("The Matrix [00:42:15]");
       expect(formatAttribution({})).toBe("");
     });
   });

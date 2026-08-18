@@ -120,7 +120,9 @@ export function AddToShelfDialog() {
 
         if (!res.success) {
           toast.error(res.error, {
-            description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+            description: res.traceId
+              ? t.common.refCode.replace("{code}", res.traceId)
+              : undefined,
           });
           return;
         }
@@ -281,7 +283,7 @@ export function AddToShelfDialog() {
                   <Input
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder="e.g. Crime and Punishment"
+                    placeholder={t.shelf.bookTitlePlaceholder}
                     className="h-9 text-xs"
                   />
                 </div>
@@ -290,7 +292,7 @@ export function AddToShelfDialog() {
                   <Input
                     value={customCreator}
                     onChange={(e) => setCustomCreator(e.target.value)}
-                    placeholder="e.g. Fyodor Dostoevsky"
+                    placeholder={t.shelf.creatorPlaceholder}
                     className="h-9 text-xs"
                   />
                 </div>
@@ -342,7 +344,7 @@ export function AddToShelfDialog() {
                     type="number"
                     value={progressTotal}
                     onChange={(e) => setProgressTotal(e.target.value)}
-                    placeholder="e.g. 350"
+                    placeholder={t.shelf.targetUnitsPlaceholder}
                     className="h-8 text-xs font-mono"
                     min={1}
                   />
@@ -370,7 +372,7 @@ export function AddToShelfDialog() {
               <Input
                 value={currentLabel}
                 onChange={(e) => setCurrentLabel(e.target.value)}
-                placeholder="e.g. Chapter 6: The Great Gate"
+                placeholder={t.shelf.currentLabelPlaceholder}
                 className="h-8 text-xs"
               />
             </div>
@@ -407,6 +409,7 @@ export function AddToShelfDialog() {
               <button
                 type="button"
                 role="switch"
+                aria-label={t.shelf.shareWithCircles}
                 aria-checked={isSharedWithCircles}
                 onClick={() => setIsSharedWithCircles(!isSharedWithCircles)}
                 className={cn(

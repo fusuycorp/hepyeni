@@ -59,6 +59,20 @@ describe("Zero-Dependency CSV Parser", () => {
     expect(table.rows[0]["Yazar"]).toBe("Yaşar Kemal");
     expect(table.rows[0]["Notlar"]).toContain("Çukurova'nın eşsiz destanı");
   });
+
+  it("handles consecutive empty fields cleanly", () => {
+    const csv = "Title,Author,Score,Notes\nDune,,,Favorite sci-fi";
+    const result = parseCsv(csv);
+    expect(result[1]).toEqual(["Dune", "", "", "Favorite sci-fi"]);
+  });
+
+  it("handles unclosed quotes at EOF gracefully without crashing", () => {
+    const csv = 'Title,Notes\n"Dune","Unclosed quote at end of file';
+    const result = parseCsv(csv);
+    expect(result).toHaveLength(2);
+    expect(result[1][0]).toBe("Dune");
+    expect(result[1][1]).toContain("Unclosed quote");
+  });
 });
 
 describe("Goodreads CSV Parser", () => {

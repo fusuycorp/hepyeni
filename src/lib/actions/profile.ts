@@ -45,10 +45,12 @@ export async function deleteAccount(): Promise<ActionResult<void>> {
     return { success: true, data: undefined };
   } catch (err) {
     if (err instanceof ClientResponseError && err.status === 400) {
+      const diag = logDiagnostic(err, { action: "deleteAccount", reason: "owned_groups_or_titles" });
       return {
         success: false,
         error:
           "You still own a group or have added titles others rely on — leave or delete those groups first.",
+        traceId: diag.traceId,
       };
     }
     const diag = logDiagnostic(err, { action: "deleteAccount" });

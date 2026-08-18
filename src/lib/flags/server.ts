@@ -22,11 +22,26 @@ export interface FeatureFlagContext {
 }
 
 function parseCookieFlags(cookieValue?: string): Partial<Record<FeatureFlagKey, boolean>> {
-  if (!cookieValue) return {};
+  if (!cookieValue || typeof cookieValue !== "string") return {};
   try {
     const parsed = JSON.parse(cookieValue);
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed as Partial<Record<FeatureFlagKey, boolean>>;
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      const sanitized: Partial<Record<FeatureFlagKey, boolean>> = Object.create(null);
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === "boolean") {
+          sanitized[k as FeatureFlagKey] = v;
+        } else if (typeof v === "string") {
+          if (/^(true|1|yes|on)$/i.test(v.trim())) {
+            sanitized[k as FeatureFlagKey] = true;
+          } else if (/^(false|0|no|off)$/i.test(v.trim())) {
+            sanitized[k as FeatureFlagKey] = false;
+          }
+        } else if (typeof v === "number") {
+          if (v === 1) sanitized[k as FeatureFlagKey] = true;
+          if (v === 0) sanitized[k as FeatureFlagKey] = false;
+        }
+      }
+      return sanitized;
     }
   } catch {
     // Ignore invalid JSON cookie
@@ -60,6 +75,10 @@ export async function isFeatureEnabled(
   flagKey: FeatureFlagKey,
   context?: FeatureFlagContext,
 ): Promise<boolean> {
+  if (!flagKey || typeof flagKey !== "string") {
+    return false;
+  }
+
   // 1. Environment Variable Override (FLAG_ENABLE_*)
   const envKey = `FLAG_ENABLE_${flagKey.toUpperCase()}`;
   const envVal = process.env[envKey];
@@ -69,15 +88,27 @@ export async function isFeatureEnabled(
   }
 
   // 2. Direct Context Override
-  if (context?.flags && context.flags[flagKey] !== undefined) {
+  if (
+    context?.flags &&
+    Object.prototype.hasOwnProperty.call(context.flags, flagKey) &&
+    context.flags[flagKey] !== undefined
+  ) {
     return Boolean(context.flags[flagKey]);
   }
 
   // 3. Circle / Group Settings Override
-  if (context?.circleSettings && context.circleSettings[flagKey] !== undefined) {
+  if (
+    context?.circleSettings &&
+    Object.prototype.hasOwnProperty.call(context.circleSettings, flagKey) &&
+    context.circleSettings[flagKey] !== undefined
+  ) {
     return Boolean(context.circleSettings[flagKey]);
   }
-  if (context?.group?.flags && context.group.flags[flagKey] !== undefined) {
+  if (
+    context?.group?.flags &&
+    Object.prototype.hasOwnProperty.call(context.group.flags, flagKey) &&
+    context.group.flags[flagKey] !== undefined
+  ) {
     return Boolean(context.group.flags[flagKey]);
   }
 
@@ -123,17 +154,29 @@ export async function getFeatureFlags(
     }
 
     // 2. Context flags
-    if (context?.flags && context.flags[key] !== undefined) {
+    if (
+      context?.flags &&
+      Object.prototype.hasOwnProperty.call(context.flags, key) &&
+      context.flags[key] !== undefined
+    ) {
       result[key] = Boolean(context.flags[key]);
       continue;
     }
 
     // 3. Circle / Group
-    if (context?.circleSettings && context.circleSettings[key] !== undefined) {
+    if (
+      context?.circleSettings &&
+      Object.prototype.hasOwnProperty.call(context.circleSettings, key) &&
+      context.circleSettings[key] !== undefined
+    ) {
       result[key] = Boolean(context.circleSettings[key]);
       continue;
     }
-    if (context?.group?.flags && context.group.flags[key] !== undefined) {
+    if (
+      context?.group?.flags &&
+      Object.prototype.hasOwnProperty.call(context.group.flags, key) &&
+      context.group.flags[key] !== undefined
+    ) {
       result[key] = Boolean(context.group.flags[key]);
       continue;
     }

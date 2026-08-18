@@ -9,7 +9,9 @@
  */
 
 export function parseCsv(text: string, delimiter = ","): string[][] {
-  if (!text) return [];
+  if (!text || typeof text !== "string") return [];
+
+  const delim = typeof delimiter === "string" && delimiter.length > 0 ? delimiter : ",";
 
   // Strip BOM if present
   let cleanText = text;
@@ -50,7 +52,7 @@ export function parseCsv(text: string, delimiter = ","): string[][] {
         inQuotes = true;
         i++;
         continue;
-      } else if (char === delimiter) {
+      } else if (char === delim) {
         currentRow.push(currentField.trim());
         currentField = "";
         i++;
@@ -102,6 +104,7 @@ export interface CsvTable {
 }
 
 export function normalizeHeaderKey(key: string): string {
+  if (!key || typeof key !== "string") return "";
   return key.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
@@ -144,6 +147,7 @@ export function parseCsvToTable(text: string): CsvTable {
 }
 
 export function getField(row: Record<string, string>, ...possibleKeys: string[]): string | undefined {
+  if (!row || typeof row !== "object") return undefined;
   for (const key of possibleKeys) {
     const norm = normalizeHeaderKey(key);
     if (row[norm] !== undefined && row[norm] !== "") {
@@ -160,19 +164,34 @@ export function parseSafeDate(dateStr?: string | null): string | undefined {
   if (!dateStr || typeof dateStr !== "string") return undefined;
   const trimmed = dateStr.trim();
   if (!trimmed) return undefined;
+  if (/[;<>'"`]|--|\/\*/.test(trimmed)) return undefined;
 
   // Handle formats like "YYYY/MM/DD", "YYYY-MM-DD", "YYYY.MM.DD"
   const normalized = trimmed.replace(/\//g, "-").replace(/\./g, "-");
   const parsed = new Date(normalized);
   if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString();
+    const year = parsed.getUTCFullYear();
+    if (year >= 1000 && year <= 9999) {
+      try {
+        return parsed.toISOString();
+      } catch {
+        return undefined;
+      }
+    }
   }
 
   // Handle year-only like "2024"
   if (/^\d{4}$/.test(trimmed)) {
     const yearDate = new Date(`${trimmed}-01-01T00:00:00.000Z`);
     if (!isNaN(yearDate.getTime())) {
-      return yearDate.toISOString();
+      const year = yearDate.getUTCFullYear();
+      if (year >= 1000 && year <= 9999) {
+        try {
+          return yearDate.toISOString();
+        } catch {
+          return undefined;
+        }
+      }
     }
   }
 

@@ -77,26 +77,33 @@ export function formatAttribution(
   if (typeof options === "string") {
     return options.trim();
   }
+  if (typeof options !== "object") {
+    return "";
+  }
 
   const parts: string[] = [];
-  if (options.author && options.author.trim()) parts.push(options.author.trim());
-  if (options.work && options.work.trim()) parts.push(options.work.trim());
-  if (options.chapter && options.chapter.trim()) parts.push(options.chapter.trim());
+  if (typeof options.author === "string" && options.author.trim()) parts.push(options.author.trim());
+  if (typeof options.work === "string" && options.work.trim()) parts.push(options.work.trim());
+  if (typeof options.chapter === "string" && options.chapter.trim()) parts.push(options.chapter.trim());
 
   let base = parts.join(", ");
 
-  if (options.page) {
-    const pageStr = String(options.page).trim();
-    if (pageStr) {
-      const formattedPage =
-        pageStr.startsWith("p.") || pageStr.startsWith("s.") || pageStr.startsWith("page")
-          ? pageStr
-          : `p. ${pageStr}`;
-      base = base ? `${base} (${formattedPage})` : `(${formattedPage})`;
+  if (options.page !== undefined && options.page !== null) {
+    try {
+      const pageStr = String(options.page).trim();
+      if (pageStr) {
+        const formattedPage =
+          pageStr.startsWith("p.") || pageStr.startsWith("s.") || pageStr.startsWith("page")
+            ? pageStr
+            : `p. ${pageStr}`;
+        base = base ? `${base} (${formattedPage})` : `(${formattedPage})`;
+      }
+    } catch {
+      // Ignore conversion failures on corrupt objects
     }
   }
 
-  if (options.timestamp) {
+  if (typeof options.timestamp === "string") {
     const tsStr = options.timestamp.trim();
     if (tsStr) {
       base = base ? `${base} [${tsStr}]` : `[${tsStr}]`;
@@ -119,7 +126,7 @@ export function validateQuoteInput(input: AddQuoteInput): {
     isSharedWithCircles: string[];
   };
 } {
-  if (!input) return { valid: false, error: "Invalid input" };
+  if (!input || typeof input !== "object") return { valid: false, error: "Invalid input" };
 
   const rawQuote = typeof input.quoteText === "string" ? input.quoteText.trim() : "";
   if (!rawQuote || rawQuote.length === 0) {
@@ -173,11 +180,13 @@ export function validateQuoteInput(input: AddQuoteInput): {
 }
 
 export function canUserViewQuote(
-  quote: { user: string; isSharedWithCircles?: string[] | null },
-  viewerUserId: string,
+  quote: { user?: string; isSharedWithCircles?: string[] | null },
+  viewerUserId?: string,
   memberCircleIds: string[] = [],
 ): boolean {
-  if (!viewerUserId) return false;
+  if (!viewerUserId || typeof viewerUserId !== "string" || !quote || typeof quote !== "object") {
+    return false;
+  }
   if (quote.user === viewerUserId) return true;
   if (
     !quote.isSharedWithCircles ||
@@ -186,22 +195,30 @@ export function canUserViewQuote(
   ) {
     return false;
   }
-  return quote.isSharedWithCircles.some((cId) => memberCircleIds.includes(cId));
+  if (!Array.isArray(memberCircleIds) || memberCircleIds.length === 0) {
+    return false;
+  }
+  return quote.isSharedWithCircles.some(
+    (cId) => typeof cId === "string" && memberCircleIds.includes(cId),
+  );
 }
 
 export function canUserDeleteQuote(
-  quote: { user: string },
+  quote: { user?: string },
   session: { id: string; isAdmin?: boolean } | null | undefined,
 ): boolean {
-  if (!session || !session.id) return false;
-  if (session.isAdmin) return true;
+  if (!quote || typeof quote !== "object" || !session || !session.id || typeof session.id !== "string") {
+    return false;
+  }
+  if (session.isAdmin === true) return true;
   return quote.user === session.id;
 }
 
 export function filterQuotesForViewer<
   T extends { id: string; user: string; isSharedWithCircles?: string[] | null },
 >(quotes: T[], viewerUserId: string, memberCircleIds: string[] = []): T[] {
-  return quotes.filter((q) => canUserViewQuote(q, viewerUserId, memberCircleIds));
+  if (!quotes || !Array.isArray(quotes)) return [];
+  return quotes.filter((q) => q && canUserViewQuote(q, viewerUserId, memberCircleIds));
 }
 
 export type QuoteExpand = {
@@ -327,7 +344,7 @@ export async function getCircleQuotes(
     await requireFeature("digital_marginalia");
     const session = await getSession();
     if (session) {
-      await requireMembership(session.id, circleId);
+      await requireMembership(circleId, session.id);
     }
 
     const pb = await getSuperuserClient();
@@ -369,7 +386,7 @@ export async function toggleShareQuoteWithCircle(
       return { success: false, error: "Unauthorized to update this quote" };
     }
 
-    await requireMembership(session.id, circleId);
+    await requireMembership(circleId, session.id);
 
     const currentCircles = Array.isArray(quote.isSharedWithCircles)
       ? [...quote.isSharedWithCircles]

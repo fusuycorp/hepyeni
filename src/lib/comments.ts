@@ -2,7 +2,12 @@ export function validateCommentContent(raw: unknown): string {
   if (raw === null || raw === undefined) {
     throw new Error("Comment content cannot be empty");
   }
-  const content = String(raw).trim();
+  let content: string;
+  try {
+    content = String(raw).trim();
+  } catch {
+    throw new Error("Comment content cannot be empty");
+  }
   if (content.length < 1) {
     throw new Error("Comment content cannot be empty");
   }

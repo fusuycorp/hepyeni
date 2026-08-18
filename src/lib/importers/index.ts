@@ -19,6 +19,9 @@ export function detectImportSource(
   content: string,
   filename?: string,
 ): { source: ImportSource; parsedTable?: ReturnType<typeof parseCsvToTable> } {
+  if (!content || typeof content !== "string") {
+    return { source: "generic_csv" };
+  }
   const trimmed = content.trim();
   const lowerFilename = (filename || "").toLowerCase();
 
@@ -114,7 +117,7 @@ function parseGenericCsv(content: string): NormalizedImportItem[] {
 
     const rawRating = getField(row, "Rating", "Score", "rating", "score");
     const numRating = rawRating ? parseInt(rawRating, 10) : 0;
-    const rating = numRating >= 1 && numRating <= 5 ? numRating : undefined;
+    const rating = !isNaN(numRating) && numRating >= 1 && numRating <= 5 ? numRating : undefined;
 
     const rawProgressCurrent = getField(
       row,
@@ -164,8 +167,14 @@ function parseGenericCsv(content: string): NormalizedImportItem[] {
       mediaType,
       status,
       rating,
-      progressCurrent: progressCurrent && !isNaN(progressCurrent) ? progressCurrent : undefined,
-      progressTotal: progressTotal && !isNaN(progressTotal) ? progressTotal : undefined,
+      progressCurrent:
+        progressCurrent !== undefined && !isNaN(progressCurrent) && progressCurrent >= 0
+          ? progressCurrent
+          : undefined,
+      progressTotal:
+        progressTotal !== undefined && !isNaN(progressTotal) && progressTotal > 0
+          ? progressTotal
+          : undefined,
       progressUnit,
       notes,
       dateAdded,
@@ -179,11 +188,16 @@ function parseGenericCsv(content: string): NormalizedImportItem[] {
 }
 
 function parseTitirekJson(content: string): NormalizedImportItem[] {
-  const parsed = JSON.parse(content);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return [];
+  }
   const rawList: Record<string, unknown>[] = Array.isArray(parsed)
     ? parsed
-    : Array.isArray(parsed?.items)
-    ? parsed.items
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).items)
+    ? ((parsed as Record<string, unknown>).items as Record<string, unknown>[])
     : [];
 
   const items: NormalizedImportItem[] = [];
@@ -198,7 +212,7 @@ function parseTitirekJson(content: string): NormalizedImportItem[] {
   const validUnits = new Set(["pages", "chapters", "episodes", "percent", "minutes"]);
 
   for (const raw of rawList) {
-    if (!raw || typeof raw !== "object") continue;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
     const title = typeof raw.title === "string" ? raw.title.trim() : "";
     if (!title) continue;
 
@@ -213,7 +227,7 @@ function parseTitirekJson(content: string): NormalizedImportItem[] {
         : "plan_to_consume";
 
     const rating =
-      typeof raw.rating === "number" && raw.rating >= 1 && raw.rating <= 5
+      typeof raw.rating === "number" && !isNaN(raw.rating) && raw.rating >= 1 && raw.rating <= 5
         ? raw.rating
         : undefined;
 
@@ -228,8 +242,14 @@ function parseTitirekJson(content: string): NormalizedImportItem[] {
       mediaType,
       status,
       rating,
-      progressCurrent: typeof raw.progressCurrent === "number" ? raw.progressCurrent : undefined,
-      progressTotal: typeof raw.progressTotal === "number" ? raw.progressTotal : undefined,
+      progressCurrent:
+        typeof raw.progressCurrent === "number" && !isNaN(raw.progressCurrent) && raw.progressCurrent >= 0
+          ? raw.progressCurrent
+          : undefined,
+      progressTotal:
+        typeof raw.progressTotal === "number" && !isNaN(raw.progressTotal) && raw.progressTotal > 0
+          ? raw.progressTotal
+          : undefined,
       progressUnit,
       currentLabel: typeof raw.currentLabel === "string" ? raw.currentLabel : undefined,
       notes: typeof raw.notes === "string" ? raw.notes : undefined,
@@ -245,7 +265,7 @@ function parseTitirekJson(content: string): NormalizedImportItem[] {
 
 export function parseImportFile(content: string, filename?: string): ParseResult {
   const errors: string[] = [];
-  if (!content || !content.trim()) {
+  if (!content || typeof content !== "string" || !content.trim()) {
     return { source: "generic_csv", items: [], errors: ["Dosya boş."] };
   }
 

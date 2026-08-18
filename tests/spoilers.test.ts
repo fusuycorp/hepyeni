@@ -79,6 +79,15 @@ describe("Dual-Layer Spoiler Protection & Campfires", () => {
         { type: "text", content: "Unclosed ||tag here" },
       ]);
     });
+
+    it("handles adjacent spoiler blocks correctly", () => {
+      const text = "||first||||second||";
+      const tokens = parseSpoilerTokens(text);
+      expect(tokens).toEqual([
+        { type: "spoiler", content: "first" },
+        { type: "spoiler", content: "second" },
+      ]);
+    });
   });
 
   describe("Milestone Campfires Redaction Logic", () => {

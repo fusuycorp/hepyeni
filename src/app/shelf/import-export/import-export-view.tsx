@@ -53,9 +53,14 @@ export function ImportExportView() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 self-start sm:self-auto">
+        <div
+          role="tablist"
+          className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 self-start sm:self-auto"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "import"}
             onClick={() => setActiveTab("import")}
             className={cn(
               "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",
@@ -69,6 +74,8 @@ export function ImportExportView() {
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "export"}
             onClick={() => setActiveTab("export")}
             className={cn(
               "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",

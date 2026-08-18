@@ -150,6 +150,20 @@ describe("Titirek Labs Feature Flag Engine", () => {
       expect(await isFeatureEnabled("data_portability", { cookies: {} })).toBe(false);
       expect(await isFeatureEnabled("digital_marginalia", { cookies: {} })).toBe(false);
     });
+
+    it("gracefully recovers from malformed JSON cookie values without crashing", async () => {
+      const malformedContexts = [
+        { cookies: { [FEATURE_FLAGS_COOKIE_NAME]: "{invalid_json" } },
+        { cookies: { [FEATURE_FLAGS_COOKIE_NAME]: "null" } },
+        { cookies: { [FEATURE_FLAGS_COOKIE_NAME]: "12345" } },
+        { cookies: { [FEATURE_FLAGS_COOKIE_NAME]: "" } },
+      ];
+
+      for (const ctx of malformedContexts) {
+        expect(await isFeatureEnabled("spoiler_blur", ctx)).toBe(true);
+        expect(await isFeatureEnabled("data_portability", ctx)).toBe(false);
+      }
+    });
   });
 
   describe("getFeatureFlags & requireFeature", () => {

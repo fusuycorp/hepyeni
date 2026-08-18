@@ -315,6 +315,7 @@ export function ImportPreviewTable({ items: initialItems, onSuccess }: ImportPre
                       >
                         <button
                           type="button"
+                          aria-label={isSelected ? t.common.deselect : t.common.select}
                           onClick={() => toggleItem(index)}
                           className="p-1 text-muted-foreground hover:text-foreground"
                         >
@@ -396,12 +397,15 @@ export function ImportPreviewTable({ items: initialItems, onSuccess }: ImportPre
         {totalPages > 1 && (
           <div className="p-3 border-t border-border/60 bg-muted/30 flex items-center justify-between gap-2 text-xs">
             <span className="text-muted-foreground text-[11px]">
-              Page {safeCurrentPage} of {totalPages}
+              {t.common.pageOf
+                .replace("{current}", String(safeCurrentPage))
+                .replace("{total}", String(totalPages))}
             </span>
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="sm"
+                aria-label={t.common.previous}
                 disabled={safeCurrentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 className="size-7 p-0"
@@ -411,6 +415,7 @@ export function ImportPreviewTable({ items: initialItems, onSuccess }: ImportPre
               <Button
                 variant="outline"
                 size="sm"
+                aria-label={t.common.next}
                 disabled={safeCurrentPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 className="size-7 p-0"

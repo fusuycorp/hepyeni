@@ -98,6 +98,7 @@ export function CopyInviteButton({
     <button
       type="button"
       onClick={copy}
+      aria-label={t.groups.copyInviteCode}
       className={cn(
         "inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[11px] font-medium transition-colors select-none",
         "bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60",

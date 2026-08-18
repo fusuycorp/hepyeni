@@ -308,6 +308,12 @@ describe("Phase 4: Mood & Pace Taxonomy + Blind Pick Wheel", () => {
       });
       expect(rotSlice3).not.toBe(rotSlice0);
     });
+
+    it("handles zero backlog candidate edge cases gracefully without division-by-zero crashes", () => {
+      expect(sampleWheelCandidates([])).toEqual([]);
+      expect(pickWheelWinner([])).toBeNull();
+      expect(calculateWheelRotation({ winnerIndex: 0, totalSlices: 0 })).toBe(0);
+    });
   });
 
   describe("i18n Translation Key Parity for Moods, Wheel, and Blind Pick", () => {

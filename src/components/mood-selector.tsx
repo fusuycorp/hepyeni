@@ -62,7 +62,7 @@ export function MoodSelector({
           </Label>
           {selectedMoods.length > 0 && !readOnly && (
             <span className="text-[10px] text-muted-foreground">
-              {selectedMoods.length} seçildi
+              {t.moods.selectedCount.replace("{count}", String(selectedMoods.length))}
             </span>
           )}
         </div>

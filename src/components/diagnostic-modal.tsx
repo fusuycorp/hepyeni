@@ -100,7 +100,8 @@ export function DiagnosticModal({
               size="icon-xs"
               onClick={loadDiagnostics}
               disabled={loading}
-              title="Refresh"
+              aria-label={t.common.refresh}
+              title={t.common.refresh}
             >
               <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>

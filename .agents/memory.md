@@ -7,7 +7,7 @@
   3. **Phase 2 (Dual-Layer Spoiler Protection & Campfires)**: `<SpoilerText>` interactive inline `||spoiler||` blur filters, `milestone_comments` collection, and server-gated pre-checkin milestone campfire discussions.
   4. **Phase 3 (Digital Marginalia & Quote Snaps)**: `shelf_quotes` collection, `<QuoteCard>`, `<AddQuoteDialog>`, and Quotes gallery tab on `/shelf` with dual private/circle sharing.
   5. **Phase 4 (Mood & Pace Folksonomy + Blind Pick Wheel)**: 9 moods and 3 paces taxonomy, `<MoodSelector>`, backlog vibe filters, `<DecisionWheelDialog>` spinning wheel, and blind proposal identity redaction.
-  - Complete i18n parity between Turkish (`tr.ts`) and English (`en.ts`), Test-First (TDD) invariant enforced with 229 passing unit tests across 26 test suites.
+  - Complete i18n parity between Turkish (`tr.ts`) and English (`en.ts`), Test-First (TDD) invariant enforced with 357 passing unit tests across 31 test suites (including 5 dedicated adversarial fuzzing and security suites with 429,752 assertion calls).
 - **Core Stack**: Next.js (App Router, Server Actions, Route Handlers), TailwindCSS, Base UI, PocketBase (SQLite backend), Bun runtime.
 
 

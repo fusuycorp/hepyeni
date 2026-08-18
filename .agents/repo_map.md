@@ -1,6 +1,6 @@
 # Repository Map
 
-218 files · 29084 lines of parsed code · ranked by import in-degree + 90d churn + entry points
+223 files · 31597 lines of parsed code · ranked by import in-degree + 90d churn + entry points
 
 ## Entry points
 
@@ -18,7 +18,7 @@
 
 ## Core modules
 
-`src/types/pocketbase-types.ts` · 355 ln · ← [groupId]/page, [titleId]/page, activity/page, add-quote-dialog, +46 · 7 commits/90d
+`src/types/pocketbase-types.ts` · 355 ln · ← [groupId]/page, [titleId]/page, activity/page, add-quote-dialog, +47 · 7 commits/90d
   :20   export const Collections =
   :40   export type Collections = (typeof Collections)[keyof typeof Collections];
   :43   export type IsoDateString = string;
@@ -36,15 +36,15 @@
 `src/components/ui/button.tsx` · 59 ln · ← [code]/page, [groupId]/page, add-quote-dialog, add-title-dialog, +48 · 1 commit/90d
   :43   function Button(
 
-`src/lib/utils.ts` · 7 ln · ← add-title-form, add-to-shelf-dialog, alert-dialog, app-shell, +42 · 1 commit/90d
-  :4    export function cn(...inputs: ClassValue[])
-
-`src/lib/i18n/client.tsx` · 53 ln · ← add-quote-dialog, add-title-dialog, add-title-form, add-to-shelf-dialog, +41 · 1 commit/90d
+`src/lib/i18n/client.tsx` · 53 ln · ← add-quote-dialog, add-title-dialog, add-title-form, add-to-shelf-dialog, +42 · 1 commit/90d
   :7    interface I18nContextType
   :15   export function I18nProvider(
   :38   export function useI18n()
   :46   export function useLocale()
   :50   export function useTranslations()
+
+`src/lib/utils.ts` · 7 ln · ← add-title-form, add-to-shelf-dialog, alert-dialog, app-shell, +42 · 1 commit/90d
+  :4    export function cn(...inputs: ClassValue[])
 
 `src/lib/pocketbase/session.ts` · 215 ln · ← [code]/page, [groupId]/page, [titleId]/page, activity/page, +28 · 5 commits/90d
   :9    export type Session =
@@ -88,47 +88,17 @@
   :49   export function logDiagnostic(
   :88   export function getRecentDiagnostics(): DiagnosticEntry[]
 
-`src/lib/i18n/en.ts` · 806 ln · ← auth-methods.test, custom-titles.test, flags.test, guest-management.test, +12 · 15 commits/90d
+`src/lib/i18n/en.ts` · 829 ln · ← auth-methods.test, custom-titles.test, flags.test, guest-management.test, +12 · 15 commits/90d
   :3    export const en: Translations =
 
-`src/lib/i18n/tr.ts` · 804 ln · ← auth-methods.test, custom-titles.test, flags.test, guest-management.test, +12 · 15 commits/90d
+`src/lib/i18n/tr.ts` · 827 ln · ← auth-methods.test, custom-titles.test, flags.test, guest-management.test, +12 · 15 commits/90d
   :3    export const tr: Translations =
 
 `src/lib/i18n/server.ts` · 20 ln · ← [code]/page, [groupId]/page, [titleId]/page, activity/page, +12 · 1 commit/90d
   :4    export async function getLocale(): Promise<Locale>
   :16   export async function getServerTranslations()
 
-`src/components/media-badge.tsx` · 64 ln · ← [code]/page, [groupId]/page, activity/page, add-title-form, +9 · 3 commits/90d
-  :8    interface MediaBadgeProps
-  :31   export function MediaBadge(
-
-`src/components/ui/avatar.tsx` · 110 ln · ← activity/page, circle-title-progress, comment-thread, desktop-sidebar, +8 · 1 commit/90d
-  :8    function Avatar(
-  :28   function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props)
-  :41   function AvatarFallback(
-  :57   function AvatarBadge({ className, ...props }: React.ComponentProps<"span">)
-  :73   function AvatarGroup({ className, ...props }: React.ComponentProps<"div">)
-  :86   function AvatarGroupCount(
-
-`src/components/ui/input.tsx` · 21 ln · ← add-quote-dialog, add-title-form, add-to-shelf-dialog, edit-progress-dialog, +8 · 1 commit/90d
-  :6    function Input({ className, type, ...props }: React.ComponentProps<"input">)
-
-`src/lib/format.ts` · 9 ln · ← activity/page, circle-title-progress, comment-thread, desktop-sidebar, +8 · 1 commit/90d
-  :1    export function getInitials(name?: string, email?: string): string
-  :6    export function getDisplayName(user?: { name?: string; email?: string }): string
-
-`src/lib/membership.ts` · 258 ln · ← [groupId]/page, [titleId]/page, comments, groups, +7 · 5 commits/90d
-  :12   export interface CircleAccess
-  :27   export const DEFAULT_GUEST_SETTINGS: GroupGuestSettings =
-  :42   export function evaluateCircleAccess(
-  :128  export async function resolveCircleAccess(
-  :160  export async function requireMembership(
-  :180  export async function requireOwner(
-  :197  export async function requireTitleInGroup(
-  :217  export async function requireScheduleInGroup(
-  :237  export async function requireMilestoneInGroup(
-
-`src/lib/moods.ts` · 231 ln · ← [groupId]/page, [titleId]/page, add-title-form, add-to-shelf-dialog, +8 · 1 commit/90d
+`src/lib/moods.ts` · 262 ln · ← [groupId]/page, [titleId]/page, add-title-form, add-to-shelf-dialog, +10 · 1 commit/90d
   :1    export const MOODS = [
   :13   export type MoodType = (typeof MOODS)[number];
   :15   export const PACES = ["slow_burn", "gentle", "fast_paced"] as const;
@@ -143,6 +113,36 @@
   :145  export function shouldRedactProposalIdentity(
   ... +4 more symbols
 
+`src/components/media-badge.tsx` · 64 ln · ← [code]/page, [groupId]/page, activity/page, add-title-form, +9 · 3 commits/90d
+  :8    interface MediaBadgeProps
+  :31   export function MediaBadge(
+
+`src/lib/format.ts` · 14 ln · ← activity/page, adversarial-fuzzing.test, circle-title-progress, comment-thread, +9 · 1 commit/90d
+  :1    export function getInitials(name?: string, email?: string): string
+  :8    export function getDisplayName(user?: { name?: string; email?: string }): string
+
+`src/components/ui/avatar.tsx` · 110 ln · ← activity/page, circle-title-progress, comment-thread, desktop-sidebar, +8 · 1 commit/90d
+  :8    function Avatar(
+  :28   function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props)
+  :41   function AvatarFallback(
+  :57   function AvatarBadge({ className, ...props }: React.ComponentProps<"span">)
+  :73   function AvatarGroup({ className, ...props }: React.ComponentProps<"div">)
+  :86   function AvatarGroupCount(
+
+`src/components/ui/input.tsx` · 21 ln · ← add-quote-dialog, add-title-form, add-to-shelf-dialog, edit-progress-dialog, +8 · 1 commit/90d
+  :6    function Input({ className, type, ...props }: React.ComponentProps<"input">)
+
+`src/lib/membership.ts` · 258 ln · ← [groupId]/page, [titleId]/page, comments, groups, +7 · 5 commits/90d
+  :12   export interface CircleAccess
+  :27   export const DEFAULT_GUEST_SETTINGS: GroupGuestSettings =
+  :42   export function evaluateCircleAccess(
+  :128  export async function resolveCircleAccess(
+  :160  export async function requireMembership(
+  :180  export async function requireOwner(
+  :197  export async function requireTitleInGroup(
+  :217  export async function requireScheduleInGroup(
+  :237  export async function requireMilestoneInGroup(
+
 `src/lib/pocketbase/errors.ts` · 20 ln · ← [groupId]/page, add/page, admin, auth, +8 · 1 commit/90d
   :5    export function isValidationNotUnique(err: unknown, field?: string): boolean
   :17   export function isNotFound(err: unknown): boolean
@@ -150,8 +150,8 @@
 `src/components/media-cover.tsx` · 61 ln · ← [code]/page, activity/page, add-title-form, add-to-shelf-dialog, +6 · 2 commits/90d
   :12   export function MediaCover(
 
-`src/components/theme-toggle.tsx` · 51 ln · ← [code]/page, admin/layout, app-shell, desktop-sidebar, +6 · 2 commits/90d
-  :10   export function ThemeToggle({ className }: { className?: string })
+`src/components/theme-toggle.tsx` · 53 ln · ← [code]/page, admin/layout, app-shell, desktop-sidebar, +6 · 2 commits/90d
+  :11   export function ThemeToggle({ className }: { className?: string })
 
 `src/lib/actions/auth.ts` · 294 ln · ← auth-method-badges, auth-methods.test, desktop-sidebar, forgot-password-form, +4 · 11 commits/90d
   :21   export type UserAuthMethods =
@@ -199,7 +199,7 @@
   :8    export function LanguageToggle({ className }: { className?: string })
   :12   function toggleLanguage()
 
-`src/lib/actions/groups.ts` · 461 ln · ← [code]/page, auth, blind-pick-toggle-form, groups/page, +3 · 9 commits/90d
+`src/lib/actions/groups.ts` · 467 ln · ← [code]/page, auth, blind-pick-toggle-form, groups/page, +3 · 9 commits/90d
   :17   export async function createGroup(formData: FormData): Promise<ActionResult<{ groupId: …
   :62   export async function joinGroupByCode(
   :95   export async function joinGroup(formData: FormData): Promise<ActionResult<{ groupId: st…
@@ -207,29 +207,38 @@
   :141  export type PublicGroupOverview =
   :157  export async function getGroupByInviteCode(
   :225  export async function autoJoinPendingInvite(
-  :234  export async function setPendingInviteAction(code: string): Promise<void>
-  :239  export async function renameGroup(
-  :269  export async function regenerateInviteCode(
-  :302  export async function removeMember(
-  :336  export async function leaveGroup(groupId: string): Promise<ActionResult<void>>
+  :234  export async function setPendingInviteAction(code: string): Promise<ActionResult<void>>
+  :245  export async function renameGroup(
+  :275  export async function regenerateInviteCode(
+  :308  export async function removeMember(
+  :342  export async function leaveGroup(groupId: string): Promise<ActionResult<void>>
   ... +3 more symbols
 
-`src/lib/i18n/types.ts` · 808 ln · ← auth-method-badges, client, en, i18n.test, +2 · 14 commits/90d
+`src/lib/actions/progress.ts` · 444 ln · ← [titleId]/page, add-to-shelf-dialog, adversarial-fuzzing.test, circle-title-progress, +4 · 5 commits/90d
+  :23   export function toIsoDate(val?: string | null): string | null
+  :38   function extractErrorMessage(err: unknown, fallback: string): string
+  :49   export interface SaveMediaProgressInput
+  :72   export async function getPersonalShelf(
+  :99   export async function saveMediaProgress(
+  :219  export async function updateProgressQuickStep(
+  :265  export async function deleteMediaProgress(
+  :292  export interface TitleMemberProgressItem
+  :298  export async function getTitleCircleProgress(
+  :389  export interface CircleLiveActivityItem
+  :394  export async function getCircleLiveActivity(
+
+`src/lib/i18n/types.ts` · 831 ln · ← auth-method-badges, client, en, i18n.test, +2 · 14 commits/90d
   :1    export type Locale = "tr" | "en";
   :3    export interface Translations
 
-`src/lib/actions/progress.ts` · 431 ln · ← [titleId]/page, add-to-shelf-dialog, circle-title-progress, edit-progress-dialog, +3 · 5 commits/90d
-  :23   function toIsoDate(val?: string | null): string | null
-  :30   function extractErrorMessage(err: unknown, fallback: string): string
-  :41   export interface SaveMediaProgressInput
-  :64   export async function getPersonalShelf(
-  :91   export async function saveMediaProgress(
-  :206  export async function updateProgressQuickStep(
-  :252  export async function deleteMediaProgress(
-  :279  export interface TitleMemberProgressItem
-  :285  export async function getTitleCircleProgress(
-  :376  export interface CircleLiveActivityItem
-  :381  export async function getCircleLiveActivity(
+`src/components/spoiler-text.tsx` · 143 ln · ← [groupId]/page, activity/page, adversarial-spoilers-and-marginalia.test, comment-thread, +4 · 1 commit/90d
+  :8    export interface SpoilerToken
+  :13   export function parseSpoilerTokens(text: string): SpoilerToken[]
+  :39   export function hasSpoilerTokens(text: string): boolean
+  :44   interface SpoilerSpanProps
+  :49   export function SpoilerSpan({ children, className }: SpoilerSpanProps)
+  :117  export interface SpoilerTextProps
+  :123  export function SpoilerText({ text, children, className }: SpoilerTextProps)
 
 `src/lib/i18n/index.ts` · 56 ln · ← [code]/page, activity/page, client, comment-thread, +4 · 1 commit/90d
   :13   export const defaultLocale: Locale = "tr";
@@ -241,21 +250,60 @@
   :3    export type NormalizedSearchResult =
   :12   export interface MediaProvider
 
-`src/components/copy-invite-button.tsx` · 117 ln · ← [code]/page, [groupId]/page, groups/page, settings/page · 5 commits/90d
+`src/components/copy-invite-button.tsx` · 118 ln · ← [code]/page, [groupId]/page, groups/page, settings/page · 5 commits/90d
   :10   export function CopyInviteButton(
   :24   async function copy(e: React.MouseEvent)
 
-`src/components/spoiler-text.tsx` · 143 ln · ← [groupId]/page, activity/page, comment-thread, group-content-view, +3 · 1 commit/90d
-  :8    export interface SpoilerToken
-  :13   export function parseSpoilerTokens(text: string): SpoilerToken[]
-  :39   export function hasSpoilerTokens(text: string): boolean
-  :44   interface SpoilerSpanProps
-  :49   export function SpoilerSpan({ children, className }: SpoilerSpanProps)
-  :117  export interface SpoilerTextProps
-  :123  export function SpoilerText({ text, children, className }: SpoilerTextProps)
-
 `src/components/ui/textarea.tsx` · 19 ln · ← add-quote-dialog, add-to-shelf-dialog, comment-thread, edit-progress-dialog, +3 · 1 commit/90d
   :5    function Textarea({ className, ...props }: React.ComponentProps<"textarea">)
+
+`src/lib/actions/marginalia.ts` · 425 ln · ← add-quote-dialog, adversarial-fuzzing.test, adversarial-spoilers-and-marginalia.test, marginalia.test, +3 · 1 commit/90d
+  :19   export interface AddQuoteInput
+  :29   export interface StructuredAttribution
+  :37   export function parseTags(input: string | string[] | undefined | null): string[]
+  :73   export function formatAttribution(
+  :116  export function validateQuoteInput(input: AddQuoteInput):
+  :182  export function canUserViewQuote(
+  :206  export function canUserDeleteQuote(
+  :217  export function filterQuotesForViewer<
+  :224  export type QuoteExpand =
+  :229  export async function addQuote(
+  :277  export async function deleteQuote(quoteId: string): Promise<ActionResult<void>>
+  :308  export async function getUserQuotes(
+  ... +2 more symbols
+
+`src/lib/flags/registry.ts` · 55 ln · ← actions, adversarial-flags-and-security.test, client, flags.test, +3 · 1 commit/90d
+  :1    export type FeatureFlagKey =
+  :9    export type FeatureFlagStage = "alpha" | "beta" | "experimental";
+  :11   export interface FeatureFlagDefinition
+  :17   export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagDefinition> =
+  :50   export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlagKey[];
+  :52   export function isKnownFeatureFlag(key: string): key is FeatureFlagKey
+
+`src/lib/flags/server.ts` · 206 ln · ← actions, adversarial-flags-and-security.test, app/layout, flags.test, +3 · 1 commit/90d
+  :5    type FeatureFlagKey,
+  :8    export const FEATURE_FLAGS_COOKIE_NAME = "titirek_flags";
+  :10   export interface FeatureFlagContext
+  :24   function parseCookieFlags(cookieValue?: string): Partial<Record<FeatureFlagKey, boolean…
+  :52   async function getCookieValue(
+  :74   export async function isFeatureEnabled(
+  :132  export async function getFeatureFlags(
+  :197  export async function requireFeature(
+
+`src/lib/actions/schedules.ts` · 604 ln · ← [groupId]/page, adversarial-spoilers-and-marginalia.test, group-content-view, group-schedules-card, +1 · 6 commits/90d
+  :29   export interface MilestoneCommentItem
+  :46   export interface MilestoneCommentsResult
+  :53   function toIsoDate(val?: string | null): string | null
+  :60   function extractErrorMessage(err: unknown, fallback: string): string
+  :71   export interface CreateScheduleMilestoneInput
+  :77   export interface CreateGroupScheduleInput
+  :86   export interface MilestoneWithCheckins extends ScheduleMilestonesResponse
+  :92   export interface GroupScheduleWithMilestones extends GroupSchedulesResponse
+  :98   export async function getGroupSchedules(
+  :196  export async function createGroupSchedule(
+  :281  export async function updateGroupScheduleStatus(
+  :307  export async function deleteGroupSchedule(
+  ... +5 more symbols
 
 `src/components/ui/alert-dialog.tsx` · 188 ln · ← comment-thread, confirm-action-button, edit-progress-dialog, group-schedules-card, +2 · 1 commit/90d
   :9    function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props)
@@ -271,38 +319,11 @@
   :144  function AlertDialogAction(
   :157  function AlertDialogCancel(
 
-`src/lib/flags/registry.ts` · 55 ln · ← actions, client, flags.test, flags/index, +2 · 1 commit/90d
-  :1    export type FeatureFlagKey =
-  :9    export type FeatureFlagStage = "alpha" | "beta" | "experimental";
-  :11   export interface FeatureFlagDefinition
-  :17   export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagDefinition> =
-  :50   export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlagKey[];
-  :52   export function isKnownFeatureFlag(key: string): key is FeatureFlagKey
-
-`src/lib/flags/server.ts` · 163 ln · ← actions, app/layout, flags.test, flags/index, +2 · 1 commit/90d
-  :5    type FeatureFlagKey,
-  :8    export const FEATURE_FLAGS_COOKIE_NAME = "titirek_flags";
-  :10   export interface FeatureFlagContext
-  :24   function parseCookieFlags(cookieValue?: string): Partial<Record<FeatureFlagKey, boolean…
-  :37   async function getCookieValue(
-  :59   export async function isFeatureEnabled(
-  :101  export async function getFeatureFlags(
-  :154  export async function requireFeature(
-
-`src/lib/actions/schedules.ts` · 592 ln · ← [groupId]/page, group-content-view, group-schedules-card, milestone-campfire-dialog · 6 commits/90d
-  :29   export interface MilestoneCommentItem
-  :46   export interface MilestoneCommentsResult
-  :53   function toIsoDate(val?: string | null): string | null
-  :60   function extractErrorMessage(err: unknown, fallback: string): string
-  :71   export interface CreateScheduleMilestoneInput
-  :77   export interface CreateGroupScheduleInput
-  :86   export interface MilestoneWithCheckins extends ScheduleMilestonesResponse
-  :92   export interface GroupScheduleWithMilestones extends GroupSchedulesResponse
-  :98   export async function getGroupSchedules(
-  :196  export async function createGroupSchedule(
-  :281  export async function updateGroupScheduleStatus(
-  :307  export async function deleteGroupSchedule(
-  ... +4 more symbols
+`src/lib/importers/index.ts` · 305 ln · ← adversarial-importers.test, exporters.test, import-dropzone, import-export-view, +2 · 1 commit/90d
+  :18   export function detectImportSource(
+  :74   function parseGenericCsv(content: string): NormalizedImportItem[]
+  :190  function parseTitirekJson(content: string): NormalizedImportItem[]
+  :266  export function parseImportFile(content: string, filename?: string): ParseResult
 
 `src/lib/actions/titles.ts` · 260 ln · ← [groupId]/page, [titleId]/page, add-title-form · 12 commits/90d
   :15   export type SearchTitlesResponse =
@@ -316,27 +337,6 @@
 
 `src/components/ui/label.tsx` · 21 ln · ← add-quote-dialog, add-to-shelf-dialog, edit-progress-dialog, group-schedules-card, +1 · 1 commit/90d
   :7    function Label({ className, ...props }: React.ComponentProps<"label">)
-
-`src/lib/actions/marginalia.ts` · 408 ln · ← add-quote-dialog, marginalia.test, quote-card, quotes-tab, +1 · 1 commit/90d
-  :19   export interface AddQuoteInput
-  :29   export interface StructuredAttribution
-  :37   export function parseTags(input: string | string[] | undefined | null): string[]
-  :73   export function formatAttribution(
-  :109  export function validateQuoteInput(input: AddQuoteInput):
-  :175  export function canUserViewQuote(
-  :192  export function canUserDeleteQuote(
-  :201  export function filterQuotesForViewer<
-  :207  export type QuoteExpand =
-  :212  export async function addQuote(
-  :260  export async function deleteQuote(quoteId: string): Promise<ActionResult<void>>
-  :291  export async function getUserQuotes(
-  ... +2 more symbols
-
-`src/lib/importers/index.ts` · 285 ln · ← exporters.test, import-dropzone, import-export-view, import-preview-table, +1 · 1 commit/90d
-  :18   export function detectImportSource(
-  :71   function parseGenericCsv(content: string): NormalizedImportItem[]
-  :181  function parseTitirekJson(content: string): NormalizedImportItem[]
-  :246  export function parseImportFile(content: string, filename?: string): ParseResult
 
 `src/lib/importers/types.ts` · 36 ln · ← goodreads, import-export, importers/index, letterboxd, +1 · 1 commit/90d
   :7    export type ImportSource =
@@ -359,6 +359,12 @@
   :14   export function VoteControl(
   :42   function vote(value: VoteValue)
 
+`src/lib/comments.ts` · 79 ln · ← adversarial-fuzzing.test, comment-thread, comments, comments.test · 2 commits/90d
+  :1    export function validateCommentContent(raw: unknown): string
+  :20   export function canDeleteComment(
+  :38   export type CommentNode<T> = T &
+  :42   export function organizeCommentsTree<
+
 `src/components/confirm-action-button.tsx` · 106 ln · ← profile/page, quote-card, settings/page · 5 commits/90d
   :21   export function ConfirmActionButton(
 
@@ -367,13 +373,16 @@
   :78   export async function getComments(
   :104  export async function deleteComment(
 
-`src/lib/importers/csv-parser.ts` · 181 ln · ← goodreads, importers/index, letterboxd, storygraph · 1 commit/90d
+`src/lib/importers/csv-parser.ts` · 200 ln · ← goodreads, importers/index, letterboxd, storygraph · 1 commit/90d
   :11   export function parseCsv(text: string, delimiter = ","): string[][]
-  :98   export interface CsvTable
-  :104  export function normalizeHeaderKey(key: string): string
-  :108  export function parseCsvToTable(text: string): CsvTable
-  :146  export function getField(row: Record<string, string>, ...possibleKeys: string[]): strin…
-  :159  export function parseSafeDate(dateStr?: string | null): string | undefined
+  :100  export interface CsvTable
+  :106  export function normalizeHeaderKey(key: string): string
+  :111  export function parseCsvToTable(text: string): CsvTable
+  :149  export function getField(row: Record<string, string>, ...possibleKeys: string[]): strin…
+  :163  export function parseSafeDate(dateStr?: string | null): string | undefined
+
+`src/lib/pocketbase/vote-id.ts` · 35 ln · ← adversarial-flags-and-security.test, adversarial-fuzzing.test, vote-id.test, votes · 1 commit/90d
+  :9    export async function voteRecordId(
 
 `src/lib/providers/index.ts` · 27 ln · ← add-title-form, providers.test, search/route, titles · 1 commit/90d
   :16   export function getProvider(mediaType: MediaType): MediaProvider
@@ -421,12 +430,6 @@
 `src/lib/actions/votes.ts` · 67 ln · ← [groupId]/page, [titleId]/page · 6 commits/90d
   :13   export async function voteOnTitle(
 
-`src/lib/comments.ts` · 74 ln · ← comment-thread, comments, comments.test · 2 commits/90d
-  :1    export function validateCommentContent(raw: unknown): string
-  :15   export function canDeleteComment(
-  :33   export type CommentNode<T> = T &
-  :37   export function organizeCommentsTree<
-
 `src/app/activity/page.tsx` · 360 ln · 7 commits/90d · entry point
   :26   type ActivityItem =
   :49   export default async function ActivityPage()
@@ -443,10 +446,10 @@
   :29   export const viewport =
   :34   export default async function RootLayout({ children }: LayoutProps<"/">)
 
-`src/app/shelf/add-to-shelf-dialog.tsx` · 456 ln · ← circle-title-progress, shelf-view · 5 commits/90d
+`src/app/shelf/add-to-shelf-dialog.tsx` · 459 ln · ← circle-title-progress, shelf-view · 5 commits/90d
   :34   export function AddToShelfDialog()
 
-`src/app/shelf/edit-progress-dialog.tsx` · 395 ln · ← circle-title-progress, shelf-view · 5 commits/90d
+`src/app/shelf/edit-progress-dialog.tsx` · 400 ln · ← circle-title-progress, shelf-view · 5 commits/90d
   :41   interface EditProgressDialogProps
   :47   export function EditProgressDialog(
 
@@ -579,9 +582,6 @@
 `src/lib/invite-code.ts` · 7 ln · ← groups, invite-code.test · 1 commit/90d
   :3    export function generateInviteCode(length = 8): string
 
-`src/lib/pocketbase/vote-id.ts` · 35 ln · ← vote-id.test, votes · 1 commit/90d
-  :9    export async function voteRecordId(
-
 `src/app/privacy/page.tsx` · 194 ln · 2 commits/90d · entry point
   :9    export const metadata: Metadata =
   :14   export default function PrivacyPolicyPage()
@@ -619,13 +619,13 @@
 
 `src/app/groups/[groupId]/titles/[titleId]/title-detail-view.tsx` · 560 ln · ← [titleId]/page · 5 commits/90d · :46 type TitleWithScore = TitlesResponse< · :55 interface TitleDetailViewProps · :86 export function TitleDetailView · :150 async function handleCopyLink
 
-`src/app/shelf/shelf-view.tsx` · 378 ln · ← shelf/page · 5 commits/90d · :39 interface ShelfViewProps · :49 export function ShelfView
+`src/app/shelf/shelf-view.tsx` · 385 ln · ← shelf/page · 5 commits/90d · :39 interface ShelfViewProps · :49 export function ShelfView
 
 `src/components/bottom-nav.tsx` · 53 ln · ← app-shell · 5 commits/90d · :9 export function BottomNav
 
-`src/components/group-schedules-card.tsx` · 623 ln · ← group-content-view · 4 commits/90d · :47 type GroupScheduleWithMilestones, · :48 type MilestoneWithCheckins, · :55 interface GroupSchedulesCardProps · :64 export function GroupSchedulesCard
+`src/components/group-schedules-card.tsx` · 631 ln · ← group-content-view · 4 commits/90d · :47 type GroupScheduleWithMilestones, · :48 type MilestoneWithCheckins, · :55 interface GroupSchedulesCardProps · :64 export function GroupSchedulesCard
 
-`src/lib/actions/profile.ts` · 58 ln · ← profile/page · 4 commits/90d · :10 export async function updateProfileName · :35 export async function deleteAccount
+`src/lib/actions/profile.ts` · 60 ln · ← profile/page · 4 commits/90d · :10 export async function updateProfileName · :35 export async function deleteAccount
 
 `src/components/forgot-password-form.tsx` · 40 ln · ← login/page · 3 commits/90d · :9 export function ForgotPasswordForm · :22 function handleSubmit
 
@@ -643,15 +643,15 @@
 
 `src/app/shelf/import-export/export-card.tsx` · 166 ln · ← import-export-view · 1 commit/90d · :20 export function ExportCard
 
-`src/app/shelf/import-export/import-dropzone.tsx` · 234 ln · ← import-export-view · 1 commit/90d · :11 interface ImportDropzoneProps · :24 export function ImportDropzone
+`src/app/shelf/import-export/import-dropzone.tsx` · 243 ln · ← import-export-view · 1 commit/90d · :11 interface ImportDropzoneProps · :24 export function ImportDropzone
 
-`src/app/shelf/import-export/import-export-view.tsx` · 111 ln · ← import-export/page · 1 commit/90d · :14 export function ImportExportView
+`src/app/shelf/import-export/import-export-view.tsx` · 118 ln · ← import-export/page · 1 commit/90d · :14 export function ImportExportView
 
-`src/app/shelf/import-export/import-preview-table.tsx` · 448 ln · ← import-export-view · 1 commit/90d · :42 interface ImportPreviewTableProps · :49 export function ImportPreviewTable
+`src/app/shelf/import-export/import-preview-table.tsx` · 453 ln · ← import-export-view · 1 commit/90d · :42 interface ImportPreviewTableProps · :49 export function ImportPreviewTable
 
 `src/app/shelf/quotes-tab.tsx` · 217 ln · ← shelf-view · 1 commit/90d · :19 interface QuotesTabProps · :29 export function QuotesTab
 
-`src/components/add-quote-dialog.tsx` · 305 ln · ← quotes-tab · 1 commit/90d · :22 interface AddQuoteDialogProps · :33 export function AddQuoteDialog
+`src/components/add-quote-dialog.tsx` · 306 ln · ← quotes-tab · 1 commit/90d · :22 interface AddQuoteDialogProps · :33 export function AddQuoteDialog
 
 `src/components/auth-method-badges.tsx` · 224 ln · ← profile/page · 1 commit/90d · :7 export function GoogleIcon · :30 export function AppleIcon · :38 export function PasswordIcon · :42 export function EmailOtpIcon · :46 export interface AuthMethodHeaderBadgesProps · :51 export function AuthMethodHeaderBadges
 
@@ -659,7 +659,7 @@
 
 `src/components/decision-wheel-dialog.tsx` · 317 ln · ← group-content-view · 1 commit/90d · :38 interface TitleItem extends Partial<TitlesResponse> · :47 export interface DecisionWheelDialogProps · :56 export function DecisionWheelDialog
 
-`src/components/diagnostic-modal.tsx` · 189 ln · ← profile/page · 1 commit/90d · :27 export function DiagnosticModal · :38 async function loadDiagnostics · :50 async function copyReport
+`src/components/diagnostic-modal.tsx` · 190 ln · ← profile/page · 1 commit/90d · :27 export function DiagnosticModal · :38 async function loadDiagnostics · :50 async function copyReport
 
 `src/components/labs-card.tsx` · 154 ln · ← profile/page · 1 commit/90d · :15 export function LabsCard
 
@@ -697,19 +697,23 @@
 
 `tests/auth-methods.test.ts` · 110 ln · 1 commit/90d · :57 function extractAuthMethods
 
-`tests/flags.test.ts` · 199 ln · 1 commit/90d · :6 type FeatureFlagKey,
+`tests/flags.test.ts` · 213 ln · 1 commit/90d · :6 type FeatureFlagKey,
 
 `tests/i18n-exhaustive.test.ts` · 69 ln · 1 commit/90d · :6 function compareObjects · :54 function assertNoEmptyStrings
 
 `tests/i18n.test.ts` · 119 ln · 1 commit/90d · :36 function secondsAgo
 
-`tests/marginalia.test.ts` · 308 ln · 1 commit/90d · :11 type AddQuoteInput,
+`tests/marginalia.test.ts` · 310 ln · 1 commit/90d · :11 type AddQuoteInput,
 
-`tests/moods-and-wheel.test.ts` · 381 ln · 1 commit/90d · :15 type MoodType, · :16 type PaceType,
+`tests/moods-and-wheel.test.ts` · 387 ln · 1 commit/90d · :15 type MoodType, · :16 type PaceType,
 
 `tests/progress.test.ts` · 117 ln · 1 commit/90d · :9 function calculateProgressPercentage · :22 function applyQuickStep · :34 function filterCircleVisibleProgress
 
 `tests/schedules.test.ts` · 129 ln · 1 commit/90d · :5 function calculateMilestoneCompletionRate · :13 function orderMilestones<T extends { orderIndex?: number; targetDate?: string }>
+
+`tests/adversarial-flags-and-security.test.ts` · 329 ln · :11 type FeatureFlagKey,
+
+`tests/adversarial-fuzzing.test.ts` · 544 ln · :7 type AddQuoteInput,
 
 ## Other files
 
@@ -723,6 +727,6 @@
 - `src/components/ui/` — `sonner.tsx`
 - `src/lib/exporters/` — `index.ts`
 - `src/lib/flags/` — `index.ts`
-- `tests/` — 16 files (.ts)
+- `tests/` — 19 files (.ts)
 
-_Detailed 153 of 218 files; 65 collapsed above._
+_Detailed 155 of 223 files; 68 collapsed above._

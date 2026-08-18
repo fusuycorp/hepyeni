@@ -55,7 +55,7 @@ export function QuoteCard({
       toast.success(t.marginalia.copySuccess);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy quote to clipboard");
+      toast.error(t.marginalia.copyError);
     }
   };
 
@@ -92,7 +92,7 @@ export function QuoteCard({
               </Badge>
             ) : (
               <span
-                title="Private to shelf"
+                title={t.marginalia.privateToShelf}
                 className="text-muted-foreground/50 text-xs flex items-center gap-1"
               >
                 <EyeOff className="size-3" />

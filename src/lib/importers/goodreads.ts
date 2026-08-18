@@ -32,11 +32,11 @@ export function parseGoodreadsCsv(csvContent: string): NormalizedImportItem[] {
 
     const rawRating = getField(row, "My Rating", "myrating", "rating");
     const numRating = rawRating ? parseInt(rawRating, 10) : 0;
-    const rating = numRating >= 1 && numRating <= 5 ? numRating : undefined;
+    const rating = !isNaN(numRating) && numRating >= 1 && numRating <= 5 ? numRating : undefined;
 
     const rawPages = getField(row, "Number of Pages", "numberofpages", "pages");
     const pages = rawPages ? parseInt(rawPages, 10) : undefined;
-    const progressTotal = pages && pages > 0 ? pages : undefined;
+    const progressTotal = pages && !isNaN(pages) && pages > 0 ? pages : undefined;
     const progressCurrent = status === "completed" && progressTotal ? progressTotal : undefined;
 
     const privateNotes = getField(row, "Private Notes", "privatenotes");

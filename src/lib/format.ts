@@ -1,8 +1,13 @@
 export function getInitials(name?: string, email?: string): string {
-  const source = name?.trim() || email?.trim() || "U";
+  const cleanName = typeof name === "string" ? name.trim() : "";
+  const cleanEmail = typeof email === "string" ? email.trim() : "";
+  const source = cleanName || cleanEmail || "U";
   return source.slice(0, 2).toUpperCase();
 }
 
 export function getDisplayName(user?: { name?: string; email?: string }): string {
-  return user?.name || user?.email || "Üye";
+  if (!user || typeof user !== "object") return "Üye";
+  const name = typeof user.name === "string" ? user.name.trim() : "";
+  const email = typeof user.email === "string" ? user.email.trim() : "";
+  return name || email || "Üye";
 }

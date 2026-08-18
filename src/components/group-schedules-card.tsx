@@ -134,7 +134,9 @@ export function GroupSchedulesCard({
 
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          description: res.traceId
+            ? t.common.refCode.replace("{code}", res.traceId)
+            : undefined,
         });
         return;
       }
@@ -160,7 +162,9 @@ export function GroupSchedulesCard({
       const res = await toggleMilestoneCheckin(milestoneId, groupId);
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          description: res.traceId
+            ? t.common.refCode.replace("{code}", res.traceId)
+            : undefined,
         });
       }
     });
@@ -175,7 +179,9 @@ export function GroupSchedulesCard({
       const res = await deleteGroupSchedule(targetId, groupId);
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Referans Kodu: ${res.traceId}` : undefined,
+          description: res.traceId
+            ? t.common.refCode.replace("{code}", res.traceId)
+            : undefined,
         });
       } else {
         toast.success(t.schedules.scheduleDeleted);
@@ -226,7 +232,7 @@ export function GroupSchedulesCard({
                       <Input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Örn: Eylül Ayı Kitap Kulübü Okuma Ritmi"
+                        placeholder={t.schedules.scheduleNamePlaceholder}
                         className="h-9 text-xs"
                         autoFocus
                       />
@@ -237,7 +243,7 @@ export function GroupSchedulesCard({
                       <Textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Örn: Haftada 5 bölüm okuyup pazar günleri toplanıyoruz."
+                        placeholder={t.schedules.scheduleDescPlaceholder}
                         className="text-xs min-h-[50px] resize-none"
                       />
                     </div>
@@ -425,10 +431,11 @@ export function GroupSchedulesCard({
                         type="button"
                         variant="ghost"
                         size="xs"
+                        aria-label={t.common.delete}
+                        title={t.common.delete}
                         onClick={() => setScheduleToDelete(schedule.id)}
                         disabled={isPending}
                         className="size-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
-                        title={t.schedules.scheduleDeleted}
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
@@ -457,6 +464,8 @@ export function GroupSchedulesCard({
                           <div className="flex items-start gap-3 min-w-0">
                             <button
                               type="button"
+                              aria-label={m.hasCheckedIn ? t.schedules.checkedIn : t.schedules.checkIn}
+                              title={m.hasCheckedIn ? t.schedules.checkedIn : t.schedules.checkIn}
                               onClick={() => handleToggleCheckin(m.id, schedule.id)}
                               disabled={!isMember || isPending}
                               className={cn(
@@ -465,7 +474,6 @@ export function GroupSchedulesCard({
                                   ? "bg-emerald-500 text-white border-emerald-500 shadow-2xs"
                                   : "border-border/70 hover:border-primary text-transparent hover:text-muted-foreground",
                               )}
-                              title={m.hasCheckedIn ? t.schedules.checkedIn : t.schedules.checkIn}
                             >
                               <CheckCircle2 className="size-3.5" />
                             </button>
