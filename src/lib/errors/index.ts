@@ -12,6 +12,28 @@ export type DiagnosticEntry = {
 const MAX_DIAGNOSTICS = 50;
 const diagnosticHistory: DiagnosticEntry[] = [];
 
+// Shared by the "use server" actions to surface readable PocketBase validation
+// messages. Lived duplicated in progress.ts and schedules.ts (drift-prone); centralise here.
+export function extractErrorMessage(
+  err: unknown,
+  fallback: string,
+): string {
+  const errObj = err as {
+    data?: {
+      message?: string;
+      data?: Record<string, { message?: string }>;
+    };
+    message?: string;
+  };
+  if (errObj?.data?.data) {
+    const fieldErrors = Object.entries(errObj.data.data)
+      .map(([field, detail]) => `${field}: ${detail?.message || "Invalid"}`)
+      .join(", ");
+    if (fieldErrors) return fieldErrors;
+  }
+  return errObj?.data?.message || errObj?.message || fallback;
+}
+
 export function generateTraceId(): string {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   let id = "ERR-";

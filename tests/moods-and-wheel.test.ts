@@ -215,6 +215,34 @@ describe("Phase 4: Mood & Pace Taxonomy + Blind Pick Wheel", () => {
       expect(unchangedDisabled[0].addedBy).toBe("user_123");
       expect(unchangedDisabled[0].expand?.addedBy?.name).toBe("Alice");
     });
+
+    it("strips votes/reviews expands from proposed titles under blind pick (L-2)", () => {
+      const titles = [
+        {
+          id: "t1",
+          status: "proposed",
+          title: "Secret Book",
+          addedBy: "user_123",
+          expand: {
+            addedBy: { id: "user_123", name: "Alice", email: "a@x.com" },
+            votes_via_title: [{ id: "v1", user: "user_123", value: "up" }],
+            reviews_via_title: [
+              { id: "r1", user: "user_123", rating: 5, reviewText: "secret text" },
+            ],
+          },
+        },
+      ];
+
+      const redacted = redactProposedTitles(titles, true, false);
+      expect(redacted[0].expand?.addedBy).toBeUndefined();
+      expect(redacted[0].expand?.votes_via_title).toBeUndefined();
+      expect(redacted[0].expand?.reviews_via_title).toBeUndefined();
+
+      // Owners/admins keep the participation data visible
+      const kept = redactProposedTitles(titles, true, true);
+      expect(kept[0].expand?.votes_via_title).toHaveLength(1);
+      expect(kept[0].expand?.reviews_via_title).toHaveLength(1);
+    });
   });
 
   describe("Decision Wheel Item Sampling & Fair Randomizer", () => {

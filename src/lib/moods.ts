@@ -177,7 +177,11 @@ export function redactProposedTitles<
       const copy = { ...item, addedBy: "" };
       if (copy.expand) {
         const expandCopy = { ...copy.expand };
+        // L-2: under blind pick, strip proposer identity AND the raw votes /
+        // reviews expands (reviewer identity + review text) for non-owner/admins.
         delete expandCopy.addedBy;
+        delete expandCopy.votes_via_title;
+        delete expandCopy.reviews_via_title;
         copy.expand = expandCopy;
       }
       return copy;

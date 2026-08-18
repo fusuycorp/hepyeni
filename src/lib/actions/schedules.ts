@@ -10,8 +10,10 @@ import {
   requireTitleInGroup,
   resolveCircleAccess,
 } from "@/lib/membership";
-import { logDiagnostic } from "@/lib/errors";
+import { extractErrorMessage, logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
+import type { Session } from "@/lib/pocketbase/session";
+import type { CircleAccess } from "@/lib/membership";
 import type {
   GroupSchedulesRecord,
   GroupSchedulesResponse,
@@ -32,18 +34,6 @@ import {
 
 export type { ActionResult };
 export type { MilestoneCommentItem, MilestoneCommentsResult } from "@/lib/schedules";
-
-
-function extractErrorMessage(err: unknown, fallback: string): string {
-  const errObj = err as { data?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
-  if (errObj?.data?.data) {
-    const fieldErrors = Object.entries(errObj.data.data)
-      .map(([field, detail]) => `${field}: ${detail?.message || "Invalid"}`)
-      .join(", ");
-    if (fieldErrors) return fieldErrors;
-  }
-  return errObj?.data?.message || errObj?.message || fallback;
-}
 
 export interface CreateScheduleMilestoneInput {
   title: string;
@@ -74,10 +64,15 @@ export interface GroupScheduleWithMilestones extends GroupSchedulesResponse {
 
 export async function getGroupSchedules(
   groupId: string,
+  session?: Session | null,
+  access?: CircleAccess | null,
 ): Promise<GroupScheduleWithMilestones[]> {
-  const session = await getSession();
-  const access = await resolveCircleAccess(groupId, session?.id);
-  if (!access.isMember && !access.group.isPublic) {
+  // P2: accept already-resolved session/access from the caller to avoid a
+  // second getSession()/resolveCircleAccess round trip on the group page.
+  const resolvedSession = session ?? (await getSession());
+  const resolvedAccess =
+    access ?? (await resolveCircleAccess(groupId, resolvedSession?.id));
+  if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
     return [];
   }
 
@@ -96,11 +91,13 @@ export async function getGroupSchedules(
 
     const scheduleIds = schedules.map((s) => s.id);
 
-    // Fetch all milestones for these schedules
+    // Fetch all milestones for these schedules (S7: bind each id, no raw concat)
     const allMilestones = await pb
       .collection("schedule_milestones")
       .getFullList<ScheduleMilestonesResponse>({
-        filter: scheduleIds.map((id) => `schedule = "${id}"`).join(" || "),
+        filter: scheduleIds
+          .map((id) => pb.filter("schedule = {:id}", { id }))
+          .join(" || "),
         sort: "orderIndex",
       });
 
@@ -110,14 +107,18 @@ export async function getGroupSchedules(
     let allCheckins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[] = [];
     let allComments: MilestoneCommentsResponse[] = [];
     if (milestoneIds.length > 0) {
-      const milestoneFilter = milestoneIds.map((id) => `milestone = "${id}"`).join(" || ");
+      const milestoneFilter = milestoneIds
+        .map((id) => pb.filter("milestone = {:id}", { id }))
+        .join(" || ");
       const [checkinsRes, commentsRes] = await Promise.all([
         pb.collection("milestone_checkins").getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
           filter: milestoneFilter,
           expand: "user",
         }),
+        // P6: only the milestone id is needed for the comment tally
         pb.collection("milestone_comments").getFullList<MilestoneCommentsResponse>({
           filter: milestoneFilter,
+          fields: "id,milestone",
         }),
       ]);
       allCheckins = checkinsRes;
@@ -143,8 +144,8 @@ export async function getGroupSchedules(
     const milestonesBySchedule = new Map<string, MilestoneWithCheckins[]>();
     for (const m of allMilestones) {
       const checkins = checkinsByMilestone.get(m.id) || [];
-      const hasCheckedIn = session?.id
-        ? checkins.some((c) => c.user === session.id)
+      const hasCheckedIn = resolvedSession?.id
+        ? checkins.some((c) => c.user === resolvedSession.id)
         : false;
       const commentCount = commentCountsByMilestone.get(m.id) || 0;
 
@@ -176,23 +177,23 @@ export async function createGroupSchedule(
 ): Promise<ActionResult<{ id: string }>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   // Require circle membership or admin
   const access = await resolveCircleAccess(groupId, session.id);
   if (!access.isMember && !session.isAdmin) {
-    return { success: false, error: "Bu çemberde program oluşturma yetkiniz bulunmuyor." };
+    return { success: false, error: "You do not have permission to create schedules in this circle." };
   }
 
   const cleanName = input.name?.trim();
   if (!cleanName) {
-    return { success: false, error: "Lütfen bir program adı belirtin." };
+    return { success: false, error: "Please provide a schedule name." };
   }
 
   const validMilestones = (input.milestones || []).filter((m) => m.title && m.title.trim().length > 0);
   if (validMilestones.length === 0) {
-    return { success: false, error: "En az bir geçerli kontrol noktası eklenmelidir." };
+    return { success: false, error: "Add at least one valid milestone." };
   }
 
   const pb = await getSuperuserClient();
@@ -211,7 +212,7 @@ export async function createGroupSchedule(
       await requireTitleInGroup(input.titleId.trim(), groupId);
       scheduleData.title = input.titleId.trim();
     } catch (err) {
-      return { success: false, error: "Seçilen medya bu çembere ait değil." };
+      return { success: false, error: "The selected media does not belong to this circle." };
     }
   }
   const parsedStartDate = toIsoDate(input.startDate);
@@ -228,9 +229,9 @@ export async function createGroupSchedule(
       .collection("group_schedules")
       .create<GroupSchedulesResponse>(scheduleData);
 
-    // Create milestones in order
-    for (let i = 0; i < validMilestones.length; i++) {
-      const m = validMilestones[i];
+    // P4: create milestones in parallel — orderIndex is stored explicitly, so
+    // concurrent writes cannot reorder.
+    const milestoneWrites = validMilestones.map(async (m, i) => {
       const milestoneData: Record<string, unknown> = {
         schedule: schedule.id,
         title: m.title.trim().slice(0, 200),
@@ -244,13 +245,22 @@ export async function createGroupSchedule(
       }
 
       await pb.collection("schedule_milestones").create(milestoneData);
-    }
+    });
+    await Promise.all(milestoneWrites);
 
     revalidatePath(`/groups/${groupId}`);
     return { success: true, data: { id: schedule.id } };
   } catch (err: unknown) {
-    const diag = logDiagnostic(err, { action: "createGroupSchedule", groupId, input });
-    const userMsg = extractErrorMessage(err, "Program kaydedilirken bir hata oluştu.");
+    // S2: log only non-sensitive keys, never the raw input payload
+    const diag = logDiagnostic(err, {
+      action: "createGroupSchedule",
+      groupId,
+      milestoneCount: validMilestones.length,
+    });
+    const userMsg = extractErrorMessage(
+      err,
+      "An error occurred while saving the schedule.",
+    );
     return { success: false, error: userMsg, traceId: diag.traceId };
   }
 }
@@ -262,11 +272,11 @@ export async function updateGroupScheduleStatus(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
   const access = await resolveCircleAccess(groupId, session.id);
   if (!access.isOwner && !session.isAdmin) {
-    return { success: false, error: "Sadece çember yöneticisi program durumunu güncelleyebilir." };
+    return { success: false, error: "Only a circle owner can update the schedule status." };
   }
 
   try {
@@ -277,7 +287,7 @@ export async function updateGroupScheduleStatus(
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "updateGroupScheduleStatus", scheduleId, groupId, status });
-    return { success: false, error: "Durum güncellenemedi.", traceId: diag.traceId };
+    return { success: false, error: "Unable to update the status.", traceId: diag.traceId };
   }
 }
 
@@ -287,11 +297,11 @@ export async function deleteGroupSchedule(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
   const access = await resolveCircleAccess(groupId, session.id);
   if (!access.isOwner && !session.isAdmin) {
-    return { success: false, error: "Sadece çember yöneticisi programı silebilir." };
+    return { success: false, error: "Only a circle owner can delete the schedule." };
   }
 
   try {
@@ -302,7 +312,7 @@ export async function deleteGroupSchedule(
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "deleteGroupSchedule", scheduleId, groupId });
-    return { success: false, error: "Program silinemedi.", traceId: diag.traceId };
+    return { success: false, error: "Unable to delete the schedule.", traceId: diag.traceId };
   }
 }
 
@@ -312,7 +322,7 @@ export async function toggleMilestoneCheckin(
 ): Promise<ActionResult<{ checkedIn: boolean }>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
@@ -344,7 +354,7 @@ export async function toggleMilestoneCheckin(
     }
   } catch (err) {
     const diag = logDiagnostic(err, { action: "toggleMilestoneCheckin", milestoneId, groupId });
-    return { success: false, error: "Kontrol noktası güncellenemedi.", traceId: diag.traceId };
+    return { success: false, error: "Unable to update the check-in.", traceId: diag.traceId };
   }
 }
 
@@ -358,7 +368,7 @@ export async function getMilestoneComments(
   try {
     const access = await resolveCircleAccess(groupId, session?.id);
     if (!access.isMember && !access.group.isPublic) {
-      return { success: false, error: "Bu çembere erişim yetkiniz bulunmuyor." };
+      return { success: false, error: "You do not have access to this circle." };
     }
 
     await requireMilestoneInGroup(milestoneId, groupId);
@@ -394,7 +404,7 @@ export async function getMilestoneComments(
     const diag = logDiagnostic(err, { action: "getMilestoneComments", milestoneId, groupId });
     return {
       success: false,
-      error: "Aşama yorumları yüklenemedi.",
+      error: "Unable to load milestone comments.",
       traceId: diag.traceId,
     };
   }
@@ -407,15 +417,15 @@ export async function addMilestoneComment(
 ): Promise<ActionResult<MilestoneCommentItem>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   const rawContent = String(formData.get("content") ?? "").trim();
   if (!rawContent) {
-    return { success: false, error: "Yorum içeriği boş olamaz." };
+    return { success: false, error: "Comment content cannot be empty." };
   }
   if (rawContent.length > 2000) {
-    return { success: false, error: "Yorum 2000 karakterden uzun olamaz." };
+    return { success: false, error: "Comment cannot be longer than 2000 characters." };
   }
 
   const isSpoiler =
@@ -470,7 +480,7 @@ export async function addMilestoneComment(
     const diag = logDiagnostic(err, { action: "addMilestoneComment", milestoneId, groupId });
     return {
       success: false,
-      error: "Yorum eklenirken bir hata oluştu.",
+      error: "An error occurred while adding the comment.",
       traceId: diag.traceId,
     };
   }
@@ -482,7 +492,7 @@ export async function deleteMilestoneComment(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
@@ -493,12 +503,12 @@ export async function deleteMilestoneComment(
       .getOne<MilestoneCommentsResponse>(commentId);
 
     if (comment.group !== groupId) {
-      return { success: false, error: "Yorum bu çembere ait değil." };
+      return { success: false, error: "This comment does not belong to this circle." };
     }
 
     const isOwn = comment.user === session.id;
     if (!isOwn && !access.isOwner && !session.isAdmin) {
-      return { success: false, error: "Bu yorumu silme yetkiniz bulunmuyor." };
+      return { success: false, error: "You do not have permission to delete this comment." };
     }
 
     await pb.collection("milestone_comments").delete(commentId);
@@ -508,7 +518,7 @@ export async function deleteMilestoneComment(
     const diag = logDiagnostic(err, { action: "deleteMilestoneComment", commentId, groupId });
     return {
       success: false,
-      error: "Yorum silinemedi.",
+      error: "Unable to delete the comment.",
       traceId: diag.traceId,
     };
   }

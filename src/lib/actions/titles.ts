@@ -45,7 +45,8 @@ export async function searchTitles(
     const diag = logDiagnostic(err, {
       action: "searchTitles",
       mediaType,
-      query: cleanQuery,
+      // S2: never log the raw user search query
+      queryLength: cleanQuery.length,
     });
     return {
       success: false,

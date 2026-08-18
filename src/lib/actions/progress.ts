@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess, requireMembership } from "@/lib/membership";
-import { logDiagnostic } from "@/lib/errors";
+import { extractErrorMessage, logDiagnostic } from "@/lib/errors";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { ActionResult } from "@/types/actions";
 import type {
@@ -20,17 +20,6 @@ import type {
 import { toIsoDate } from "@/lib/date";
 
 export type { ActionResult };
-
-function extractErrorMessage(err: unknown, fallback: string): string {
-  const errObj = err as { data?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
-  if (errObj?.data?.data) {
-    const fieldErrors = Object.entries(errObj.data.data)
-      .map(([field, detail]) => `${field}: ${detail?.message || "Invalid"}`)
-      .join(", ");
-    if (fieldErrors) return fieldErrors;
-  }
-  return errObj?.data?.message || errObj?.message || fallback;
-}
 
 export interface SaveMediaProgressInput {
   id?: string;
@@ -65,7 +54,10 @@ export async function getPersonalShelf(
     const pb = await getSuperuserClient();
     let filter = pb.filter("user = {:userId}", { userId: session.id });
     if (statusFilter) {
-      filter += ` && status = "${statusFilter}"`;
+      filter = pb.filter("user = {:userId} && status = {:status}", {
+        userId: session.id,
+        status: statusFilter,
+      });
     }
 
     const records = await pb
@@ -73,6 +65,10 @@ export async function getPersonalShelf(
       .getFullList<UserMediaProgressResponse>({
         filter,
         sort: "-updatedAt",
+        // ponytail: project only the fields the shelf UI reads (M6). The real
+        // win is pagination/virtualization of the unbounded shelf (deferred).
+        fields:
+          "id,title,creator,coverUrl,status,mediaType,currentLabel,notes,progressCurrent,progressTotal,progressUnit,rating,isSharedWithCircles,moods,pace,externalSource,externalId,groupTitle,startedAt,completedAt,createdAt,updatedAt",
       });
 
     return records;
@@ -87,12 +83,12 @@ export async function saveMediaProgress(
 ): Promise<ActionResult<UserMediaProgressResponse>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   const cleanTitle = input.title?.trim();
   if (!cleanTitle) {
-    return { success: false, error: "Başlık alanı boş bırakılamaz." };
+    return { success: false, error: "Title is required." };
   }
 
   try {
@@ -154,7 +150,7 @@ export async function saveMediaProgress(
         .collection("user_media_progress")
         .getOne<UserMediaProgressResponse>(input.id);
       if (existing.user !== session.id) {
-        return { success: false, error: "Bu kaydı düzenleme yetkiniz yok." };
+        return { success: false, error: "You do not have permission to edit this record." };
       }
       result = await pb
         .collection("user_media_progress")
@@ -196,8 +192,18 @@ export async function saveMediaProgress(
 
     return { success: true, data: result };
   } catch (err) {
-    const diag = logDiagnostic(err, { action: "saveMediaProgress", input });
-    const userMsg = extractErrorMessage(err, "Kayıt kaydedilirken bir hata oluştu.");
+    // ponytail: action messages are plain English today; the upgrade path is a
+    // stable error-code + client-side i18n mapping (i18n parity invariant).
+    const diag = logDiagnostic(err, {
+      action: "saveMediaProgress",
+      userId: session.id,
+      mediaType: input.mediaType,
+      status: input.status,
+    });
+    const userMsg = extractErrorMessage(
+      err,
+      "An error occurred while saving your progress.",
+    );
     return { success: false, error: userMsg, traceId: diag.traceId };
   }
 }
@@ -208,7 +214,7 @@ export async function updateProgressQuickStep(
 ): Promise<ActionResult<UserMediaProgressResponse>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
@@ -218,7 +224,7 @@ export async function updateProgressQuickStep(
       .getOne<UserMediaProgressResponse>(progressId);
 
     if (existing.user !== session.id) {
-      return { success: false, error: "Bu kaydı düzenleme yetkiniz yok." };
+      return { success: false, error: "You do not have permission to edit this record." };
     }
 
     const current = existing.progressCurrent ?? 0;
@@ -244,7 +250,7 @@ export async function updateProgressQuickStep(
     return { success: true, data: updated };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "updateProgressQuickStep", progressId, delta });
-    return { success: false, error: "İlerleme adımı güncellenemedi.", traceId: diag.traceId };
+    return { success: false, error: "Unable to update progress.", traceId: diag.traceId };
   }
 }
 
@@ -253,7 +259,7 @@ export async function deleteMediaProgress(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
-    return { success: false, error: "Lütfen önce giriş yapın." };
+    return { success: false, error: "Please sign in first." };
   }
 
   try {
@@ -263,7 +269,7 @@ export async function deleteMediaProgress(
       .getOne<UserMediaProgressResponse>(progressId);
 
     if (existing.user !== session.id) {
-      return { success: false, error: "Bu kaydı silme yetkiniz yok." };
+      return { success: false, error: "You do not have permission to delete this record." };
     }
 
     await pb.collection("user_media_progress").delete(progressId);
@@ -271,7 +277,7 @@ export async function deleteMediaProgress(
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "deleteMediaProgress", progressId });
-    return { success: false, error: "Kayıt silinemedi.", traceId: diag.traceId };
+    return { success: false, error: "Unable to delete the record.", traceId: diag.traceId };
   }
 }
 
@@ -346,8 +352,8 @@ export async function getTitleCircleProgress(
           if (p.status === "completed") {
             percentage = 100;
           } else if (
-            p.progressCurrent &&
-            p.progressTotal &&
+            typeof p.progressCurrent === "number" &&
+            typeof p.progressTotal === "number" &&
             p.progressTotal > 0
           ) {
             percentage = Math.min(
@@ -404,10 +410,19 @@ export async function getCircleLiveActivity(
 
     if (memberMap.size === 0) return [];
 
+    // C7: include the viewer's own in-progress record even when they marked it
+    // private, mirroring getTitleCircleProgress's self-visibility rule.
+    const filter = session?.id
+      ? pb.filter(
+          'status = "in_progress" && (isSharedWithCircles != false || user = {:userId})',
+          { userId: session.id },
+        )
+      : 'status = "in_progress" && isSharedWithCircles != false';
+
     const activeProgress = await pb
       .collection("user_media_progress")
       .getFullList<UserMediaProgressResponse>({
-        filter: 'status = "in_progress" && isSharedWithCircles != false',
+        filter,
         sort: "-updatedAt",
       });
 

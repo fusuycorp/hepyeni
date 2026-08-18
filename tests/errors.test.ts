@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   AppError,
+  extractErrorMessage,
   generateTraceId,
   logDiagnostic,
   getRecentDiagnostics,
@@ -44,5 +45,40 @@ describe("Error Management & Diagnostics System", () => {
     const recent = getRecentDiagnostics();
     expect(recent.length).toBeGreaterThan(0);
     expect(recent[0].traceId).toBe(entry.traceId);
+  });
+
+  describe("extractErrorMessage (shared, C3)", () => {
+    it("joins PocketBase field-level validation messages", () => {
+      const err = {
+        data: {
+          data: {
+            quoteText: { message: "must not be empty" },
+            rating: { message: "must be 1-5" },
+          },
+        },
+      };
+      expect(extractErrorMessage(err, "fallback")).toBe(
+        "quoteText: must not be empty, rating: must be 1-5",
+      );
+    });
+
+    it("falls back to the top-level message when no field errors exist", () => {
+      expect(extractErrorMessage({ message: "boom" }, "fallback")).toBe("boom");
+      expect(
+        extractErrorMessage({ data: { message: "nested" } }, "fallback"),
+      ).toBe("nested");
+    });
+
+    it("uses the supplied fallback for unknown/empty errors", () => {
+      expect(extractErrorMessage(null, "An error occurred")).toBe(
+        "An error occurred",
+      );
+      expect(extractErrorMessage({}, "An error occurred")).toBe(
+        "An error occurred",
+      );
+      expect(extractErrorMessage("just a string", "An error occurred")).toBe(
+        "An error occurred",
+      );
+    });
   });
 });

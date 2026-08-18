@@ -63,6 +63,13 @@ describe("User Media Progress & Personal Shelf Logic", () => {
       expect(calculateProgressPercentage(10, 0, "in_progress")).toBe(0);
       expect(calculateProgressPercentage(10, undefined, "in_progress")).toBe(0);
     });
+
+    it("reports 0% for a fresh in-progress item instead of dropping it (C6)", () => {
+      // Regression: the server previously used falsy checks (current && total),
+      // which hid the 0% column for members at the start of a title.
+      expect(calculateProgressPercentage(0, 200, "in_progress")).toBe(0);
+      expect(calculateProgressPercentage(0, 1, "in_progress")).toBe(0);
+    });
   });
 
   describe("Quick Step Transitions & Auto-Completion", () => {
@@ -106,6 +113,19 @@ describe("User Media Progress & Personal Shelf Logic", () => {
       const list = [
         { isSharedWithCircles: true, user: "user-alice" },
         { isSharedWithCircles: false, user: "user-bob" },
+      ];
+
+      const visibleToBob = filterCircleVisibleProgress(list, "user-bob");
+      expect(visibleToBob).toHaveLength(2);
+      expect(visibleToBob.map((i) => i.user)).toContain("user-bob");
+    });
+
+    it("includes the viewer's own private in-progress record (C7 symmetry)", () => {
+      // getCircleLiveActivity now mirrors getTitleCircleProgress: a member's own
+      // private in-progress entry stays visible to themselves in the circle feed.
+      const list = [
+        { isSharedWithCircles: false, user: "user-bob" },
+        { isSharedWithCircles: true, user: "user-alice" },
       ];
 
       const visibleToBob = filterCircleVisibleProgress(list, "user-bob");

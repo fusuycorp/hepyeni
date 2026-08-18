@@ -78,7 +78,9 @@ export default async function GroupPage({
           fields: "id,title",
         })
       : Promise.resolve([]),
-    getGroupSchedules(groupId),
+    // P2: pass the already-resolved session/access to avoid a second
+    // getSession() + resolveCircleAccess round trip inside getGroupSchedules.
+    getGroupSchedules(groupId, session, access),
   ]);
 
   const commentCounts: Record<string, number> = {};
@@ -100,7 +102,23 @@ export default async function GroupPage({
     const userVote = session?.id
       ? votes.find((v) => v.user === session.id)?.value
       : undefined;
-    return { ...title, score, userVote };
+    // P1: never ship 5000-char review bodies on the list page — keep id/rating/
+    // user/createdAt so avg + reviewer names still render; full review text
+    // lives on the title-detail page. reviewText is optional in the schema, so
+    // this is a valid read-only record (group-content-view guards with `&&`).
+    const reviews = (title.expand?.reviews_via_title ?? []).map((r) => {
+      const { reviewText: _dropped, ...lean } = r;
+      void _dropped;
+      return lean as ReviewsResponse<{ user?: UsersResponse }>;
+    });
+    // ponytail: P1 is a payload trim; true scalability needs pagination of the
+    // titles list (deferred — would require a page-size contract with the client).
+    return {
+      ...title,
+      score,
+      userVote,
+      expand: { ...title.expand, reviews_via_title: reviews },
+    };
   });
 
   const isOwnerOrAdmin = currentUserRole === "owner" || Boolean(session?.isAdmin);
