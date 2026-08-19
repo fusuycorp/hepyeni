@@ -22,8 +22,6 @@ export type GroupReviewRow = {
   title: string;
   user: string;
   createdAt: string;
-  collectionId: string;
-  collectionName: string;
   reviewText?: string;
   expand: { user?: ReviewerUser };
 };
@@ -49,6 +47,13 @@ export type TitlePayload = TitlesResponse<GroupTitleExpand> & {
 // Wire-level query construction for the title list. When `!canViewReviews`,
 // votes/reviews are dropped entirely (F-2) and the score/userVote scalars are
 // computed server-side from a lean votes query — identity/ratings never ship.
+//
+// REVIEWS DO NOT RIDE THIS EXPAND. PocketBase 0.39 does not project nested
+// relation-of-relation expand fields (`expand.reviews_via_title.user.*` comes
+// back as a bare user id with no `.expand.user` — verified against a live
+// instance). Reviews are fetched by the caller from the `reviews` collection
+// with `expand=user` + a top-level field projection (which works) and attached
+// per-title via `buildTitlePayload`'s `leanReviewsByTitle`.
 export function groupTitleQuery(canViewReviews: boolean): {
   expand: string;
   fields: string;
@@ -67,26 +72,17 @@ export function groupTitleQuery(canViewReviews: boolean): {
     "expand.addedBy.name",
     "expand.addedBy.avatarUrl",
   ];
+  const expand = ["addedBy"];
   if (canViewReviews) {
     fields.push(
       "expand.votes_via_title.id",
       "expand.votes_via_title.title",
       "expand.votes_via_title.user",
       "expand.votes_via_title.value",
-      "expand.reviews_via_title.id",
-      "expand.reviews_via_title.rating",
-      "expand.reviews_via_title.title",
-      "expand.reviews_via_title.user.id",
-      "expand.reviews_via_title.user.name",
-      "expand.reviews_via_title.user.avatarUrl",
-      "expand.reviews_via_title.createdAt",
     );
-    return {
-      expand: "addedBy,votes_via_title,reviews_via_title.user",
-      fields: fields.join(","),
-    };
+    expand.push("votes_via_title");
   }
-  return { expand: "addedBy", fields: fields.join(",") };
+  return { expand: expand.join(","), fields: fields.join(",") };
 }
 
 export function computeScoreAndUserVote(
@@ -128,8 +124,6 @@ export function mapGroupReviewRow(
     title: review.title,
     user: review.user,
     createdAt: review.createdAt,
-    collectionId: review.collectionId,
-    collectionName: review.collectionName,
     expand: {},
   };
   const user = pickReviewerUser(review.expand?.user);
@@ -145,12 +139,12 @@ export function buildTitlePayload(
   title: TitlesResponse<{
     addedBy?: UsersResponse;
     votes_via_title?: VotesResponse[];
-    reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
   }>,
   opts: {
     canViewReviews: boolean;
     currentUserId?: string;
     leanVotesByTitle?: Map<string, LeanVoteRow[]>;
+    leanReviewsByTitle?: Map<string, ReviewsResponse<{ user?: UsersResponse }>[]>;
     ownReviewTextByTitle?: Map<string, string>;
   },
 ): TitlePayload {
@@ -158,11 +152,14 @@ export function buildTitlePayload(
   const expand: GroupTitleExpand = addedBy ? { addedBy } : {};
 
   if (opts.canViewReviews) {
-    const reviews = title.expand?.reviews_via_title ?? [];
-    const votes = title.expand?.votes_via_title ?? [];
+    // reviews/expand.user are already projected on the wire by the caller's
+    // lean reviews-collection query (expand=user + top-level fields); only own
+    // bodies are injected from the separate light query.
+    const reviews = opts.leanReviewsByTitle?.get(title.id) ?? [];
     expand.reviews_via_title = reviews.map((r) =>
       mapGroupReviewRow(r, opts.currentUserId, opts.ownReviewTextByTitle),
     );
+    const votes = title.expand?.votes_via_title ?? [];
     expand.votes_via_title = votes.map((v) => ({
       id: v.id,
       title: v.title,

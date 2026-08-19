@@ -112,11 +112,12 @@ describe("Group page — wire-level query spec", () => {
     expect(q.fields).not.toContain("email");
   });
 
-  it("expands votes/reviews only when canViewReviews is true, and never ships reviewText or user emails over the wire", () => {
+  it("expands votes on the titles query but NOT reviews — PB 0.39 does not project nested relation-of-relation expand fields, so reviews ride a lean reviews-collection query instead", () => {
     const q = groupTitleQuery(true);
-    expect(q.expand).toContain("votes_via_title");
-    expect(q.expand).toContain("reviews_via_title.user");
-    expect(q.fields).toContain("expand.reviews_via_title.user.name");
+    expect(q.expand).toBe("addedBy,votes_via_title");
+    expect(q.expand).not.toContain("reviews_via_title");
+    expect(q.fields).toContain("expand.votes_via_title.value");
+    expect(q.fields).not.toContain("expand.reviews_via_title");
     expect(q.fields).not.toContain("reviewText");
     expect(q.fields).not.toContain("email");
   });
@@ -204,6 +205,15 @@ describe("mapGroupReviewRow", () => {
 
 describe("buildTitlePayload — canViewReviews = true", () => {
   const ownTexts = new Map<string, string>([[TITLE_ID, "own body"]]);
+  const leanReviewsByTitle = new Map<
+    string,
+    ReviewsResponse<{ user?: UsersResponse }>[]
+  >([
+    [
+      TITLE_ID,
+      [review("r_own", UID_OWN, 5), review("r_other", UID_OTHER, 4, "leaked")],
+    ],
+  ]);
   const payload: TitlePayload = buildTitlePayload(
     title({
       addedBy: reviewer(UID_OTHER),
@@ -211,12 +221,13 @@ describe("buildTitlePayload — canViewReviews = true", () => {
         vote("v1", UID_OWN, "up"),
         vote("v2", UID_OTHER, "down"),
       ],
-      reviews_via_title: [
-        review("r_own", UID_OWN, 5),
-        review("r_other", UID_OTHER, 4, "leaked"),
-      ],
     }),
-    { canViewReviews: true, currentUserId: UID_OWN, ownReviewTextByTitle: ownTexts },
+    {
+      canViewReviews: true,
+      currentUserId: UID_OWN,
+      leanReviewsByTitle,
+      ownReviewTextByTitle: ownTexts,
+    },
   );
 
   it("keeps the current user's reviewText and strips others'", () => {
@@ -298,9 +309,13 @@ describe("blind-pick interplay (regression guard)", () => {
       title({
         addedBy: reviewer(UID_OTHER),
         votes_via_title: [vote("v1", UID_OTHER, "up")],
-        reviews_via_title: [review("r_other", UID_OTHER, 5, "secret")],
       }),
-      { canViewReviews: true, currentUserId: UID_OWN, ownReviewTextByTitle: new Map() },
+      {
+        canViewReviews: true,
+        currentUserId: UID_OWN,
+        leanReviewsByTitle: new Map([[TITLE_ID, [review("r_other", UID_OTHER, 5, "secret")]]]),
+        ownReviewTextByTitle: new Map(),
+      },
     );
     const [redacted] = redactProposedTitles(
       [{ ...built, status: "proposed" }],
@@ -318,8 +333,13 @@ describe("blind-pick interplay (regression guard)", () => {
 
   it("does not redact when blind pick is disabled", () => {
     const built: TitlePayload = buildTitlePayload(
-      title({ reviews_via_title: [review("r_own", UID_OWN, 5)] }),
-      { canViewReviews: true, currentUserId: UID_OWN, ownReviewTextByTitle: new Map([[TITLE_ID, "body"]]) },
+      title({ addedBy: reviewer(UID_OWN) }),
+      {
+        canViewReviews: true,
+        currentUserId: UID_OWN,
+        leanReviewsByTitle: new Map([[TITLE_ID, [review("r_own", UID_OWN, 5)]]]),
+        ownReviewTextByTitle: new Map([[TITLE_ID, "body"]]),
+      },
     );
     const [kept] = redactProposedTitles(
       [{ ...built, status: "proposed" }],

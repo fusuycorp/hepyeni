@@ -72,6 +72,7 @@ export default async function GroupPage({
     schedules,
     leanVoteRows,
     ownReviewRows,
+    leanReviewRows,
   ] = await Promise.all([
     pb
       .collection("group_members")
@@ -123,6 +124,23 @@ export default async function GroupPage({
           fields: "id,title,reviewText",
         })
       : Promise.resolve([]),
+    // R-runtime: reviews and their reviewer identities are attached via a lean
+    // query on the `reviews` collection (dot-filter + expand=user + top-level
+    // field projection) — a nested `reviews_via_title.user` expand on the
+    // titles query does NOT project in PocketBase 0.39 (bare id, no
+    // `.expand.user`). expand.user arrives already trimmed to id/name/avatarUrl
+    // so emails never reach the server-side payload, and bodies stay excluded.
+    canViewReviews && needsTitles
+      ? pb
+          .collection("reviews")
+          .getFullList<ReviewsResponse<{ user?: UsersResponse }>>({
+            filter: pb.filter("title.group = {:groupId}", { groupId }),
+            expand: "user",
+            fields:
+              "id,title,user,rating,createdAt," +
+              "expand.user.id,expand.user.name,expand.user.avatarUrl",
+          })
+      : Promise.resolve([]),
   ]);
 
   const commentCounts: Record<string, number> = {};
@@ -147,6 +165,16 @@ export default async function GroupPage({
     leanVotesByTitle.set(v.title, rows);
   }
 
+  const leanReviewsByTitle = new Map<
+    string,
+    ReviewsResponse<{ user?: UsersResponse }>[]
+  >();
+  for (const r of leanReviewRows) {
+    const rows = leanReviewsByTitle.get(r.title) ?? [];
+    rows.push(r);
+    leanReviewsByTitle.set(r.title, rows);
+  }
+
   // H1: keeps the current member's own reviewText (ReviewForm prefill) and
   // strips everyone else's (see mapGroupReviewRow); F-2: when reviews are
   // hidden this never ships votes/reviews — only the computed score/userVote.
@@ -155,6 +183,7 @@ export default async function GroupPage({
       canViewReviews,
       currentUserId: session?.id,
       leanVotesByTitle,
+      leanReviewsByTitle,
       ownReviewTextByTitle,
     }),
   );
