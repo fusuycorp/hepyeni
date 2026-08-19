@@ -69,6 +69,11 @@ export function LabsCard() {
       desc: t.labs.flags.blind_pick_wheel.desc,
       stage: FEATURE_FLAGS.blind_pick_wheel.stage,
     },
+    llm_extract: {
+      name: t.labs.flags.llm_extract.name,
+      desc: t.labs.flags.llm_extract.desc,
+      stage: FEATURE_FLAGS.llm_extract.stage,
+    },
   };
 
   return (

@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpDown, UploadCloud, DownloadCloud } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, UploadCloud, DownloadCloud, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ImportDropzone } from "./import-dropzone";
 import { ImportPreviewTable } from "./import-preview-table";
 import { ExportCard } from "./export-card";
+import { AiExtractCard } from "./ai-extract-card";
 import { useTranslations } from "@/lib/i18n/client";
+import { useFeatureFlag } from "@/lib/flags/client";
 import { cn } from "@/lib/utils";
 import type { ImportSource, NormalizedImportItem } from "@/lib/importers";
 
 export function ImportExportView() {
   const t = useTranslations();
-  const [activeTab, setActiveTab] = useState<"import" | "export">("import");
+  const isExtractEnabled = useFeatureFlag("llm_extract");
+  const [activeTab, setActiveTab] = useState<"import" | "export" | "text">("import");
   const [parsedData, setParsedData] = useState<{
     items: NormalizedImportItem[];
     source: ImportSource;
@@ -87,6 +90,23 @@ export function ImportExportView() {
             <DownloadCloud className="size-3.5" />
             <span>{t.importExport.exportTab}</span>
           </button>
+          {isExtractEnabled && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "text"}
+              onClick={() => setActiveTab("text")}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activeTab === "text"
+                  ? "bg-background text-foreground shadow-2xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Sparkles className="size-3.5" />
+              <span>{t.importExport.fromTextTab}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -112,6 +132,8 @@ export function ImportExportView() {
       )}
 
       {activeTab === "export" && <ExportCard />}
+
+      {activeTab === "text" && isExtractEnabled && <AiExtractCard onBack={() => setActiveTab("import")} />}
     </div>
   );
 }

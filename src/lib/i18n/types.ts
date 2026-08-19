@@ -1,5 +1,7 @@
 export type Locale = "tr" | "en";
 
+import type { FeatureFlagKey } from "@/lib/flags/registry";
+
 export interface Translations {
   metadata: {
     title: string;
@@ -703,6 +705,28 @@ export interface Translations {
     confirmImportTitle: string;
     confirmImportDesc: string;
     confirmButton: string;
+    fromTextTab: string;
+    fromTextTitle: string;
+    fromTextDesc: string;
+    pastePlaceholder: string;
+    charCount: string;
+    extractButton: string;
+    extracting: string;
+    extractError: string;
+    featureDisabled: string;
+    noCandidates: string;
+    droppedNote: string;
+    matchUseAsIs: string;
+    matchNone: string;
+    targetDestination: string;
+    targetGroup: string;
+    targetShelf: string;
+    shelfStatus: string;
+    addSelected: string;
+    adding: string;
+    addedSuccess: string;
+    addedFailed: string;
+    selectGroup: string;
   };
   spoilers: {
     reveal: string;
@@ -736,32 +760,13 @@ export interface Translations {
     description: string;
     toggleSuccess: string;
     toggleFailed: string;
-    flags: {
-      spoiler_blur: {
+    flags: Record<
+      FeatureFlagKey,
+      {
         name: string;
         desc: string;
-      };
-      milestone_campfires: {
-        name: string;
-        desc: string;
-      };
-      data_portability: {
-        name: string;
-        desc: string;
-      };
-      digital_marginalia: {
-        name: string;
-        desc: string;
-      };
-      mood_pace_folksonomy: {
-        name: string;
-        desc: string;
-      };
-      blind_pick_wheel: {
-        name: string;
-        desc: string;
-      };
-    };
+      }
+    >;
   };
   marginalia: {
     tabTitle: string;

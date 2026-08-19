@@ -4,7 +4,8 @@ export type FeatureFlagKey =
   | "milestone_campfires"
   | "digital_marginalia"
   | "mood_pace_folksonomy"
-  | "blind_pick_wheel";
+  | "blind_pick_wheel"
+  | "llm_extract";
 
 export type FeatureFlagStage = "alpha" | "beta" | "experimental";
 
@@ -44,6 +45,11 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagDefinition> = {
     key: "blind_pick_wheel",
     defaultEnabled: false,
     stage: "experimental",
+  },
+  llm_extract: {
+    key: "llm_extract",
+    defaultEnabled: false,
+    stage: "alpha",
   },
 } as const;
 

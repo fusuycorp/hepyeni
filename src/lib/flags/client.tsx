@@ -16,6 +16,7 @@ const DEFAULT_FLAGS: Record<FeatureFlagKey, boolean> = {
   digital_marginalia: FEATURE_FLAGS.digital_marginalia.defaultEnabled,
   mood_pace_folksonomy: FEATURE_FLAGS.mood_pace_folksonomy.defaultEnabled,
   blind_pick_wheel: FEATURE_FLAGS.blind_pick_wheel.defaultEnabled,
+  llm_extract: FEATURE_FLAGS.llm_extract.defaultEnabled,
 };
 
 export interface FeatureFlagsProviderProps {

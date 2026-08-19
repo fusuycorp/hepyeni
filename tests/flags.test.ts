@@ -48,7 +48,7 @@ describe("Titirek Labs Feature Flag Engine", () => {
         );
       }
 
-      expect(FEATURE_FLAG_KEYS.length).toBe(6);
+      expect(FEATURE_FLAG_KEYS.length).toBe(7);
     });
 
     it("correctly identifies known vs unknown feature flags", () => {
