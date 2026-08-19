@@ -25,7 +25,7 @@ docs/<docs-only>
 
 1. Branch off `main`: `git checkout -b fix/my-thing main`.
 2. Make changes; verify locally: `bun test && bun x tsc --noEmit && bun next build && bun run lint`.
-3. Commit with a conventional message, push, open a PR:
+3. Commit with a conventional message, push, open a PR, then **stop**:
    ```bash
    git push -u origin fix/my-thing
    gh pr create --base main --head fix/my-thing
@@ -34,6 +34,7 @@ docs/<docs-only>
 
 ## Rules
 
+- **Never auto-merge a PR.** Open the PR and stop. Other review tools (e.g. CodeRabbit, Copilot) and the human review it; the human decides when to merge.
 - Merge method is **squash only** (clean linear `main`); rebase branch onto `main` if it falls behind.
 - Merging to `main` auto-triggers the deploy pipeline (`.github/workflows/deploy.yml`).
 - Keep the `ci` gate green; do not merge with failing checks.
