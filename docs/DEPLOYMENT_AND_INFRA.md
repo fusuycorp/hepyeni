@@ -84,6 +84,10 @@ services:
       - TMDB_API_KEY=${TMDB_API_KEY}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+      - FLAG_ENABLE_LLM_EXTRACT=${FLAG_ENABLE_LLM_EXTRACT:-false}
+      - LLM_API_URL=${LLM_API_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
     networks:
       - dokploy-network
     healthcheck:
@@ -140,6 +144,26 @@ networks:
 
 volumes:
   titirek_pb_data:
+```
+
+---
+
+## 3.1 Optional LLM Runtime Configuration
+
+The optional **Extract from Text** importer sends user-pasted text to the OpenAI-compatible endpoint configured by `LLM_API_URL`, after the user acknowledges the localized disclosure. The request contains the pasted text and extraction prompt, but not the user's account identity or PocketBase records. Titirek does not use submitted text to train its own models; the selected provider may process or retain requests under its own privacy policy and terms. Users should not paste passwords, access tokens, private messages, or other sensitive information.
+
+Enable the feature only when both `FLAG_ENABLE_LLM_EXTRACT=true` and `LLM_API_KEY` are configured. For processing that stays on infrastructure you control, point `LLM_API_URL` at a local or private OpenAI-compatible service. `LLM_MODEL` defaults to `gpt-4o-mini`.
+
+`LLM_API_KEY` is a runtime secret. Inject it through Docker Compose or the production secret manager. Do not put it in `Dockerfile` `ARG`/`ENV` instructions, build arguments, source files, or image layers. The application reads it only on the server and never exposes it to the browser.
+
+For Docker Compose, use the corresponding entries from `.env.example`:
+
+```yaml
+environment:
+  - FLAG_ENABLE_LLM_EXTRACT=${FLAG_ENABLE_LLM_EXTRACT:-false}
+  - LLM_API_URL=${LLM_API_URL:-https://api.openai.com/v1}
+  - LLM_API_KEY=${LLM_API_KEY}
+  - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
 ```
 
 ---

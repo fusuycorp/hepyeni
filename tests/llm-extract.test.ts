@@ -10,13 +10,68 @@ import {
   validateRawDump,
   type ExtractedCandidate,
 } from "@/lib/llm/validate";
-import { LLM_DUMP_TRUNCATE, buildExtractPrompt } from "@/lib/llm/prompt";
+import { buildExtractPrompt } from "@/lib/llm/prompt";
+import {
+  USE_AS_IS,
+  mapExtractedCandidateToShelfItem,
+} from "@/lib/llm/import-mapping";
 import {
   buildChatBody,
   chatJson,
   resolveLlmConfig,
   LlmClientError,
 } from "@/lib/llm/client";
+
+describe("mapExtractedCandidateToShelfItem — canonical provider matches", () => {
+  const candidate = {
+    raw: {
+      title: "  Dune  ",
+      creator: "Frank Herbert",
+      mediaType: "book" as const,
+      rating: 4,
+    },
+    matches: [
+      {
+        externalId: "gb-123",
+        externalSource: "google_books",
+        title: "Dune",
+        creator: "Frank Herbert",
+        coverUrl: "https://books.example/dune.jpg",
+      },
+    ],
+  };
+
+  it("uses the selected match's canonical fields for shelf imports", () => {
+    expect(mapExtractedCandidateToShelfItem(candidate, 0)).toEqual({
+      title: "Dune",
+      creator: "Frank Herbert",
+      mediaType: "book",
+      status: "plan_to_consume",
+      rating: 4,
+      externalSource: "google_books",
+      externalId: "gb-123",
+      coverUrl: "https://books.example/dune.jpg",
+    });
+  });
+
+  it("keeps use-as-is intentionally free of provider identifiers", () => {
+    expect(mapExtractedCandidateToShelfItem(candidate, USE_AS_IS)).toEqual({
+      title: "  Dune  ",
+      creator: "Frank Herbert",
+      mediaType: "book",
+      status: "plan_to_consume",
+      rating: 4,
+    });
+  });
+
+  it("treats an invalid match index as use-as-is", () => {
+    const item = mapExtractedCandidateToShelfItem(candidate, 99);
+    expect(item.externalSource).toBeUndefined();
+    expect(item.externalId).toBeUndefined();
+    expect(item.coverUrl).toBeUndefined();
+    expect(item.title).toBe("  Dune  ");
+  });
+});
 
 describe("validateRawDump — trust-boundary input cap", () => {
   it("accepts a normal multiline dump", () => {

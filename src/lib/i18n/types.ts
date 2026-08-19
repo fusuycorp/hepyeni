@@ -7,6 +7,55 @@ export interface Translations {
     title: string;
     description: string;
   };
+  privacy: {
+    title: string;
+    description: string;
+    backToLogin: string;
+    badge: string;
+    heading: string;
+    lastUpdated: string;
+    platformLabel: string;
+    summaryHeading: string;
+    summaryText: string;
+    collectedHeading: string;
+    collectedIntro: string;
+    identityLabel: string;
+    identityText: string;
+    groupLabel: string;
+    groupText: string;
+    technicalLabel: string;
+    technicalText: string;
+    googleHeading: string;
+    googleIntro: string;
+    googleUse: string;
+    googleNoShare: string;
+    googleNoTraining: string;
+    integrationsHeading: string;
+    integrationsIntro: string;
+    tmdb: string;
+    spotify: string;
+    googleBooks: string;
+    apple: string;
+    integrationsNote: string;
+    llmHeading: string;
+    llmIntro: string;
+    llmProcess: string;
+    llmNoTraining: string;
+    llmNoIdentity: string;
+    llmProviderPolicy: string;
+    rightsHeading: string;
+    rightsIntro: string;
+    deleteAccount: string;
+    revokeAccess: string;
+    updateData: string;
+    contactHeading: string;
+    contactIntro: string;
+    websiteLabel: string;
+    emailLabel: string;
+    footerCopyright: string;
+    privacyLink: string;
+    termsLink: string;
+  };
   comments: {
     title: string;
     subtitle: string;
@@ -715,6 +764,10 @@ export interface Translations {
     extractError: string;
     featureDisabled: string;
     noCandidates: string;
+    llmDisclosureTitle: string;
+    llmDisclosure: string;
+    llmDisclosureAck: string;
+    llmDisclosurePrivacyLink: string;
     droppedNote: string;
     matchUseAsIs: string;
     matchNone: string;
@@ -843,5 +896,4 @@ export interface Translations {
     updatedFailed: string;
   };
 }
-
 

@@ -6,7 +6,7 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
-import type { NormalizedImportItem } from "@/lib/importers/types";
+import { normalizeImportItemPayload, type NormalizedImportItem } from "@/lib/importers/types";
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 import { exportShelfToJson } from "@/lib/exporters/json-exporter";
 import {
@@ -97,8 +97,14 @@ export async function batchImportProgress(
     const toInsert: Array<Record<string, unknown>> = [];
     const seenBatchKeys = new Set<string>();
 
-    for (const item of items) {
-      const cleanTitle = item.title?.trim();
+    for (const rawItem of items) {
+      const item = normalizeImportItemPayload(rawItem);
+      if (!item) {
+        skippedCount++;
+        continue;
+      }
+
+      const cleanTitle = item.title;
       if (!cleanTitle) {
         skippedCount++;
         continue;
@@ -144,6 +150,7 @@ export async function batchImportProgress(
         mediaType: item.mediaType,
         title: cleanTitle.slice(0, 300),
         creator: item.creator ? item.creator.trim().slice(0, 300) : null,
+        coverUrl: item.coverUrl || null,
         status: item.status,
         progressCurrent:
           typeof item.progressCurrent === "number" && !isNaN(item.progressCurrent)

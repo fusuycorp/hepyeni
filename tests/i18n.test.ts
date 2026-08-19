@@ -156,3 +156,15 @@ describe("dictionary-drain keys (Cluster 5)", () => {
     expect(tr.profile.badgePassword.split(" ").length).toBe(1);
   });
 });
+
+describe("privacy and LLM extraction translations", () => {
+  it("provides localized disclosure and privacy data-processing copy", () => {
+    for (const dictionary of [en, tr]) {
+      expect(dictionary.importExport.llmDisclosureTitle.trim().length).toBeGreaterThan(0);
+      expect(dictionary.importExport.llmDisclosure.trim().length).toBeGreaterThan(0);
+      expect(dictionary.importExport.llmDisclosureAck.trim().length).toBeGreaterThan(0);
+      expect(dictionary.privacy.llmHeading.trim().length).toBeGreaterThan(0);
+      expect(dictionary.privacy.llmProcess.trim().length).toBeGreaterThan(0);
+    }
+  });
+});
