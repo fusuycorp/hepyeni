@@ -25,11 +25,14 @@ jobs:
       - name: Run Tests
         run: bun test
 
-      - name: Typecheck
-        run: bun x tsc --noEmit
-
+      # next build generates .next/types, which a standalone `tsc --noEmit`
+      # needs to resolve route-level types (e.g. LayoutProps); otherwise the
+      # typecheck reports a phantom error on fresh checkouts.
       - name: Production Build
         run: bun next build
+
+      - name: Typecheck
+        run: bun x tsc --noEmit
 
   lint:
     name: lint
