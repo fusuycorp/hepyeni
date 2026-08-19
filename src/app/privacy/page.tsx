@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookmarkCheck, ArrowLeft, ShieldCheck, Lock, Trash2, Eye, Server } from "lucide-react";
+import { BookmarkCheck, ArrowLeft, ShieldCheck, Lock, Trash2, Eye, Server, Sparkles } from "lucide-react";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getServerTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Gizlilik Politikası (Privacy Policy) — Titirek",
-  description: "Titirek ve hepyeni.net gizlilik politikası, veri güvenliği ve Google OAuth kullanıcı verileri beyanı.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerTranslations();
+  return { title: t.privacy.title, description: t.privacy.description };
+}
 
-export default function PrivacyPolicyPage() {
-  const lastUpdated = "17 Ağustos 2026";
+export default async function PrivacyPolicyPage() {
+  const t = await getServerTranslations();
+  const p = t.privacy;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      {/* Top Header */}
       <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur-md px-4 sm:px-8">
         <div className="mx-auto flex w-full max-w-4xl h-14 items-center justify-between gap-4">
           <Link href="/groups" className="flex items-center gap-2 font-bold text-sm tracking-tight">
@@ -38,153 +39,119 @@ export default function PrivacyPolicyPage() {
               })}
             >
               <ArrowLeft className="size-3.5" />
-              <span>Giriş Ekranı</span>
+              <span>{p.backToLogin}</span>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         <div className="space-y-8">
-          {/* Hero Heading */}
           <div className="space-y-2 pb-6 border-b">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
               <ShieldCheck className="size-3.5" />
-              <span>Gizlilik ve Veri Güvenliği</span>
+              <span>{p.badge}</span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Gizlilik Politikası (Privacy Policy)
-            </h1>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{p.heading}</h1>
             <p className="text-xs text-muted-foreground">
-              Son Güncelleme: {lastUpdated} &middot; hepyeni.net (Titirek Platformu)
+              {p.lastUpdated} &middot; {p.platformLabel}
             </p>
           </div>
 
-          {/* Quick Summary Card */}
           <Card className="border-border/70 bg-muted/20 shadow-2xs">
             <CardContent className="p-5 space-y-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              <p className="font-semibold text-foreground">
-                Özetle Gizlilik Taahhüdümüz:
-              </p>
-              <p>
-                Titirek (<span className="font-mono text-foreground">hepyeni.net</span>), arkadaş gruplarınızla kitap, film, dizi, müzik ve podcast listeleri oluşturup oylamanızı sağlayan ortak bir medya takip platformudur. Kişisel verilerinizi asla satmayız, üçüncü taraf reklam ağlarıyla paylaşmayız veya yapay zeka modelleri eğitmek için kullanmayız.
-              </p>
+              <p className="font-semibold text-foreground">{p.summaryHeading}:</p>
+              <p>{p.summaryText}</p>
             </CardContent>
           </Card>
 
-          {/* Detailed Sections */}
           <div className="space-y-8 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            {/* Section 1 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <Eye className="size-4 text-primary" />
-                <span>1. Toplanan Bilgiler ve Veri Kaynakları</span>
+                <span>{p.collectedHeading}</span>
               </h2>
-              <p>
-                Titirek hizmetlerini kullanırken aşağıdaki bilgiler toplanabilir ve işlenebilir:
-              </p>
+              <p>{p.collectedIntro}</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>
-                  <strong className="text-foreground">Kimlik ve Hesap Bilgileri:</strong> Google OAuth2, Apple ile Giriş veya e-posta ile kayıt olduğunuzda sağlanan ad, soyad, e-posta adresi ve profil fotoğrafı URL&apos;i.
-                </li>
-                <li>
-                  <strong className="text-foreground">Grup ve İçerik Verileri:</strong> Oluşturduğunuz veya katıldığınız gruplar, önerdiğiniz medya başlıkları, verdiğiniz oylar ve yazdığınız incelemeler.
-                </li>
-                <li>
-                  <strong className="text-foreground">Teknik ve Oturum Bilgileri:</strong> Güvenli oturum sürekliliği sağlamak amacıyla şifrelenmiş HTTP çerezleri (<code className="font-mono text-foreground">pb_session</code>) ve IP/cihaz güvenlik kayıtları.
-                </li>
+                <li><strong className="text-foreground">{p.identityLabel}</strong> {p.identityText}</li>
+                <li><strong className="text-foreground">{p.groupLabel}</strong> {p.groupText}</li>
+                <li><strong className="text-foreground">{p.technicalLabel}</strong> {p.technicalText}</li>
               </ul>
             </section>
 
-            {/* Section 2 - Google OAuth Compliance */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <Lock className="size-4 text-primary" />
-                <span>2. Google Kullanıcı Verileri Politikası Uyumluluğu</span>
+                <span>{p.googleHeading}</span>
               </h2>
-              <p>
-                Titirek, Google API&apos;leri üzerinden alınan verilerin kullanımında Google API Hizmetleri Kullanıcı Verileri Politikası&apos;na (Google API Services User Data Policy) ve Sınırlı Kullanım (Limited Use) gereksinimlerine tam olarak uyar:
-              </p>
+              <p>{p.googleIntro}</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>
-                  Google OAuth ile alınan bilgiler (<code className="font-mono text-foreground">email</code>, <code className="font-mono text-foreground">profile</code>) yalnızca kullanıcının platformda kimliğini doğrulamak ve hesap profilini oluşturmak için kullanılır.
-                </li>
-                <li>
-                  Google kullanıcı verileri hiçbir koşulda üçüncü taraflara satılmaz, veri simsarlarına devredilmez veya reklam hedefleme amacıyla kullanılmaz.
-                </li>
-                <li>
-                  Google kullanıcı verileri, kullanıcının açık rızası olmaksızın yapay zeka (LLM / ML) modellerini eğitmek için kullanılmaz.
-                </li>
+                <li>{p.googleUse}</li>
+                <li>{p.googleNoShare}</li>
+                <li>{p.googleNoTraining}</li>
               </ul>
             </section>
 
-            {/* Section 3 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <Server className="size-4 text-primary" />
-                <span>3. Üçüncü Taraf Entegrasyonları</span>
+                <span>{p.integrationsHeading}</span>
               </h2>
-              <p>
-                Titirek, kullanıcılara medya arama ve zengin içerik bilgisi sunmak amacıyla aşağıdaki üçüncü taraf API servislerini kullanır:
-              </p>
+              <p>{p.integrationsIntro}</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li><strong className="text-foreground">The Movie Database (TMDB):</strong> Film ve dizi afişleri, özetleri ve yapımcı bilgileri için.</li>
-                <li><strong className="text-foreground">Spotify API:</strong> Müzik albümü kapakları ve sanatçı bilgileri için.</li>
-                <li><strong className="text-foreground">Google Books API:</strong> Kitap başlıkları, yazarlar ve kapak görselleri için.</li>
-                <li><strong className="text-foreground">Apple iTunes API:</strong> Podcast arama ve podcast yayıncı bilgileri için.</li>
+                <li>{p.tmdb}</li>
+                <li>{p.spotify}</li>
+                <li>{p.googleBooks}</li>
+                <li>{p.apple}</li>
               </ul>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Bu servislerle yalnızca arama sorgularınız paylaşılır; kişisel kimlik veya hesap bilgileriniz bu sağlayıcılara aktarılmaz.
-              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">{p.integrationsNote}</p>
             </section>
 
-            {/* Section 4 */}
+            <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+                <Sparkles className="size-4 text-primary" />
+                <span>{p.llmHeading}</span>
+              </h2>
+              <p>{p.llmIntro}</p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li>{p.llmProcess}</li>
+                <li>{p.llmNoTraining}</li>
+                <li>{p.llmNoIdentity}</li>
+                <li>{p.llmProviderPolicy}</li>
+              </ul>
+            </section>
+
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <Trash2 className="size-4 text-primary" />
-                <span>4. Veri Saklama, Hesap Silme ve Kullanıcı Hakları</span>
+                <span>{p.rightsHeading}</span>
               </h2>
-              <p>
-                Kullanıcılarımız verileri üzerinde tam kontrole sahiptir:
-              </p>
+              <p>{p.rightsIntro}</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>
-                  <strong className="text-foreground">Doğrudan Hesap Silme:</strong> Profil sayfanızdaki (<Link href="/profile" className="text-primary hover:underline font-medium">/profile</Link>) &quot;Hesabı Sil&quot; seçeneğini kullanarak hesabınızı, tüm kişisel verilerinizi, oylarınızı ve yorumlarınızı anında ve kalıcı olarak silebilirsiniz.
-                </li>
-                <li>
-                  <strong className="text-foreground">Erişimi Kaldırma:</strong> Google Hesabınızın Güvenlik sayfasından Titirek&apos;e verilen izinleri istediğiniz an iptal edebilirsiniz.
-                </li>
-                <li>
-                  <strong className="text-foreground">Düzeltme ve Güncelleme:</strong> Görünen isminizi ve şifrenizi dilediğiniz an profil ayarlarınızdan güncelleyebilirsiniz.
-                </li>
+                <li>{p.deleteAccount}</li>
+                <li>{p.revokeAccess}</li>
+                <li>{p.updateData}</li>
               </ul>
             </section>
 
-            {/* Section 5 */}
             <section className="space-y-3 pt-4 border-t">
-              <h2 className="text-base sm:text-lg font-bold text-foreground">
-                5. İletişim
-              </h2>
-              <p>
-                Gizlilik politikamız veya kişisel verilerinizle ilgili her türlü soru, talep ve geri bildirim için bizimle iletişime geçebilirsiniz:
-              </p>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">{p.contactHeading}</h2>
+              <p>{p.contactIntro}</p>
               <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1 font-mono">
-                <p><span className="text-foreground font-semibold">Web Sitesi:</span> https://hepyeni.net</p>
-                <p><span className="text-foreground font-semibold">E-posta:</span> contact@hepyeni.net</p>
+                <p><span className="text-foreground font-semibold">{p.websiteLabel}</span> https://hepyeni.net</p>
+                <p><span className="text-foreground font-semibold">{p.emailLabel}</span> contact@hepyeni.net</p>
               </div>
             </section>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="border-t bg-card/60 py-6 px-4 text-center text-xs text-muted-foreground">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>&copy; {new Date().getFullYear()} Titirek &middot; hepyeni.net. Tüm hakları saklıdır.</p>
+          <p>&copy; {new Date().getFullYear()} Titirek &middot; hepyeni.net. {p.footerCopyright}</p>
           <div className="flex items-center gap-4">
-            <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Gizlilik Politikası</Link>
-            <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Kullanım Koşulları</Link>
+            <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">{p.privacyLink}</Link>
+            <Link href="/terms" className="hover:text-foreground underline underline-offset-4">{p.termsLink}</Link>
           </div>
         </div>
       </footer>

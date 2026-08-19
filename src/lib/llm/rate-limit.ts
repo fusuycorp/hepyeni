@@ -1,0 +1,134 @@
+import { isValidationNotUnique } from "@/lib/pocketbase/errors";
+import { voteRecordId } from "@/lib/pocketbase/vote-id";
+import type PocketBase from "pocketbase";
+
+export const LLM_USAGE_COLLECTION = "llm_usage";
+export const LLM_USAGE_WINDOW_MS = 60 * 60 * 1000;
+export const LLM_MAX_REQUESTS_PER_WINDOW = 5;
+export const LLM_MAX_INPUT_CHARS_PER_WINDOW = 120_000;
+export const LLM_INPUT_COST_UNIT_CHARS = 10_000;
+
+export interface LlmUsageLimits {
+  windowMs: number;
+  maxRequests: number;
+  maxInputChars: number;
+  costUnitChars: number;
+}
+
+export type LlmUsageResult =
+  | { allowed: true }
+  | { allowed: false; reason: "requests" | "input" };
+
+function positiveEnvInt(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function getLlmUsageLimits(): LlmUsageLimits {
+  return {
+    windowMs: positiveEnvInt("LLM_RATE_WINDOW_MS", LLM_USAGE_WINDOW_MS),
+    maxRequests: positiveEnvInt("LLM_MAX_REQUESTS_PER_WINDOW", LLM_MAX_REQUESTS_PER_WINDOW),
+    maxInputChars: positiveEnvInt(
+      "LLM_MAX_INPUT_CHARS_PER_WINDOW",
+      LLM_MAX_INPUT_CHARS_PER_WINDOW,
+    ),
+    costUnitChars: positiveEnvInt("LLM_INPUT_COST_UNIT_CHARS", LLM_INPUT_COST_UNIT_CHARS),
+  };
+}
+
+function isUniqueReservationConflict(err: unknown): boolean {
+  if (isValidationNotUnique(err)) return true;
+  const candidate = err as {
+    status?: unknown;
+    response?: { data?: Record<string, { code?: unknown }> };
+  };
+  return (
+    candidate?.status === 400 &&
+    Object.values(candidate.response?.data ?? {}).some(
+      (field) => field?.code === "validation_not_unique",
+    )
+  );
+}
+
+async function reservationId(userId: string, window: string, kind: string, slot: number) {
+  return voteRecordId(`${userId}:${window}:${kind}:${slot}`, "llm");
+}
+
+async function deleteReservations(pb: PocketBase, ids: string[]): Promise<void> {
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        await pb.collection(LLM_USAGE_COLLECTION).delete(id);
+      } catch {
+        // Cleanup is best effort. Leaving a slot occupied fails closed.
+      }
+    }),
+  );
+}
+
+/**
+ * Reserve unique PocketBase records rather than incrementing a shared counter.
+ * PocketBase is the single serialization point shared by all Next replicas.
+ */
+export async function reserveLlmUsage(
+  pb: PocketBase,
+  userId: string,
+  inputChars: number,
+  now = Date.now(),
+  limits = getLlmUsageLimits(),
+): Promise<LlmUsageResult> {
+  const costUnits = Math.max(1, Math.ceil(inputChars / limits.costUnitChars));
+  const maxCostUnits = Math.ceil(limits.maxInputChars / limits.costUnitChars);
+  if (costUnits > maxCostUnits) return { allowed: false, reason: "input" };
+
+  const window = String(Math.floor(now / limits.windowMs));
+  const requestIds: string[] = [];
+  let requestId: string | undefined;
+
+  for (let slot = 0; slot < limits.maxRequests; slot++) {
+    const id = await reservationId(userId, window, "request", slot);
+    try {
+      await pb.collection(LLM_USAGE_COLLECTION).create({
+        id,
+        user: userId,
+        window,
+        kind: "request",
+        requestId: id,
+      });
+      requestId = id;
+      requestIds.push(id);
+      break;
+    } catch (err) {
+      if (!isUniqueReservationConflict(err)) throw err;
+    }
+  }
+
+  if (!requestId) return { allowed: false, reason: "requests" };
+
+  const inputIds: string[] = [];
+  for (let slot = 0; slot < maxCostUnits && inputIds.length < costUnits; slot++) {
+    const id = await reservationId(userId, window, "input", slot);
+    try {
+      await pb.collection(LLM_USAGE_COLLECTION).create({
+        id,
+        user: userId,
+        window,
+        kind: "input",
+        requestId,
+      });
+      inputIds.push(id);
+    } catch (err) {
+      if (!isUniqueReservationConflict(err)) {
+        await deleteReservations(pb, [...requestIds, ...inputIds]);
+        throw err;
+      }
+    }
+  }
+
+  if (inputIds.length < costUnits) {
+    await deleteReservations(pb, [...requestIds, ...inputIds]);
+    return { allowed: false, reason: "input" };
+  }
+
+  return { allowed: true };
+}

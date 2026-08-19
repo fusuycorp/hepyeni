@@ -8,6 +8,41 @@ import {
   parseLetterboxdCsv,
   parseStoryGraphCsv,
 } from "@/lib/importers";
+import { normalizeImportItemPayload } from "@/lib/importers/types";
+
+describe("normalizeImportItemPayload — batch action boundary", () => {
+  it("trims and caps imported strings while preserving a valid cover URL", () => {
+    const item = normalizeImportItemPayload({
+      title: `  ${"Dune".repeat(100)}  `,
+      creator: "  Frank Herbert  ",
+      mediaType: "book",
+      status: "plan_to_consume",
+      coverUrl: "  https://example.com/dune.jpg  ",
+      externalSource: "  google_books  ",
+      externalId: ` ${"id".repeat(150)} `,
+    });
+
+    expect(item).not.toBeNull();
+    expect(item!.title.length).toBe(300);
+    expect(item!.creator).toBe("Frank Herbert");
+    expect(item!.coverUrl).toBe("https://example.com/dune.jpg");
+    expect(item!.externalSource).toBe("google_books");
+    expect(item!.externalId!.length).toBe(200);
+  });
+
+  it("drops unsafe cover URLs and malformed payloads", () => {
+    expect(
+      normalizeImportItemPayload({
+        title: "Dune",
+        mediaType: "book",
+        status: "plan_to_consume",
+        coverUrl: "javascript:alert(1)",
+      })!.coverUrl,
+    ).toBeUndefined();
+    expect(normalizeImportItemPayload(null)).toBeNull();
+    expect(normalizeImportItemPayload({ title: "   " })).toBeNull();
+  });
+});
 
 describe("Zero-Dependency CSV Parser", () => {
   it("parses basic CSV rows cleanly", () => {

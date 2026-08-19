@@ -20,6 +20,7 @@
   - **Mobile (<768px)**: Sleek top header, touch-friendly hit targets (≥44px), and bottom navigation bar.
   - **Theming**: Seamless dark and light mode toggle via `next-themes`.
 - **Administrative Portal**: Complete dashboard for platform metrics, user moderation (role management, account bans), and group oversight.
+- **AI-Assisted Text Extraction**: Optionally send pasted recommendation lists to a configured OpenAI-compatible LLM after an explicit disclosure acknowledgement.
 
 ---
 
@@ -78,6 +79,10 @@ cp .env.example .env.local
 | `APP_URL` | Yes (for OAuth) | Public origin URL (e.g. `http://localhost:3000`) |
 | `TMDB_API_KEY` | Optional | TMDB v4 Bearer Token for movie/TV search |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Optional | Spotify API credentials for music search |
+| `FLAG_ENABLE_LLM_EXTRACT` | Optional | Enable text extraction only when set to `true` and an LLM key is configured |
+| `LLM_API_URL` | Optional | OpenAI-compatible chat-completions base URL, including a local Ollama endpoint |
+| `LLM_API_KEY` | Optional | Server-only LLM bearer token; inject at runtime and never bake into images |
+| `LLM_MODEL` | Optional | Chat model name, default `gpt-4o-mini` |
 
 ### 3. Install Dependencies & Run
 ```bash
@@ -102,6 +107,12 @@ bun run lint
 # Build production bundle
 bun run build
 ```
+
+### LLM data processing
+
+The optional Extract from Text importer sends only the text the user pastes, and only after the user checks the localized acknowledgement. The request does not include the user's account identity or PocketBase records. Titirek does not use submitted text to train its own models, but the configured provider may process or retain requests under its own policy. Users should not paste passwords, tokens, private messages, or other sensitive data; a local LLM endpoint is available through `LLM_API_URL`.
+
+`LLM_API_KEY` is a runtime secret. Pass it through `.env.local`, Docker Compose, or the production secret manager. Do not add it to `Dockerfile` build arguments, `ENV` instructions, source files, or image layers.
 
 ---
 
@@ -160,4 +171,3 @@ Major architectural choices, security defenses, and design patterns are document
 ## Deployment
 
 Containerized via `Dockerfile` and deployed on **Docker Swarm** with **Dokploy**. CI (`.github/workflows/deploy.yml`) builds the image, pushes to `registry.bogazici.app/budok/titirek`, and triggers Dokploy redeployments.
-

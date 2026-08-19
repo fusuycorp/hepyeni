@@ -8,9 +8,14 @@ import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { resolveCircleAccess } from "@/lib/membership";
 import { isFeatureEnabled } from "@/lib/flags/server";
 import { getProvider } from "@/lib/providers";
+import {
+  findCanonicalProviderMatch,
+  normalizeProviderResult,
+} from "@/lib/providers/validation";
 import { logDiagnostic } from "@/lib/errors";
 import { chatJson, getLlmConfig } from "@/lib/llm/client";
 import { buildExtractPrompt } from "@/lib/llm/prompt";
+import { reserveLlmUsage } from "@/lib/llm/rate-limit";
 import {
   foldTitleKey,
   MAX_CANDIDATES,
@@ -30,6 +35,8 @@ const LLM_NOT_CONFIGURED = "Title extraction is not configured on this server ye
 const LLM_REQUEST_FAILED = "The AI assistant could not be reached. Please try again.";
 const LLM_EMPTY_DUMP = "The text is empty.";
 const LLM_DUMP_TOO_LARGE = "The text is too large to process in one go.";
+const LLM_RATE_LIMITED = "Too many extraction requests. Please try again later.";
+const LLM_INPUT_LIMITED = "Your extraction input budget has been reached. Please try again later.";
 const LLM_NO_TITLES =
   "No recommended titles could be extracted from this text. Try pasting a more specific list.";
 
@@ -41,11 +48,11 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
     return { success: false, error: "Please sign in to extract titles." };
   }
 
-  const config = getLlmConfig();
   const enabled = await isFeatureEnabled("llm_extract");
   if (!enabled) {
     return { success: false, error: LLM_FEATURE_DISABLED };
   }
+  const config = getLlmConfig();
   if (!config) {
     return { success: false, error: LLM_NOT_CONFIGURED };
   }
@@ -59,6 +66,15 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
   }
 
   try {
+    const pb = await getSuperuserClient();
+    const usage = await reserveLlmUsage(pb, session.id, dumpCheck.clean.length);
+    if (!usage.allowed) {
+      return {
+        success: false,
+        error: usage.reason === "input" ? LLM_INPUT_LIMITED : LLM_RATE_LIMITED,
+      };
+    }
+
     const prompt = buildExtractPrompt(dumpCheck.clean);
 
     let content: string | null;
@@ -95,7 +111,10 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
             : candidate.title;
           let matches: CandidateDraft["matches"] = [];
           try {
-            matches = (await getProvider(candidate.mediaType).search(query)).slice(0, 3);
+            matches = (await getProvider(candidate.mediaType).search(query))
+              .map((result) => normalizeProviderResult(candidate.mediaType, result))
+              .filter((result): result is NonNullable<typeof result> => result !== null)
+              .slice(0, 3);
           } catch {
             matches = [];
           }
@@ -105,7 +124,6 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
       drafts.push(...results);
     }
 
-    const pb = await getSuperuserClient();
     const memberships = await pb
       .collection("group_members")
       .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
@@ -133,6 +151,9 @@ export async function proposeExtractedTitles(
   const session = await getSession();
   if (!session) {
     return { success: false, error: "Please sign in to propose titles." };
+  }
+  if (!(await isFeatureEnabled("llm_extract"))) {
+    return { success: false, error: LLM_FEATURE_DISABLED };
   }
   if (!Array.isArray(entries) || entries.length === 0) {
     return { success: false, error: "No titles selected to add." };
@@ -187,9 +208,8 @@ export async function proposeExtractedTitles(
         continue;
       }
 
-      const title = (entry.match?.title ?? entry.custom?.title ?? "")
-        .slice(0, 300)
-        .trim();
+      const rawTitle = entry.match?.title ?? entry.custom?.title;
+      let title = typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
       if (!title) {
         skippedCount++;
         continue;
@@ -205,20 +225,42 @@ export async function proposeExtractedTitles(
       let metadata: Record<string, unknown> | null = null;
 
       if (entry.match) {
-        externalSource = String(entry.match.externalSource ?? "custom").slice(0, 100);
-        externalId = String(entry.match.externalId ?? "").slice(0, 200);
-        creator = entry.match.creator ? String(entry.match.creator).slice(0, 300) : null;
-        coverUrl =
-          entry.match.coverUrl && /^https?:\/\//i.test(entry.match.coverUrl)
-            ? entry.match.coverUrl.slice(0, 2000)
-            : null;
-        metadata = entry.match.metadata
-          ? { ...(entry.match.metadata as Record<string, unknown>) }
-          : null;
+        const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
+        if (!suppliedMatch) {
+          skippedCount++;
+          continue;
+        }
+
+        const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
+        let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
+        try {
+          const results = await getProvider(entry.mediaType).search(query);
+          canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
+        } catch (err) {
+          logDiagnostic(err, {
+            action: "proposeExtractedTitles/provider-validation",
+            groupId,
+            mediaType: entry.mediaType,
+          });
+        }
+        if (!canonicalMatch) {
+          skippedCount++;
+          continue;
+        }
+
+        externalSource = canonicalMatch.externalSource;
+        externalId = canonicalMatch.externalId;
+        title = canonicalMatch.title;
+        creator = canonicalMatch.creator ?? null;
+        coverUrl = canonicalMatch.coverUrl ?? null;
+        metadata = canonicalMatch.metadata ?? null;
       } else {
         externalSource = "custom";
         externalId = `custom_${crypto.randomUUID()}`;
-        creator = entry.custom?.creator?.trim().slice(0, 300) || null;
+        creator =
+          typeof entry.custom?.creator === "string"
+            ? entry.custom.creator.trim().slice(0, 300) || null
+            : null;
       }
 
       const extKey = `${externalSource}:${externalId}`;
@@ -261,7 +303,8 @@ export async function proposeExtractedTitles(
               skippedCount++;
               return;
             }
-            throw err;
+            skippedCount++;
+            logDiagnostic(err, { action: "proposeExtractedTitles/create", groupId });
           }
         }),
       );

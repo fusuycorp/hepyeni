@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2, ArrowLeft, Check, X } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Loader2, ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,22 +11,22 @@ import { useTranslations } from "@/lib/i18n/client";
 import { extractTitlesFromDump, proposeExtractedTitles } from "@/lib/actions/llm-extract";
 import { batchImportProgress } from "@/lib/actions/import-export";
 import { MAX_INPUT_CHARS } from "@/lib/llm/validate";
+import { mapExtractedCandidateToShelfItem, USE_AS_IS } from "@/lib/llm/import-mapping";
 import type { ExtractResult } from "@/lib/llm/types";
 import type { NormalizedImportItem } from "@/lib/importers";
 import type { MediaType } from "@/lib/media-types";
 
-const USE_AS_IS = -1;
-
 export function AiExtractCard({ onBack }: { onBack: () => void }) {
   const t = useTranslations();
   const [text, setText] = useState("");
+  const [disclosureAcknowledged, setDisclosureAcknowledged] = useState(false);
   const [result, setResult] = useState<ExtractResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const charCount = text.length;
 
   function handleExtract() {
-    if (!text.trim()) return;
+    if (isPending || !text.trim() || !disclosureAcknowledged) return;
     startTransition(async () => {
       const res = await extractTitlesFromDump(text);
       if (!res.success) {
@@ -41,7 +42,13 @@ export function AiExtractCard({ onBack }: { onBack: () => void }) {
   }
 
   if (result) {
-    return <AiExtractPreview result={result} onBack={() => setResult(null)} />;
+    return (
+      <AiExtractPreview
+        result={result}
+        onBack={() => setResult(null)}
+        onComplete={onBack}
+      />
+    );
   }
 
   return (
@@ -50,19 +57,38 @@ export function AiExtractCard({ onBack }: { onBack: () => void }) {
         <Sparkles className="size-5 text-primary" />
         <div>
           <h2 className="text-base font-semibold tracking-tight">
-            {t.importExport.fromTextTitle}
+            <span id="ai-extract-title">{t.importExport.fromTextTitle}</span>
           </h2>
           <p className="text-xs text-muted-foreground">{t.importExport.fromTextDesc}</p>
         </div>
       </div>
 
       <Textarea
+        aria-labelledby="ai-extract-title"
         value={text}
         maxLength={MAX_INPUT_CHARS}
         onChange={(e) => setText(e.target.value)}
         placeholder={t.importExport.pastePlaceholder}
         className="min-h-40"
+        disabled={isPending}
       />
+
+      <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+        <p className="font-semibold text-foreground">{t.importExport.llmDisclosureTitle}</p>
+        <p>{t.importExport.llmDisclosure}</p>
+        <Link href="/privacy" className="text-primary underline underline-offset-4">
+          {t.importExport.llmDisclosurePrivacyLink}
+        </Link>
+        <label className="flex items-start gap-2 pt-1 text-foreground">
+          <input
+            type="checkbox"
+            checked={disclosureAcknowledged}
+            onChange={(event) => setDisclosureAcknowledged(event.target.checked)}
+            className="mt-0.5"
+          />
+          <span>{t.importExport.llmDisclosureAck}</span>
+        </label>
+      </div>
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
@@ -70,7 +96,11 @@ export function AiExtractCard({ onBack }: { onBack: () => void }) {
             .replace("{count}", String(charCount))
             .replace("{max}", String(MAX_INPUT_CHARS))}
         </span>
-        <Button onClick={handleExtract} disabled={isPending || !text.trim()}>
+        <Button
+          onClick={handleExtract}
+          disabled={isPending || !text.trim() || !disclosureAcknowledged}
+          aria-busy={isPending}
+        >
           {isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
@@ -91,9 +121,11 @@ export function AiExtractCard({ onBack }: { onBack: () => void }) {
 function AiExtractPreview({
   result,
   onBack,
+  onComplete,
 }: {
   result: ExtractResult;
   onBack: () => void;
+  onComplete: () => void;
 }) {
   const t = useTranslations();
   const [selected, setSelected] = useState<Set<number>>(
@@ -111,6 +143,7 @@ function AiExtractPreview({
   const [isPending, startTransition] = useTransition();
 
   function toggleRow(i: number) {
+    if (isPending) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
@@ -120,6 +153,7 @@ function AiExtractPreview({
   }
 
   function handleAdd() {
+    if (isPending) return;
     const indices = [...selected].sort((a, b) => a - b);
     if (indices.length === 0) {
       toast.error(t.importExport.noItemsSelected);
@@ -128,14 +162,8 @@ function AiExtractPreview({
 
     if (destination === "shelf") {
       const items: NormalizedImportItem[] = indices.map((i) => {
-        const c = result.candidates[i].raw;
-        return {
-          title: c.title,
-          creator: c.creator,
-          mediaType: c.mediaType as MediaType,
-          status: "plan_to_consume",
-          rating: c.rating,
-        };
+        const c = result.candidates[i];
+        return mapExtractedCandidateToShelfItem(c, matchChoice[i] ?? USE_AS_IS);
       });
       startTransition(async () => {
         const res = await batchImportProgress(items);
@@ -148,7 +176,7 @@ function AiExtractPreview({
             .replace("{added}", String(res.data?.importedCount ?? 0))
             .replace("{skipped}", String(res.data?.skippedCount ?? 0)),
         );
-        onBack();
+        onComplete();
       });
       return;
     }
@@ -179,7 +207,7 @@ function AiExtractPreview({
           .replace("{added}", String(res.data?.addedCount ?? 0))
           .replace("{skipped}", String(res.data?.skippedCount ?? 0)),
       );
-      onBack();
+      onComplete();
     });
   }
 
@@ -196,6 +224,7 @@ function AiExtractPreview({
             className="size-8 p-0"
             aria-label={t.common.back}
             onClick={onBack}
+            disabled={isPending}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -223,7 +252,9 @@ function AiExtractPreview({
               <button
                 type="button"
                 onClick={() => toggleRow(i)}
-                aria-label={t.common.confirm}
+                role="checkbox"
+                aria-checked={selected.has(i)}
+                aria-label={c.raw.title}
                 className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border border-border"
               >
                 {selected.has(i) ? <Check className="size-3.5 text-primary" /> : null}
@@ -246,7 +277,11 @@ function AiExtractPreview({
                   <p className="text-xs text-muted-foreground">{c.raw.reason}</p>
                 )}
 
-                <div className="flex flex-wrap gap-2 pt-1">
+                <div
+                  className="flex flex-wrap gap-2 pt-1"
+                  role="radiogroup"
+                  aria-label={c.raw.title}
+                >
                   {c.matches.length === 0 && (
                     <span className="text-xs text-muted-foreground">
                       {t.importExport.matchNone}
@@ -257,6 +292,7 @@ function AiExtractPreview({
                       key={m.externalId}
                       label={`${m.title}${m.creator ? ` — ${m.creator}` : ""}`}
                       active={matchChoice[i] === mi}
+                      disabled={isPending}
                       onClick={() =>
                         setMatchChoice((prev) => ({ ...prev, [i]: mi }))
                       }
@@ -265,6 +301,7 @@ function AiExtractPreview({
                   <MatchOption
                     label={t.importExport.matchUseAsIs}
                     active={matchChoice[i] === USE_AS_IS}
+                    disabled={isPending}
                     onClick={() =>
                       setMatchChoice((prev) => ({ ...prev, [i]: USE_AS_IS }))
                     }
@@ -288,6 +325,7 @@ function AiExtractPreview({
                 name="dest"
                 checked={destination === "group"}
                 onChange={() => setDestination("group")}
+                disabled={isPending}
               />
               {t.importExport.targetGroup}
             </label>
@@ -297,6 +335,7 @@ function AiExtractPreview({
                 name="dest"
                 checked={destination === "shelf"}
                 onChange={() => setDestination("shelf")}
+                disabled={isPending}
               />
               {t.importExport.targetShelf}
             </label>
@@ -305,6 +344,8 @@ function AiExtractPreview({
             <select
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
+              aria-label={t.importExport.targetDestination}
+              disabled={isPending}
               className="rounded-md border border-border bg-background px-2 py-1 text-sm"
             >
               {result.userGroups.length === 0 && <option value="">—</option>}
@@ -323,6 +364,7 @@ function AiExtractPreview({
         <Button
           onClick={handleAdd}
           disabled={isPending || selectedCount === 0 || groupDisabled}
+          aria-busy={isPending}
         >
           {isPending ? (
             <>
@@ -344,16 +386,22 @@ function AiExtractPreview({
 function MatchOption({
   label,
   active,
+  disabled,
   onClick,
 }: {
   label: string;
   active: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      role="radio"
+      aria-checked={active}
+      aria-label={label}
+      disabled={disabled}
       className={`max-w-full truncate rounded-full border px-2.5 py-1 text-xs transition ${
         active
           ? "border-primary bg-primary/10 text-primary"
