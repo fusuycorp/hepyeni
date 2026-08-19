@@ -105,6 +105,39 @@ bun run build
 
 ---
 
+## Development Workflow
+
+Titirek uses **trunk-based development**: work happens on short-lived branches that become pull requests and are squash-merged into `main` after review. `main` is protected — no direct pushes.
+
+### Branch naming
+
+```
+feat/<feature>       # new capability
+fix/<bug-or-regression>
+chore/<maintenance>  # lint, CI, tooling, refactors
+docs/<docs-only>
+```
+
+### Flow
+
+```bash
+git checkout -b fix/my-thing
+# ...make changes, verify locally...
+bun test && bun x tsc --noEmit && bun next build && bun run lint
+
+git add -A
+git commit -m "fix(scope): concise conventional message"
+git push -u origin fix/my-thing
+gh pr create --base main --head fix/my-thing
+# CI runs automatically; merge is gated on passing checks + one approval
+```
+
+- Merge method is **squash only** for a clean linear `main`.
+- Merges to `main` auto-trigger the deploy pipeline (`.github/workflows/deploy.yml`).
+- The `ci` check (tests, typecheck, build, lint) is a required gate — keep it green.
+
+---
+
 ## Documentation
 
 Comprehensive architecture, security, and developer reference guides are available in the [`docs/`](file:///home/devhax/projects/fusuycorp/titirek/docs/README.md) directory:

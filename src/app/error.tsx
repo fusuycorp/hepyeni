@@ -48,10 +48,11 @@ export default function RootError({
 }) {
   const [copied, setCopied] = useState(false);
   const [locale, setLocale] = useState<keyof typeof ERROR_COPY>("tr");
-  const copy = ERROR_COPY[locale];
+  const cookieLocale = getLocaleCookie();
+  if (locale !== cookieLocale) setLocale(cookieLocale);
+  const copy = ERROR_COPY[cookieLocale];
 
   useEffect(() => {
-    setLocale(getLocaleCookie());
     // Structured error logging in browser console
     console.error("[Titirek Application Error Caught]:", {
       digest: error.digest,

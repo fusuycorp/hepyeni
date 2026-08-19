@@ -79,6 +79,7 @@ export function DecisionWheelDialog({
   // Reset winner state when dialog opens/closes
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset-to-default is a deliberate response to the controlled/open prop across all close paths
       setIsSpinning(false);
       setWinner(null);
       setWinnerRevealed(false);
