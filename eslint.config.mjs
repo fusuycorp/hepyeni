@@ -5,6 +5,16 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    files: ["**/tests/**"],
+    rules: {
+      // Tests intentionally use loose typing for PocketBase mocks, fixtures,
+      // and `as never` session stubs; `any` and non-null assertions there are
+      // deliberate and not app-code hygiene violations.
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

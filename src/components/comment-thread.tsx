@@ -97,12 +97,14 @@ export function CommentThread({
 
   useEffect(() => {
     if (initialComments.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync parent-supplied comments when the prop changes; no remount key is available at the call sites
       setComments(initialComments);
     }
   }, [initialComments]);
 
   useEffect(() => {
     if (autoFetch && initialComments.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate loading state for a one-shot async fetch on mount
       setLoading(true);
       (async () => {
         try {

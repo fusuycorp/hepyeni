@@ -107,6 +107,7 @@ export function MilestoneCampfireDialog({
 
   useEffect(() => {
     if (open && milestone) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open resets + loads state as a deliberate effect of the open/milestone prop
       fetchComments(milestone.id);
     } else {
       setComments([]);
