@@ -5,9 +5,12 @@ export function getInitials(name?: string, email?: string): string {
   return source.slice(0, 2).toUpperCase();
 }
 
-export function getDisplayName(user?: { name?: string; email?: string }): string {
-  if (!user || typeof user !== "object") return "Üye";
+export function getDisplayName(
+  user?: { name?: string; email?: string },
+  fallbackLabel = "",
+): string {
+  if (!user || typeof user !== "object") return fallbackLabel;
   const name = typeof user.name === "string" ? user.name.trim() : "";
   const email = typeof user.email === "string" ? user.email.trim() : "";
-  return name || email || "Üye";
+  return name || email || fallbackLabel;
 }

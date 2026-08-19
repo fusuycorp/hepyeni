@@ -319,6 +319,22 @@ type FakeQuote = {
   user: string;
   titleName: string;
   isSharedWithCircles: string[];
+  authorProfile?: {
+    id: string;
+    name: string;
+    email: string;
+    emailVisibility: boolean;
+    verified: boolean;
+    created: string;
+  };
+  linkedProgress?: {
+    id: string;
+    title: string;
+    notes: string;
+    rating: number;
+    currentLabel: string;
+    isSharedWithCircles: false;
+  };
 };
 
 const db = {
@@ -330,6 +346,10 @@ const db = {
   failNextRead: null as Error | null,
 };
 
+// Tracks getSession invocations across the fresh spy installed per test, so a
+// test can assert an action did/didn't re-auth without re-spying the module.
+let getSessionCalls = 0;
+
 function resetDb() {
   db.session = null;
   db.quotes.clear();
@@ -337,6 +357,7 @@ function resetDb() {
   db.userIsAdmin = false;
   db.failNextWrite = null;
   db.failNextRead = null;
+  getSessionCalls = 0;
 }
 
 function makePbClient() {
@@ -353,7 +374,20 @@ function makePbClient() {
         return {
           getFullList: async (opts: { filter?: string } = {}) => {
             if (db.failNextRead) throw db.failNextRead;
-            let rows = [...db.quotes.entries()].map(([id, q]) => ({ id, ...q }));
+            let rows = [...db.quotes.entries()].map(([id, q]) => {
+              const { authorProfile, linkedProgress, ...rest } = q;
+              const row = { id, ...rest };
+              if (authorProfile || linkedProgress) {
+                // Mirror the real superuser read: the wire carries the FULL
+                // UsersResponse (email included) and the linked private shelf
+                // record in the expand — the action must project them away.
+                return {
+                  ...row,
+                  expand: { user: authorProfile, progressItem: linkedProgress },
+                };
+              }
+              return row;
+            });
             const userMatch = opts.filter?.match(/user = "([^"]+)"/);
             if (userMatch) rows = rows.filter((r) => r.user === userMatch[1]);
             const circleMatch = opts.filter?.match(/isSharedWithCircles ~ "([^"]+)"/);
@@ -431,7 +465,10 @@ describe("Server-Action Privacy Gates (mocked PocketBase)", () => {
     resetDb();
     // spyOn patches individual exports; the module namespaces remain intact
     // so sibling test files sharing this process are unaffected.
-    spyOn(sessionModule, "getSession").mockImplementation(async () => db.session as never);
+    spyOn(sessionModule, "getSession").mockImplementation(async () => {
+      getSessionCalls++;
+      return db.session as never;
+    });
     spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(makePbClient() as never);
     spyOn(flagsServerModule, "requireFeature").mockResolvedValue(undefined as never);
     spyOn(membershipModule, "requireMembership").mockImplementation(
@@ -491,6 +528,71 @@ describe("Server-Action Privacy Gates (mocked PocketBase)", () => {
       const result = await getUserQuotes("other");
       expect(result.map((r) => r.id)).toEqual(["q-shared"]);
     });
+
+    it("never ships the author's email or linked private shelf record in the expand (F-3/M1)", async () => {
+      db.session = { id: "me" };
+      db.quotes.set("q1", {
+        user: "me",
+        titleName: "Dune",
+        isSharedWithCircles: ["circle-scifi"],
+        authorProfile: {
+          id: "me",
+          name: "Alice",
+          email: "alice-private@example.com",
+          emailVisibility: false,
+          verified: true,
+          created: "2026-01-01T00:00:00.000Z",
+        },
+        linkedProgress: {
+          id: "progress-9",
+          title: "Dune",
+          notes: "SECRET-READING-NOTES-97f4",
+          rating: 5,
+          currentLabel: "Chapter 12",
+          isSharedWithCircles: false,
+        },
+      });
+
+      const result = await getUserQuotes("me");
+      expect(result.length).toBe(1);
+      const quote = result[0];
+      expect(quote.expand?.user).not.toHaveProperty("email");
+      expect(quote.expand).not.toHaveProperty("progressItem");
+      expect(quote.expand?.user?.name).toBe("Alice");
+      expect(quote.expand?.user?.id).toBe("me");
+
+      const serialized = JSON.stringify(result);
+      expect(serialized).not.toContain("alice-private@example.com");
+      expect(serialized).not.toContain("SECRET-READING-NOTES-97f4");
+      expect(serialized).not.toContain("Chapter 12");
+      expect(serialized).not.toContain("rating");
+    });
+
+    it("skips getSession() entirely when a resolved session is provided (H-2)", async () => {
+      db.quotes.set("q1", { user: "me", titleName: "Mine", isSharedWithCircles: [] });
+      db.quotes.set("q2", { user: "other", titleName: "Theirs", isSharedWithCircles: [] });
+
+      const result = await getUserQuotes(undefined, {
+        id: "me",
+        isAdmin: false,
+        name: "Me",
+        email: "me@example.com",
+      });
+
+      expect(getSessionCalls).toBe(0);
+      expect(result.map((r) => r.id)).toEqual(["q1"]);
+    });
+
+    it("returns an empty list when an explicit null session is passed (S1 preserved)", async () => {
+      db.quotes.set("q1", {
+        user: "victim-user",
+        titleName: "Private journal",
+        isSharedWithCircles: [],
+      });
+
+      const result = await getUserQuotes("victim-user", null);
+      expect(result).toEqual([]);
+    });
   });
 
   describe("getCircleQuotes (S5 — membership mandatory)", () => {
@@ -533,6 +635,45 @@ describe("Server-Action Privacy Gates (mocked PocketBase)", () => {
 
       const result = await getCircleQuotes("circle-scifi");
       expect(result.map((r) => r.id)).toEqual(["q-shared"]);
+    });
+
+    it("never ships the sharer's private shelf record or email to circle members (F-3)", async () => {
+      db.session = { id: "member" };
+      db.memberCircles.add("circle-scifi");
+      db.quotes.set("q-secret", {
+        user: "author-alice",
+        titleName: "Dune",
+        isSharedWithCircles: ["circle-scifi"],
+        authorProfile: {
+          id: "author-alice",
+          name: "Alice",
+          email: "alice@example.com",
+          emailVisibility: false,
+          verified: true,
+          created: "2026-01-01T00:00:00.000Z",
+        },
+        linkedProgress: {
+          id: "progress-1",
+          title: "Dune",
+          notes: "PRIVATE-NOTES-CIRCLE-9c2e",
+          rating: 4,
+          currentLabel: "Chapter 4",
+          isSharedWithCircles: false,
+        },
+      });
+
+      const result = await getCircleQuotes("circle-scifi");
+      expect(result.length).toBe(1);
+      const quote = result[0];
+      expect(quote.expand?.user).not.toHaveProperty("email");
+      expect(quote.expand).not.toHaveProperty("progressItem");
+      expect(quote.expand?.user?.name).toBe("Alice");
+
+      const serialized = JSON.stringify(result);
+      expect(serialized).not.toContain("alice@example.com");
+      expect(serialized).not.toContain("PRIVATE-NOTES-CIRCLE-9c2e");
+      expect(serialized).not.toContain("Chapter 4");
+      expect(serialized).not.toContain("progressItem");
     });
   });
 

@@ -35,9 +35,10 @@ export default async function TitleDetailPage({
   const t = await getServerTranslations();
 
   let access;
+  let titleInGroup;
   try {
     access = await resolveCircleAccess(groupId, session?.id);
-    await requireTitleInGroup(titleId, groupId);
+    titleInGroup = await requireTitleInGroup(titleId, groupId);
   } catch {
     notFound();
   }
@@ -77,7 +78,9 @@ export default async function TitleDetailPage({
           sort: "createdAt",
         })
       : Promise.resolve([]),
-    getTitleCircleProgress(titleId, groupId),
+    // H-1: pass the already-resolved title (requireTitleInGroup), session, and
+    // access so getTitleCircleProgress skips its own auth/access/title round trips.
+    getTitleCircleProgress(titleId, titleInGroup, groupId, session, access),
   ]);
 
   if (titleRecord.group !== groupId) {

@@ -17,8 +17,12 @@ export default async function ShelfPage() {
 
   const [t, items, quotes, pb] = await Promise.all([
     getServerTranslations(),
-    getPersonalShelf(),
-    isMarginaliaEnabled ? getUserQuotes(session.id) : Promise.resolve([]),
+    // H-2: pass the already-resolved page session so the actions skip their own
+    // getSession() auth refresh.
+    getPersonalShelf(undefined, session),
+    isMarginaliaEnabled
+      ? getUserQuotes(undefined, session)
+      : Promise.resolve([]),
     getSuperuserClient(),
   ]);
 

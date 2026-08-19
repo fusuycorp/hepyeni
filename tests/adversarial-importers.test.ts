@@ -402,9 +402,15 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
   // =========================================================================
   describe("parseImportFile & Corrupted JSON", () => {
     it("returns error for empty or whitespace-only import file", () => {
-      expect(parseImportFile("").errors).toContain("Dosya boş.");
-      expect(parseImportFile("   \r\n\t  ").errors).toContain("Dosya boş.");
-      expect(parseImportFile(null as unknown as string).errors).toContain("Dosya boş.");
+      expect(parseImportFile("").errors).toContain(
+        "The selected file is empty or could not be parsed."
+      );
+      expect(parseImportFile("   \r\n\t  ").errors).toContain(
+        "The selected file is empty or could not be parsed."
+      );
+      expect(parseImportFile(null as unknown as string).errors).toContain(
+        "The selected file is empty or could not be parsed."
+      );
     });
 
     it("parses valid Titirek JSON export array and items wrapper", () => {

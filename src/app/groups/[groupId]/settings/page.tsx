@@ -183,7 +183,7 @@ export default async function GroupSettingsPage({
           <CardContent>
             <div className="divide-y divide-border/50">
               {members.map((m) => {
-                const userName = getDisplayName(m.expand?.user);
+                const userName = getDisplayName(m.expand?.user, t.common.unnamedUser);
                 const userEmail = m.expand?.user?.email;
                 const initials = getInitials(m.expand?.user?.name, m.expand?.user?.email);
                 const isMemberOwner = m.role === "owner";

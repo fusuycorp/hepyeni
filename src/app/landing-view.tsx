@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
 import { VoteControl } from "@/components/vote-control";
-import { useTranslations, useLocale } from "@/lib/i18n/client";
+import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
 interface LandingViewProps {
@@ -43,7 +43,6 @@ interface LandingViewProps {
 
 export function LandingView({ currentUser }: LandingViewProps) {
   const t = useTranslations();
-  const locale = useLocale();
 
   const mediaTypes = [
     {
@@ -52,7 +51,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
       icon: BookOpen,
       sample: "A Gentleman in Moscow",
       creator: "Amor Towles",
-      note: locale === "tr" ? "Edebiyat & Romanlar" : "Literature & Novels",
+      note: t.landing.mediaShelfNoteBook,
     },
     {
       type: "movie" as const,
@@ -60,7 +59,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
       icon: Clapperboard,
       sample: "Perfect Days",
       creator: "Wim Wenders",
-      note: locale === "tr" ? "Sinema & Klasikler" : "Cinema & Classics",
+      note: t.landing.mediaShelfNoteMovie,
     },
     {
       type: "tv" as const,
@@ -68,7 +67,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
       icon: Tv,
       sample: "Severance",
       creator: "Dan Erickson",
-      note: locale === "tr" ? "Mini Diziler & Sezonlar" : "Limited Series & Shows",
+      note: t.landing.mediaShelfNoteTv,
     },
     {
       type: "music" as const,
@@ -76,7 +75,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
       icon: Disc3,
       sample: "Promises",
       creator: "Floating Points, Pharoah Sanders",
-      note: locale === "tr" ? "Albümler & Plaklar" : "Vinyl & Full Albums",
+      note: t.landing.mediaShelfNoteMusic,
     },
     {
       type: "podcast" as const,
@@ -84,7 +83,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
       icon: Mic,
       sample: "Philosophize This!",
       creator: "Stephen West",
-      note: locale === "tr" ? "Sesli Denemeler & Sohbetler" : "Audio Essays & Talks",
+      note: t.landing.mediaShelfNotePodcast,
     },
   ];
 
@@ -219,7 +218,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
                     <div className="flex items-center justify-between pb-3 border-b border-border/50 text-xs">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground">
-                          {locale === "tr" ? "Pazar Okuma Grubu" : "Sunday Reading Club"}
+                          {t.landing.previewCircleName}
                         </span>
                         <span className="text-muted-foreground">&middot;</span>
                         <span className="text-muted-foreground">
@@ -372,13 +371,11 @@ export function LandingView({ currentUser }: LandingViewProps) {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {locale === "tr"
-                      ? "Veritabanlarında olmayan yerel tiyatro oyunları, bağımsız makaleler ve özel öneriler."
-                      : "Add independent essays, plays, local performances, and personal discoveries."}
+                    {t.landing.customMediaDesc}
                   </p>
                 </div>
                 <Badge variant="outline" className="w-fit text-[10px]">
-                  {t.media.externalSource}: Custom
+                  {t.media.externalSource}: {t.landing.customBadge}
                 </Badge>
               </div>
             </div>

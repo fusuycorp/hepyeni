@@ -121,7 +121,7 @@ export function TitleDetailView({
   const otherReviews = reviews.filter((r) => r.user !== currentUserId);
 
   const recommender = title.expand?.addedBy;
-  const recommenderName = getDisplayName(recommender);
+  const recommenderName = getDisplayName(recommender, t.common.unnamedUser);
   const recommenderInitials = getInitials(recommender?.name, recommender?.email);
 
   // Extract metadata fields if present
@@ -487,7 +487,7 @@ export function TitleDetailView({
                 {reviews.length > 0 ? (
                   reviews.map((r) => {
                     const reviewAuthor = r.expand?.user;
-                    const name = getDisplayName(reviewAuthor);
+                    const name = getDisplayName(reviewAuthor, t.common.unnamedUser);
                     const initials = getInitials(
                       reviewAuthor?.name,
                       reviewAuthor?.email,

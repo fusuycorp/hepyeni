@@ -16,7 +16,6 @@ import { GroupSchedulesCard } from "@/components/group-schedules-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { SpoilerText } from "@/components/spoiler-text";
 import { MEDIA_TYPES } from "@/lib/media-types";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -25,25 +24,17 @@ import { useFeatureFlag } from "@/lib/flags/client";
 import { DecisionWheelDialog } from "@/components/decision-wheel-dialog";
 import { MOODS, MOOD_DETAILS, type MoodType } from "@/lib/moods";
 import { Smile } from "lucide-react";
+import type { TitlePayload } from "@/lib/group-titles";
 import type { ActionResult } from "@/types/actions";
 import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
 import type {
   CommentsResponse,
   GroupMembersResponse,
   GroupsResponse,
-  ReviewsResponse,
-  TitlesResponse,
   UsersResponse,
-  VotesResponse,
 } from "@/types/pocketbase-types";
 
-type TitleWithScore = TitlesResponse<{
-  addedBy?: UsersResponse;
-  votes_via_title?: VotesResponse[];
-  reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
-}> & {
-  score: number;
-  userVote?: "up" | "down";
+type TitleWithScore = TitlePayload & {
   moods?: MoodType[] | null;
   pace?: string | null;
 };
@@ -149,14 +140,14 @@ export function GroupContentView({
       if (count > 0 || userId === currentUserId) {
         map.set(userId, {
           id: userId,
-          name: getDisplayName(user),
+          name: getDisplayName(user, t.common.unnamedUser),
           avatarUrl: user?.avatarUrl,
           count,
         });
       }
     }
     return Array.from(map.values());
-  }, [members, recommenderCounts, currentUserId]);
+  }, [members, recommenderCounts, currentUserId, t]);
 
   const filterTitle = (item: TitleWithScore) => {
     const matchesType =
@@ -585,7 +576,7 @@ export function GroupContentView({
                               {t.media.addedBy}:{" "}
                               <span className="font-medium text-foreground">
                                 {title.expand?.addedBy
-                                  ? getDisplayName(title.expand.addedBy)
+                                  ? getDisplayName(title.expand.addedBy, t.common.unnamedUser)
                                   : t.blindPick.anonymousRecommender}
                               </span>
                             </p>
@@ -790,7 +781,7 @@ export function GroupContentView({
                                   >
                                     <div className="flex items-center justify-between">
                                       <span className="font-semibold text-foreground">
-                                        {getDisplayName(r.expand?.user)}
+                                        {getDisplayName(r.expand?.user, t.common.unnamedUser)}
                                       </span>
                                       <div className="flex items-center gap-0.5 text-amber-400">
                                         {Array.from({ length: r.rating }).map((_, i) => (
@@ -798,11 +789,15 @@ export function GroupContentView({
                                         ))}
                                       </div>
                                     </div>
-                                    {r.reviewText && (
-                                      <div className="text-muted-foreground leading-relaxed">
-                                        &ldquo;<SpoilerText text={r.reviewText} />&rdquo;
-                                      </div>
-                                    )}
+                                    {/* H1: other users' reviewText never ships on
+                                        this page — the full body lives on the
+                                        title-detail page, linked here. */}
+                                    <Link
+                                      href={`/groups/${group.id}/titles/${title.id}`}
+                                      className="inline-flex items-center text-[11px] text-muted-foreground hover:text-primary transition-colors"
+                                    >
+                                      {t.media.viewDetails}
+                                    </Link>
                                   </div>
                                 ))}
                               </div>
@@ -884,7 +879,7 @@ export function GroupContentView({
 
               <div className="space-y-2 pt-1">
                 {members.map((m) => {
-                  const userName = getDisplayName(m.expand?.user);
+                  const userName = getDisplayName(m.expand?.user, t.common.unnamedUser);
                   const userEmail = m.expand?.user?.email;
                   const initials = getInitials(m.expand?.user?.name, m.expand?.user?.email);
                   const isOwner = m.role === "owner";

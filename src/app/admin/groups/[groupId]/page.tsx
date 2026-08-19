@@ -15,6 +15,7 @@ import {
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
+import { attachTitleTallies } from "@/lib/admin-groups";
 import type {
   GroupMembersResponse,
   GroupsResponse,
@@ -47,19 +48,50 @@ export default async function AdminGroupDetailPage({
     throw err;
   }
 
-  const [members, groupTitles] = await Promise.all([
+  const [members, titles, votes, reviews] = await Promise.all([
     pb
       .collection("group_members")
       .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
         filter: pb.filter("group = {:groupId}", { groupId }),
         expand: "user",
       }),
-    pb.collection("titles").getFullList<TitlesResponse<TitleExpand>>({
-      filter: pb.filter("group = {:groupId}", { groupId }),
-      expand: "addedBy,votes_via_title,reviews_via_title.user",
-      sort: "-createdAt",
+    // M-1 (perf): wire-level projection on the titles scan — no more full
+    // record bodies for every title, and the votes/reviews are no longer
+    // expanded through titles (each was a copy of the full row per parent).
+    pb
+      .collection("titles")
+      .getFullList<TitlesResponse<{ addedBy?: UsersResponse }>>({
+        filter: pb.filter("group = {:groupId}", { groupId }),
+        sort: "-createdAt",
+        fields:
+          "id,title,creator,mediaType,coverUrl,status,createdAt,addedBy,metadata," +
+          "expand.addedBy.name,expand.addedBy.email",
+        expand: "addedBy",
+      }),
+    // Lean per-collection queries: PB projects relation fields via
+    // `title.group` (dot-notation) and the `expand.rel.field` fields syntax
+    // (PocketBase 0.39). Reviews fetch reviewText on demand — the detail page
+    // renders review bodies here — without relaying it through titles.
+    pb.collection("votes").getFullList<VotesResponse>({
+      filter: pb.filter("title.group = {:groupId}", { groupId }),
+      fields: "id,title,user,value",
     }),
+    pb
+      .collection("reviews")
+      .getFullList<ReviewsResponse<{ user?: UsersResponse }>>({
+        filter: pb.filter("title.group = {:groupId}", { groupId }),
+        fields:
+          "id,title,user,rating,reviewText,createdAt," +
+          "expand.user.name,expand.user.email",
+        expand: "user",
+      }),
   ]);
+
+  const groupTitles = attachTitleTallies(
+    titles,
+    votes,
+    reviews,
+  ) as TitlesResponse<TitleExpand>[];
 
   return (
     <div className="space-y-6">

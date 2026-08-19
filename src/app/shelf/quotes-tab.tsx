@@ -13,14 +13,11 @@ import { cn } from "@/lib/utils";
 import type {
   ShelfQuotesResponse,
   UserMediaProgressResponse,
-  UsersResponse,
 } from "@/types/pocketbase-types";
+import type { QuoteExpand } from "@/lib/marginalia";
 
 interface QuotesTabProps {
-  initialQuotes?: ShelfQuotesResponse<{
-    user?: UsersResponse;
-    progressItem?: UserMediaProgressResponse;
-  }>[];
+  initialQuotes?: ShelfQuotesResponse<QuoteExpand>[];
   shelfItems?: UserMediaProgressResponse[];
   currentUserId?: string;
   isAdmin?: boolean;

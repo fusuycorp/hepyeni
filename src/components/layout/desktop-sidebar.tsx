@@ -135,12 +135,12 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
               className="flex items-center gap-3 min-w-0 flex-1 p-1.5 rounded-lg hover:bg-muted transition-colors"
             >
               <Avatar size="sm" className="ring-1 ring-border">
-                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={getDisplayName(user)} />}
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={getDisplayName(user, t.common.unnamedUser)} />}
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold truncate leading-tight">
-                  {getDisplayName(user)}
+                  {getDisplayName(user, t.common.unnamedUser)}
                 </span>
                 <span className="text-[11px] text-muted-foreground truncate leading-tight">
                   {user.email}

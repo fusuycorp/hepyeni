@@ -15,6 +15,16 @@ export * from "./goodreads";
 export * from "./letterboxd";
 export * from "./storygraph";
 
+// ponytail: importer errors are stable, neutral English strings because this
+// parsing lib is locale-agnostic (i18n keys must be added to types.ts +
+// en.ts + tr.ts in tandem, and no UI layer owns this file). Never surface a
+// raw err.message here — it can leak parser internals into the dropzone UI.
+// Upgrade path: return stable codes ("IMPORT_EMPTY_FILE", ...) and let the
+// import dropzone map them to localized copy via useTranslations().
+const IMPORT_EMPTY_FILE = "The selected file is empty or could not be parsed.";
+const IMPORT_NO_VALID_RECORDS = "No valid importable records were found in the file.";
+const IMPORT_PARSE_FAILED = "The file could not be parsed.";
+
 export function detectImportSource(
   content: string,
   filename?: string,
@@ -266,7 +276,7 @@ function parseTitirekJson(content: string): NormalizedImportItem[] {
 export function parseImportFile(content: string, filename?: string): ParseResult {
   const errors: string[] = [];
   if (!content || typeof content !== "string" || !content.trim()) {
-    return { source: "generic_csv", items: [], errors: ["Dosya boş."] };
+    return { source: "generic_csv", items: [], errors: [IMPORT_EMPTY_FILE] };
   }
 
   try {
@@ -293,12 +303,13 @@ export function parseImportFile(content: string, filename?: string): ParseResult
     }
 
     if (items.length === 0) {
-      errors.push("Dosyada içe aktarılabilecek geçerli kayıt bulunamadı.");
+      errors.push(IMPORT_NO_VALID_RECORDS);
     }
 
     return { source, items, errors };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Dosya ayrıştırılırken hata oluştu.";
-    return { source: "generic_csv", items: [], errors: [msg] };
+    // Deliberately discards `err.message` — see the ponytail note above.
+    void err;
+    return { source: "generic_csv", items: [], errors: [IMPORT_PARSE_FAILED] };
   }
 }

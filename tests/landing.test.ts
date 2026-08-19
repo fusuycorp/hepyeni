@@ -41,4 +41,22 @@ describe("Landing Page - Translation Parity & Aesthetic Tone", () => {
     expect(tr.landing.getStarted.toLowerCase()).toContain("masaya");
     expect(tr.landing.philosophyText.toLowerCase()).toContain("ağır ateşte");
   });
+
+  it("drains the remaining inline locale ternaries into the dictionary (M4)", () => {
+    // Media-shelf notes were previously inline `locale === "tr" ? ... : ...`.
+    expect(en.landing.mediaShelfNoteBook).toContain("Literature");
+    expect(tr.landing.mediaShelfNoteBook).toContain("Edebiyat");
+    expect(en.landing.mediaShelfNoteMovie).toContain("Cinema");
+    expect(tr.landing.mediaShelfNoteMovie).toContain("Sinema");
+    expect(en.landing.mediaShelfNotePodcast).toContain("Audio");
+    expect(tr.landing.mediaShelfNotePodcast).toContain("Sesli");
+
+    // Preview circle name + custom-media card copy.
+    expect(en.landing.previewCircleName).toContain("Reading Club");
+    expect(tr.landing.previewCircleName).toContain("Okuma Grubu");
+    expect(en.landing.customMediaDesc).toContain("essays");
+    expect(tr.landing.customMediaDesc).toContain("özel öneriler");
+    expect(en.landing.customBadge.toLowerCase()).toBe("custom");
+    expect(tr.landing.customBadge).toBe("Özel");
+  });
 });

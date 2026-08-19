@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { afterAll, beforeEach, mock, spyOn } from "bun:test";
 import { en } from "@/lib/i18n/en";
 import { tr } from "@/lib/i18n/tr";
+import { ClientResponseError } from "pocketbase";
 
 describe("Title Detail Page & Mark as Finished UX Translations", () => {
   it("enforces full translation parity for title detail and comments reply keys", () => {
@@ -204,5 +206,124 @@ describe("Title Detail - Voting Scores & Reviews Aggregation", () => {
     expect(avg3?.toFixed(1)).toBe("4.2");
 
     expect(avgEmpty).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// H1-defensive regression gate — submitReview must never null out an existing
+// review body when the client sends an empty/whitespace reviewText (a
+// rating-only save keeps the stored prose). Mirrors the marginalia.test.ts
+// server-action mock pattern.
+// ---------------------------------------------------------------------------
+
+const { submitReview } = await import("@/lib/actions/reviews");
+const sessionModule = await import("@/lib/pocketbase/session");
+const superuserModule = await import("@/lib/pocketbase/superuser");
+const membershipModule = await import("@/lib/membership");
+const nextCacheModule = await import("next/cache");
+
+const reviewDb = {
+  existingReview: null as { id: string; reviewText: string | null } | null,
+  updatePayload: null as Record<string, unknown> | null,
+};
+
+function resetReviewDb() {
+  reviewDb.existingReview = { id: "r1", reviewText: "An existing body." };
+  reviewDb.updatePayload = null;
+}
+
+function makeReviewsPb() {
+  return {
+    filter: (expr: string, params: Record<string, unknown>) => {
+      let out = expr;
+      for (const [k, v] of Object.entries(params)) {
+        out = out.replaceAll(`{:${k}}`, JSON.stringify(v));
+      }
+      return out;
+    },
+    collection: (name: string) => {
+      if (name !== "reviews") throw new Error(`unexpected collection: ${name}`);
+      return {
+        create: async () => {
+          // escalate the unique-title+user constraint so the action updates instead
+          throw new ClientResponseError({
+            status: 400,
+            response: {
+              data: { title: { code: "validation_not_unique", message: "Duplicate." } },
+            },
+          });
+        },
+        getFirstListItem: async () => reviewDb.existingReview,
+        update: async (_id: string, payload: Record<string, unknown>) => {
+          reviewDb.updatePayload = payload;
+          return { id: "r1", ...payload };
+        },
+      };
+    },
+  };
+}
+
+describe("submitReview body preservation (H1-defensive, mocked PB)", () => {
+  beforeEach(() => {
+    resetReviewDb();
+    spyOn(sessionModule, "getSession").mockResolvedValue({
+      id: "me",
+      isAdmin: false,
+      name: "Me",
+      email: "me@example.com",
+    } as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(makeReviewsPb() as never);
+    spyOn(nextCacheModule, "revalidatePath").mockImplementation(() => {});
+    spyOn(membershipModule, "resolveCircleAccess").mockImplementation(async () => {
+      const access = {
+        group: { id: "g1" },
+        isOwner: false,
+        isMember: true,
+        isGuest: false,
+        canViewBacklog: true,
+        canViewFinished: true,
+        canViewReviews: true,
+        canViewComments: true,
+        canVote: true,
+        canComment: true,
+        canReview: true,
+        canPropose: true,
+      };
+      return access as never;
+    });
+    spyOn(membershipModule, "requireTitleInGroup").mockResolvedValue({
+      id: "t1",
+      group: "g1",
+    } as never);
+  });
+
+  afterAll(() => {
+    mock.restore();
+  });
+
+  function reviewForm(reviewText: string, rating = "5") {
+    const form = new FormData();
+    form.set("rating", rating);
+    form.set("reviewText", reviewText);
+    return form;
+  }
+
+  it("keeps the existing review body when the incoming reviewText is empty/whitespace", async () => {
+    const result = await submitReview("t1", "g1", reviewForm("   "));
+    expect(result.success).toBe(true);
+    expect(reviewDb.updatePayload?.reviewText).toBe("An existing body.");
+  });
+
+  it("replaces the body when a non-empty reviewText is sent", async () => {
+    const result = await submitReview("t1", "g1", reviewForm("New body"));
+    expect(result.success).toBe(true);
+    expect(reviewDb.updatePayload?.reviewText).toBe("New body");
+  });
+
+  it("stores null when there is no existing body and the incoming text is empty", async () => {
+    reviewDb.existingReview = { id: "r1", reviewText: null };
+    const result = await submitReview("t1", "g1", reviewForm(""));
+    expect(result.success).toBe(true);
+    expect(reviewDb.updatePayload?.reviewText).toBeNull();
   });
 });

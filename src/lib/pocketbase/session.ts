@@ -157,6 +157,18 @@ export function oauth2RedirectUrl(origin?: string): string {
   return new URL("/api/auth/oauth2-callback", base).toString();
 }
 
+// OAuth sign-in ENTRY path. PocketBase's provider authURL ends with
+// `redirect_uri=` (no value) — the documented pattern is to concatenate the
+// redirect URL directly. Routing the origin through getRequestOrigin applies
+// the same S6 contract as the callback path (APP_URL authoritative,
+// x-forwarded-* only under TRUST_FORWARDED_HEADERS, loopback fallback for dev).
+export function buildOAuthInitUrl(
+  authURL: string,
+  req?: { headers: { get: (name: string) => string | null } },
+): string {
+  return authURL + oauth2RedirectUrl(getRequestOrigin(req));
+}
+
 
 // --- Email OTP transient state — bridges the "request a code" step and
 // the "enter the code" step of the two-step passwordless login form. ---

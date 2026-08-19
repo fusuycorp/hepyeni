@@ -26,11 +26,14 @@ export async function addComment(
   }
 
   try {
-    const access = await resolveCircleAccess(groupId, session.id);
+    // M-4: independent reads — access and title-in-group in parallel.
+    const [access] = await Promise.all([
+      resolveCircleAccess(groupId, session.id),
+      requireTitleInGroup(titleId, groupId),
+    ]);
     if (!access.canComment) {
       return { success: false, error: "You do not have permission to comment in this circle." };
     }
-    await requireTitleInGroup(titleId, groupId);
 
     const rawContent = formData.get("content");
     const content = validateCommentContent(rawContent);

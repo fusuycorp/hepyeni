@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/pocketbase/session";
+import { getSession, type Session } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireFeature } from "@/lib/flags/server";
 import { logDiagnostic } from "@/lib/errors";
@@ -10,12 +10,14 @@ import type { ActionResult } from "@/types/actions";
 import type {
   ShelfQuotesRecord,
   ShelfQuotesResponse,
+  UsersResponse,
 } from "@/types/pocketbase-types";
 import {
   parseTags,
   validateQuoteInput,
   canUserDeleteQuote,
   filterQuotesForViewer,
+  projectQuoteRecord,
   type AddQuoteInput,
   type QuoteExpand,
 } from "@/lib/marginalia";
@@ -59,12 +61,14 @@ export async function addQuote(
 
     const record = await pb
       .collection("shelf_quotes")
-      .create<ShelfQuotesResponse<QuoteExpand>>(payload, {
-        expand: "user,progressItem",
+      .create<ShelfQuotesResponse<{ user?: UsersResponse }>>(payload, {
+        expand: "user",
       });
 
     revalidatePath("/shelf");
-    return { success: true, data: record };
+    // F-3: the create response echoes only the projected author surface — no
+    // email, no linked private shelf record.
+    return { success: true, data: projectQuoteRecord(record) };
   } catch (err) {
     // S2: never log the raw user input payload (quote text is private).
     const diag = logDiagnostic(err, { action: "addQuote" });
@@ -107,38 +111,46 @@ export async function deleteQuote(quoteId: string): Promise<ActionResult<void>> 
   }
 }
 
+// Pinned interface (impl-plan-2 Cluster 2/3): when a resolved session is
+// provided, skip getSession() — shelf pages pass their already-fetched session
+// to avoid an authRefresh per render.
 export async function getUserQuotes(
   userId?: string,
+  session?: Session | null,
 ): Promise<ShelfQuotesResponse<QuoteExpand>[]> {
   try {
     await requireFeature("digital_marginalia");
-    const session = await getSession();
+    const activeSession = session === undefined ? await getSession() : session;
     // S1: never expose quotes to anonymous callers — user ids are publicly
     // harvestable, so an unauthenticated request must get an empty list.
-    if (!session) return [];
+    if (!activeSession) return [];
 
-    const targetUserId = userId || session.id;
+    const targetUserId = userId || activeSession.id;
     if (!targetUserId) return [];
 
     const pb = await getSuperuserClient();
-    const records = await pb.collection("shelf_quotes").getFullList<ShelfQuotesResponse<QuoteExpand>>({
-      filter: pb.filter("user = {:userId}", { userId: targetUserId }),
-      sort: "-createdAt",
-      expand: "user,progressItem",
-    });
+    const records = await pb
+      .collection("shelf_quotes")
+      .getFullList<ShelfQuotesResponse<{ user?: UsersResponse }>>({
+        filter: pb.filter("user = {:userId}", { userId: targetUserId }),
+        sort: "-createdAt",
+        expand: "user",
+      });
 
     // Only the owner sees their quotes unfiltered. Every other viewer goes
     // through the mutual-circle filter — never short-circuit past it.
-    if (session.id === targetUserId) {
-      return records;
+    if (activeSession.id === targetUserId) {
+      return records.map(projectQuoteRecord);
     }
 
     // If viewing another user's quotes, get mutual circle memberships
     const userMemberships = await pb.collection("group_members").getFullList({
-      filter: pb.filter("user = {:userId}", { userId: session.id }),
+      filter: pb.filter("user = {:userId}", { userId: activeSession.id }),
     });
     const circleIds = userMemberships.map((m) => m.group);
-    return filterQuotesForViewer(records, session.id, circleIds);
+    return filterQuotesForViewer(records, activeSession.id, circleIds).map(
+      projectQuoteRecord,
+    );
   } catch (err) {
     logDiagnostic(err, { action: "getUserQuotes", userId });
     return [];
@@ -158,20 +170,27 @@ export async function getCircleQuotes(
     await requireMembership(circleId, session.id);
 
     const pb = await getSuperuserClient();
-    const records = await pb.collection("shelf_quotes").getFullList<ShelfQuotesResponse<QuoteExpand>>({
-      // Perf M1: narrow the scan server-side (JSON array containment); the
-      // strict JS-side include check below stays as the authoritative gate.
-      filter: pb.filter("isSharedWithCircles ~ {:circleId}", { circleId }),
-      sort: "-createdAt",
-      expand: "user,progressItem",
-    });
+    const records = await pb
+      .collection("shelf_quotes")
+      .getFullList<ShelfQuotesResponse<{ user?: UsersResponse }>>({
+        // Perf M1: narrow the scan server-side (JSON array containment); the
+        // strict JS-side include check below stays as the authoritative gate.
+        filter: pb.filter("isSharedWithCircles ~ {:circleId}", { circleId }),
+        sort: "-createdAt",
+        expand: "user",
+      });
 
-    return records.filter((q) => {
-      if (Array.isArray(q.isSharedWithCircles)) {
-        return q.isSharedWithCircles.includes(circleId);
-      }
-      return false;
-    });
+    // F-3: never expand progressItem on circle-scoped reads — members would
+    // otherwise receive the sharer's full private shelf record. The projected
+    // author surface carries only id/name/avatarUrl.
+    return records
+      .filter((q) => {
+        if (Array.isArray(q.isSharedWithCircles)) {
+          return q.isSharedWithCircles.includes(circleId);
+        }
+        return false;
+      })
+      .map(projectQuoteRecord);
   } catch (err) {
     logDiagnostic(err, { action: "getCircleQuotes", circleId });
     return [];

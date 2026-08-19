@@ -63,7 +63,7 @@ export function AuthMethodHeaderBadges({
           className="text-[10px] gap-1 py-0 px-2 font-medium bg-secondary/80 border border-border/50 text-foreground"
         >
           <GoogleIcon className="size-3" />
-          <span>Google</span>
+          <span>{translations.badgeGoogle}</span>
         </Badge>
       )}
 
@@ -73,7 +73,7 @@ export function AuthMethodHeaderBadges({
           className="text-[10px] gap-1 py-0 px-2 font-medium bg-secondary/80 border border-border/50 text-foreground"
         >
           <AppleIcon className="size-3" />
-          <span>Apple</span>
+          <span>{translations.badgeApple}</span>
         </Badge>
       )}
 
@@ -83,7 +83,7 @@ export function AuthMethodHeaderBadges({
           className="text-[10px] gap-1 py-0 px-2 font-normal text-muted-foreground border-border/70"
         >
           <PasswordIcon className="size-3" />
-          <span>{translations.passwordAuth.split(" ")[0]}</span>
+          <span>{translations.badgePassword}</span>
         </Badge>
       )}
 
@@ -93,7 +93,7 @@ export function AuthMethodHeaderBadges({
           className="text-[10px] gap-1 py-0 px-2 font-normal text-muted-foreground border-border/70"
         >
           <EmailOtpIcon className="size-3" />
-          <span>OTP</span>
+          <span>{translations.badgeOtp}</span>
         </Badge>
       )}
     </div>

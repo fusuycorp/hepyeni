@@ -1,9 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import { afterAll, beforeEach, mock, spyOn } from "bun:test";
 import type {
   UserMediaProgressResponse,
   UserMediaProgressStatusOptions,
   UserMediaProgressUnitOptions,
 } from "@/types/pocketbase-types";
+import { getTitleCircleProgress, getPersonalShelf } from "@/lib/actions/progress";
+import * as sessionModule from "@/lib/pocketbase/session";
+import * as superuserModule from "@/lib/pocketbase/superuser";
+import * as membershipModule from "@/lib/membership";
 
 // Helper functions testing core progress calculation and invariant rules
 function calculateProgressPercentage(
@@ -128,9 +133,203 @@ describe("User Media Progress & Personal Shelf Logic", () => {
         { isSharedWithCircles: true, user: "user-alice" },
       ];
 
-      const visibleToBob = filterCircleVisibleProgress(list, "user-bob");
-      expect(visibleToBob).toHaveLength(2);
-      expect(visibleToBob.map((i) => i.user)).toContain("user-bob");
+const visibleToBob = filterCircleVisibleProgress(list, "user-bob");
+    expect(visibleToBob).toHaveLength(2);
+    expect(visibleToBob.map((i) => i.user)).toContain("user-bob");
+  });
+});
+});
+
+// ---------------------------------------------------------------------------
+// H-1 / H-2 / L5 regression gates — exercised with module mocks so the server
+// actions run without a live PocketBase. Mirrors the marginalia.test.ts
+// server-action mock pattern; spyOn patches the exporting module namespace so
+// hoisted action imports observe the mock.
+// ---------------------------------------------------------------------------
+
+const progDb = {
+  session: null as { id: string; isAdmin: boolean } | null,
+  groupMembers: new Set<string>(),
+  memberUsers: new Map<string, { id: string; name: string }>(),
+  progressRecords: new Map<string, Record<string, unknown>>(),
+  lastProgressFilter: "" as string,
+};
+
+function resetProgDb() {
+  progDb.session = null;
+  progDb.groupMembers.clear();
+  progDb.memberUsers.clear();
+  progDb.progressRecords.clear();
+  progDb.lastProgressFilter = "";
+}
+
+function makeProgressPb() {
+  return {
+    filter: (expr: string, params: Record<string, unknown>) => {
+      let out = expr;
+      for (const [k, v] of Object.entries(params)) {
+        out = out.replaceAll(`{:${k}}`, JSON.stringify(v));
+      }
+      return out;
+    },
+    collection: (name: string) => {
+      if (name === "group_members") {
+        return {
+          getFullList: async () =>
+            [...progDb.groupMembers].map((groupId) => {
+              const viewer = progDb.memberUsers.get(progDb.session?.id ?? "");
+              return {
+                id: `member-${groupId}`,
+                group: groupId,
+                user: viewer?.id,
+                expand: { user: viewer ?? null },
+              };
+            }),
+        };
+      }
+      if (name === "titles") {
+        return {
+          getFirstListItem: async () => ({ id: "t1", externalSource: "gb", externalId: "abc" }),
+        };
+      }
+      if (name === "user_media_progress") {
+        return {
+          getFullList: async (opts: { filter?: string } = {}) => {
+            progDb.lastProgressFilter = opts.filter ?? "";
+            return [...progDb.progressRecords.entries()].map(([id, rec]) => ({
+              id,
+              ...rec,
+            }));
+          },
+        };
+      }
+      throw new Error(`unexpected collection: ${name}`);
+    },
+  };
+}
+
+function makeMemberAccess(): Parameters<typeof getTitleCircleProgress>[4] {
+  return {
+    group: { id: "g1", isPublic: false } as never,
+    isOwner: false,
+    isMember: true,
+    isGuest: false,
+    canViewBacklog: true,
+    canViewFinished: true,
+    canViewReviews: true,
+    canViewComments: true,
+    canVote: true,
+    canComment: true,
+    canReview: true,
+    canPropose: true,
+  };
+}
+
+describe("Server-Action Progress Gates (H-1/H-2/L5, mocked PocketBase)", () => {
+  beforeEach(() => {
+    resetProgDb();
+    progDb.session = { id: "me", isAdmin: false };
+    progDb.groupMembers.add("g1");
+    progDb.memberUsers.set("me", { id: "me", name: "Me" });
+    spyOn(sessionModule, "getSession").mockImplementation(async () => progDb.session as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(makeProgressPb() as never);
+    spyOn(membershipModule, "resolveCircleAccess").mockImplementation(async () => {
+      return makeMemberAccess() as never;
+    });
+  });
+
+  afterAll(() => {
+    mock.restore();
+  });
+
+  describe("H-1 — getTitleCircleProgress hoist (session/access/title opt-out)", () => {
+    it("does not re-auth or re-resolve access when session+access+title are provided", async () => {
+      spyOn(sessionModule, "getSession").mockImplementation(async () => {
+        throw new Error("getSession must not be called when a session is provided");
+      });
+      spyOn(membershipModule, "resolveCircleAccess").mockImplementation(async () => {
+        throw new Error("resolveCircleAccess must not be called when access is provided");
+      });
+
+      progDb.progressRecords.set("p1", {
+        user: "me",
+        isSharedWithCircles: true,
+        status: "completed",
+      });
+
+      const result = await getTitleCircleProgress(
+        "t1",
+        { id: "t1", externalSource: "gb", externalId: "abc" } as never,
+        "g1",
+        { id: "me", isAdmin: false } as never,
+        makeMemberAccess(),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].user.id).toBe("me");
+      expect(result[0].percentage).toBe(100);
+    });
+
+    it("falls back to getSession + resolveCircleAccess + title fetch when unused", async () => {
+      progDb.progressRecords.set("p1", {
+        user: "me",
+        isSharedWithCircles: true,
+        status: "in_progress",
+        progressCurrent: 1,
+        progressTotal: 4,
+      });
+
+      const result = await getTitleCircleProgress("t1", null, "g1");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].percentage).toBe(25);
+      // title was not provided: the fallback titles.getFirstListItem ran
+      expect(progDb.lastProgressFilter).toContain("externalSource");
+    });
+  });
+
+  describe("H-2 — getPersonalShelf session hoist", () => {
+    it("skips getSession() when a session is passed", async () => {
+      spyOn(sessionModule, "getSession").mockImplementation(async () => {
+        throw new Error("getSession must not be called when a session is passed");
+      });
+
+      const result = await getPersonalShelf(undefined, { id: "me", isAdmin: false } as never);
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    it("still resolves via getSession() when no session is passed", async () => {
+      const result = await getPersonalShelf();
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe("L5 — external-source filter guard on custom rows", () => {
+    it("omits the external clause and does not crash for custom rows with no external ids", async () => {
+      progDb.progressRecords.set("p1", {
+        user: "me",
+        isSharedWithCircles: true,
+        status: "completed",
+      });
+
+      const result = await getTitleCircleProgress(
+        "t1",
+        { id: "t1", externalSource: null, externalId: undefined } as never,
+        "g1",
+        { id: "me", isAdmin: false } as never,
+        makeMemberAccess(),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(progDb.lastProgressFilter).toBe('groupTitle = "t1"');
+      expect(progDb.lastProgressFilter).not.toContain("externalSource");
+    });
+
+    it("keeps binding the external clause when external source/id exist", async () => {
+      await getTitleCircleProgress("t1", null, "g1");
+      expect(progDb.lastProgressFilter).toBe(
+        'groupTitle = "t1" || (externalSource = "gb" && externalId = "abc")',
+      );
     });
   });
 });

@@ -242,7 +242,7 @@ export function CommentThread({
           commentTree.map((root) => {
             const isPendingComment = "pending" in root;
             const author = isPendingComment ? root.author : root.expand?.user;
-            const authorName = getDisplayName(author);
+            const authorName = getDisplayName(author, t.common.unnamedUser);
             const initials = getInitials(author?.name, author?.email);
             const isOwn = isPendingComment || root.user === currentUserId;
             const canDelete =
@@ -353,7 +353,7 @@ export function CommentThread({
                       const replyAuthor = isReplyPending
                         ? reply.author
                         : reply.expand?.user;
-                      const replyAuthorName = getDisplayName(replyAuthor);
+                      const replyAuthorName = getDisplayName(replyAuthor, t.common.unnamedUser);
                       const replyInitials = getInitials(
                         replyAuthor?.name,
                         replyAuthor?.email,

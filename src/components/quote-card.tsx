@@ -9,19 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { MediaBadge } from "@/components/media-badge";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { useTranslations } from "@/lib/i18n/client";
-import { canUserDeleteQuote } from "@/lib/marginalia";
-import type {
-  ShelfQuotesResponse,
-  UserMediaProgressResponse,
-  UsersResponse,
-} from "@/types/pocketbase-types";
+import { canUserDeleteQuote, type QuoteExpand } from "@/lib/marginalia";
+import type { ShelfQuotesResponse } from "@/types/pocketbase-types";
 import type { ActionResult } from "@/types/actions";
 
 interface QuoteCardProps {
-  quote: ShelfQuotesResponse<{
-    user?: UsersResponse;
-    progressItem?: UserMediaProgressResponse;
-  }>;
+  quote: ShelfQuotesResponse<QuoteExpand>;
   currentUserId?: string;
   isAdmin?: boolean;
   onDelete?: (quoteId: string) => Promise<ActionResult<void> | void>;

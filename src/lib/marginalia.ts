@@ -1,6 +1,6 @@
 import type {
   UsersResponse,
-  UserMediaProgressResponse,
+  ShelfQuotesResponse,
 } from "@/types/pocketbase-types";
 
 export interface AddQuoteInput {
@@ -21,10 +21,39 @@ export interface StructuredAttribution {
   timestamp?: string;
 }
 
+// The only author identity fields quote responses may carry: id, display name
+// and avatar. The full UsersResponse (email, emailVisibility, verified, dates)
+// must never leave the action boundary.
+export interface QuoteUser {
+  id: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
 export type QuoteExpand = {
-  user?: UsersResponse;
-  progressItem?: UserMediaProgressResponse;
+  user?: QuoteUser;
 };
+
+export function projectQuoteUser(
+  user: UsersResponse | undefined | null,
+): QuoteUser | undefined {
+  if (!user || typeof user !== "object") return undefined;
+  return { id: user.id, name: user.name, avatarUrl: user.avatarUrl };
+}
+
+// F-3/M1: quote reads never ship the linked private shelf record or the
+// author's email. PocketBase is read with the superuser client (null API
+// rules), so the expand carries the full user_media_progress/UsersResponse —
+// project it down to the visible surface here, at the response boundary.
+export function projectQuoteRecord(
+  quote: ShelfQuotesResponse<{ user?: UsersResponse }>,
+): ShelfQuotesResponse<QuoteExpand> {
+  const { expand, ...rest } = quote;
+  return {
+    ...rest,
+    expand: { user: projectQuoteUser(expand?.user) },
+  };
+}
 
 export function parseTags(input: string | string[] | undefined | null): string[] {
   if (!input) return [];

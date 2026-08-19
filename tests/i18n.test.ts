@@ -116,3 +116,43 @@ describe("formatRelativeTime - edge cases", () => {
     expect(formatRelativeTime(future, "tr")).toBe("az önce");
   });
 });
+
+describe("dictionary-drain keys (Cluster 5)", () => {
+  it("defines short auth-method badge labels in both locales (replaces split hack)", () => {
+    // Brand terms are identical across locales; the password label must be translated.
+    expect(en.profile.badgeGoogle).toBe("Google");
+    expect(tr.profile.badgeGoogle).toBe("Google");
+    expect(en.profile.badgeApple).toBe("Apple");
+    expect(tr.profile.badgeApple).toBe("Apple");
+    expect(en.profile.badgeOtp).toBe("OTP");
+    expect(tr.profile.badgeOtp).toBe("OTP");
+    expect(en.profile.badgePassword).toBe("Password");
+    expect(tr.profile.badgePassword).toBe("Şifre");
+    expect(tr.profile.badgePassword).not.toBe(tr.profile.passwordAuth);
+    expect(en.profile.badgePassword).not.toBe(en.profile.passwordAuth);
+  });
+
+  it("defines the landing media-shelf and preview note keys in both locales", () => {
+    const landingNoteKeys = [
+      "mediaShelfNoteBook",
+      "mediaShelfNoteMovie",
+      "mediaShelfNoteTv",
+      "mediaShelfNoteMusic",
+      "mediaShelfNotePodcast",
+      "previewCircleName",
+      "customMediaDesc",
+      "customBadge",
+    ] as const;
+    for (const key of landingNoteKeys) {
+      expect(en.landing[key].trim().length).toBeGreaterThan(0);
+      expect(tr.landing[key].trim().length).toBeGreaterThan(0);
+      expect(typeof en.landing[key]).toBe("string");
+      expect(typeof tr.landing[key]).toBe("string");
+    }
+  });
+
+  it("keeps the translated password badge distinct from the long auth label", () => {
+    // Regression guard: the old hack was translations.passwordAuth.split(" ")[0].
+    expect(tr.profile.badgePassword.split(" ").length).toBe(1);
+  });
+});

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Sparkles, Trash2, ArrowRight } from "lucide-react";
+import { Users, Sparkles, Trash2, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,38 +7,51 @@ import { CopyInviteButton } from "@/components/copy-invite-button";
 import { adminDeleteGroup } from "@/lib/actions/admin";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
+import { buildIdListFilter, countByGroup, parsePageParam } from "@/lib/admin-groups";
 import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
-export default async function AdminGroupsPage() {
+const GROUPS_PER_PAGE = 25;
+
+export default async function AdminGroupsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const pb = await getSuperuserClient();
-  const t = await getServerTranslations();
+  const { page: pageParam } = await searchParams;
+  const currentPage = parsePageParam(pageParam);
 
-  const groups = await pb
-    .collection("groups")
-    .getFullList<GroupsResponse<{ createdBy?: UsersResponse }>>({
-      sort: "-createdAt",
-      expand: "createdBy",
-    });
+  const [groupPage, t] = await Promise.all([
+    pb
+      .collection("groups")
+      .getList<GroupsResponse<{ createdBy?: UsersResponse }>>(currentPage, GROUPS_PER_PAGE, {
+        sort: "-createdAt",
+        expand: "createdBy",
+      }),
+    getServerTranslations(),
+  ]);
+  const groups = groupPage.items;
+  const totalGroups = groupPage.totalItems;
+  const totalPages = Math.max(1, Math.ceil(totalGroups / GROUPS_PER_PAGE));
 
-  // P5 (perf): per-group count queries (getList(1,1).totalItems) instead of
-  // scanning the entire group_members and titles tables into memory and
-  // tallying them in JS.
-  const membersPerGroup = new Map<string, number>();
-  const titlesPerGroup = new Map<string, number>();
-  await Promise.all(
-    groups.map(async (group) => {
-      const [memberPage, titlePage] = await Promise.all([
-        pb.collection("group_members").getList(1, 1, {
-          filter: pb.filter("group = {:groupId}", { groupId: group.id }),
-        }),
-        pb.collection("titles").getList(1, 1, {
-          filter: pb.filter("group = {:groupId}", { groupId: group.id }),
-        }),
-      ]);
-      membersPerGroup.set(group.id, memberPage.totalItems);
-      titlesPerGroup.set(group.id, titlePage.totalItems);
-    }),
-  );
+  // M-2 (perf): the member/title tallies come from ONE lean, group-filtered
+  // query per collection (fields: "group", bounded to this page's groups)
+  // instead of 2N per-group getList(1,1) count round trips.
+  const groupIds = groups.map((g) => g.id);
+  const [memberRows, titleRows] = await Promise.all([
+    groupIds.length > 0
+      ? pb
+          .collection("group_members")
+          .getFullList<{ group: string }>({ filter: buildIdListFilter("group", groupIds), fields: "group" })
+      : Promise.resolve([]),
+    groupIds.length > 0
+      ? pb
+          .collection("titles")
+          .getFullList<{ group: string }>({ filter: buildIdListFilter("group", groupIds), fields: "group" })
+      : Promise.resolve([]),
+  ]);
+  const membersPerGroup = countByGroup(memberRows);
+  const titlesPerGroup = countByGroup(titleRows);
 
   return (
     <div className="space-y-6">
@@ -52,7 +65,7 @@ export default async function AdminGroupsPage() {
           </p>
         </div>
         <Badge variant="secondary" className="text-xs">
-          {t.groups.groupCount.replace("{n}", String(groups.length))}
+          {t.groups.groupCount.replace("{n}", String(totalGroups))}
         </Badge>
       </div>
 
@@ -134,6 +147,36 @@ export default async function AdminGroupsPage() {
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 text-xs text-muted-foreground">
+          <span>
+            {t.common.pageOf
+              .replace("{current}", String(currentPage))
+              .replace("{total}", String(totalPages))}
+          </span>
+          <div className="flex items-center gap-2">
+            {currentPage > 1 && (
+              <Link
+                href={`/admin/groups?page=${currentPage - 1}`}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border/70 hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="size-3.5" />
+                <span>{t.common.previous}</span>
+              </Link>
+            )}
+            {currentPage < totalPages && (
+              <Link
+                href={`/admin/groups?page=${currentPage + 1}`}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border/70 hover:bg-muted transition-colors"
+              >
+                <span>{t.common.next}</span>
+                <ChevronRight className="size-3.5" />
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

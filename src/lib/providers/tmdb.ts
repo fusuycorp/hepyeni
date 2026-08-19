@@ -102,7 +102,7 @@ function makeTmdbProvider(
         } catch (err) {
           logDiagnostic(err, {
             action: `tmdb:${endpoint}:search`,
-            query: cleanQuery,
+            queryLength: cleanQuery.length,
             note: `Falling back to iTunes ${mediaType} search`,
           });
         }

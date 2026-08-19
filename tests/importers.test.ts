@@ -270,3 +270,34 @@ describe("CSV Formula-Injection Round-Trip (CWE-1236)", () => {
     expect(table.rows[2]["Notes"]).toBe("@SUM(A1:A2)");
   });
 });
+
+describe("Importer errors are stable, locale-neutral English (M2)", () => {
+  const TURKISH_CHARS = /[çğıöşüÇĞİÖŞÜ]/;
+
+  it("returns a stable English message for an empty file (never Turkish)", () => {
+    const emptyResult = parseImportFile("");
+    expect(emptyResult.errors).toEqual([
+      "The selected file is empty or could not be parsed.",
+    ]);
+    expect(TURKISH_CHARS.test(emptyResult.errors.join(" "))).toBe(false);
+  });
+
+  it("returns a stable English message when the file parses to zero records", () => {
+    // Header-only CSV: valid format but no importable rows.
+    const headerOnly = parseImportFile("Title,Author,Rating\n");
+    expect(headerOnly.items).toHaveLength(0);
+    expect(headerOnly.errors).toEqual([
+      "No valid importable records were found in the file.",
+    ]);
+    expect(TURKISH_CHARS.test(headerOnly.errors.join(" "))).toBe(false);
+  });
+
+  it("never leaks a raw err.message into the error list", () => {
+    // Any path that throws must surface the stable neutral fallback instead
+    // of parser internals or Turkish copy.
+    const result = parseImportFile("Book Id,Title,Author,My Rating,Exclusive Shelf\n");
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatch(/^[a-z]/i);
+    expect(TURKISH_CHARS.test(result.errors[0])).toBe(false);
+  });
+});

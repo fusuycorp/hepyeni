@@ -50,9 +50,14 @@ describe("getDisplayName", () => {
     expect(getDisplayName({ name: "", email: "y@example.com" })).toBe("y@example.com");
   });
 
-  it("returns the Turkish 'Üye' fallback when both name and email are missing", () => {
-    expect(getDisplayName({})).toBe("Üye");
-    expect(getDisplayName(undefined)).toBe("Üye");
-    expect(getDisplayName({ name: "", email: "" })).toBe("Üye");
+  it("returns the caller-supplied fallback label when name and email are missing", () => {
+    expect(getDisplayName({}, "Unnamed User")).toBe("Unnamed User");
+    expect(getDisplayName(undefined, "İsimsiz Kullanıcı")).toBe("İsimsiz Kullanıcı");
+    expect(getDisplayName({ name: "", email: "" }, "Unnamed User")).toBe("Unnamed User");
+  });
+
+  it("is locale-neutral: the default fallback is empty, never a hardcoded locale token", () => {
+    expect(getDisplayName({})).toBe("");
+    expect(getDisplayName(undefined)).toBe("");
   });
 });

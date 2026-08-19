@@ -242,7 +242,7 @@ export function MilestoneCampfireDialog({
               {comments.length > 0 ? (
                 <div className="space-y-2 opacity-60">
                   {comments.map((c) => {
-                    const authorName = getDisplayName(c.author);
+                    const authorName = getDisplayName(c.author, t.common.unnamedUser);
                     const initials = getInitials(c.author?.name, c.author?.email);
 
                     return (
@@ -275,7 +275,7 @@ export function MilestoneCampfireDialog({
             </div>
           ) : comments.length > 0 ? (
             comments.map((c) => {
-              const authorName = getDisplayName(c.author);
+              const authorName = getDisplayName(c.author, t.common.unnamedUser);
               const initials = getInitials(c.author?.name, c.author?.email);
               const isOwn = c.user === currentUserId;
               const canDelete =

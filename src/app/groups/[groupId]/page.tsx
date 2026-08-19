@@ -16,6 +16,11 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess } from "@/lib/membership";
 import { getServerTranslations } from "@/lib/i18n/server";
 import { redactProposedTitles } from "@/lib/moods";
+import {
+  buildTitlePayload,
+  groupTitleQuery,
+  type LeanVoteRow,
+} from "@/lib/group-titles";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -55,17 +60,34 @@ export default async function GroupPage({
   const group = access.group;
   const pb = await getSuperuserClient();
 
-  const [members, groupTitles, userRecord, commentRows, schedules] = await Promise.all([
+  const canViewReviews = access.canViewReviews;
+  const needsTitles = access.canViewBacklog || access.canViewFinished;
+  const titleQuery = groupTitleQuery(canViewReviews);
+
+  const [
+    members,
+    groupTitles,
+    userRecord,
+    commentRows,
+    schedules,
+    leanVoteRows,
+    ownReviewRows,
+  ] = await Promise.all([
     pb
       .collection("group_members")
       .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
         filter: pb.filter("group = {:groupId}", { groupId }),
         expand: "user",
       }),
-    access.canViewBacklog || access.canViewFinished
+    // H-3/L4: project at the wire. Titles carry only what the client renders;
+    // review bodies are excluded (they arrive per-title via the lean own-review
+    // query below) and reviewer users are trimmed to id/name/avatarUrl so
+    // emails never leave the server.
+    needsTitles
       ? pb.collection("titles").getFullList<TitlesResponse<TitleExpand>>({
           filter: pb.filter("group = {:groupId}", { groupId }),
-          expand: "addedBy,votes_via_title,reviews_via_title.user",
+          expand: titleQuery.expand,
+          fields: titleQuery.fields,
           sort: "-createdAt",
         })
       : Promise.resolve([]),
@@ -81,6 +103,26 @@ export default async function GroupPage({
     // P2: pass the already-resolved session/access to avoid a second
     // getSession() + resolveCircleAccess round trip inside getGroupSchedules.
     getGroupSchedules(groupId, session, access),
+    // F-2: when reviews are hidden, votes never ship — score/userVote come
+    // from this lean query and only the scalars are forwarded to the client.
+    // (`user` is the bare record id needed to resolve the viewer's own vote.)
+    !canViewReviews && needsTitles
+      ? pb.collection("votes").getFullList<LeanVoteRow>({
+          filter: pb.filter("title.group = {:groupId}", { groupId }),
+          fields: "value,title,user",
+        })
+      : Promise.resolve([]),
+    // H1: the current member's own review bodies for the ReviewForm prefill,
+    // fetched separately so the main title fetch stays free of 5KB bodies.
+    canViewReviews && session?.id && needsTitles
+      ? pb.collection("reviews").getFullList<ReviewsResponse>({
+          filter: pb.filter("user = {:userId} && title.group = {:groupId}", {
+            userId: session.id,
+            groupId,
+          }),
+          fields: "id,title,reviewText",
+        })
+      : Promise.resolve([]),
   ]);
 
   const commentCounts: Record<string, number> = {};
@@ -93,33 +135,31 @@ export default async function GroupPage({
     : undefined;
   const currentUserRole = currentMember?.role;
 
-  const withScore = groupTitles.map((title) => {
-    const votes = title.expand?.votes_via_title ?? [];
-    const score = votes.reduce(
-      (acc, v) => acc + (v.value === "up" ? 1 : -1),
-      0,
-    );
-    const userVote = session?.id
-      ? votes.find((v) => v.user === session.id)?.value
-      : undefined;
-    // P1: never ship 5000-char review bodies on the list page — keep id/rating/
-    // user/createdAt so avg + reviewer names still render; full review text
-    // lives on the title-detail page. reviewText is optional in the schema, so
-    // this is a valid read-only record (group-content-view guards with `&&`).
-    const reviews = (title.expand?.reviews_via_title ?? []).map((r) => {
-      const { reviewText: _dropped, ...lean } = r;
-      void _dropped;
-      return lean as ReviewsResponse<{ user?: UsersResponse }>;
-    });
-    // ponytail: P1 is a payload trim; true scalability needs pagination of the
-    // titles list (deferred — would require a page-size contract with the client).
-    return {
-      ...title,
-      score,
-      userVote,
-      expand: { ...title.expand, reviews_via_title: reviews },
-    };
-  });
+  const ownReviewTextByTitle = new Map<string, string>();
+  for (const r of ownReviewRows) {
+    if (r.reviewText && r.title) ownReviewTextByTitle.set(r.title, r.reviewText);
+  }
+
+  const leanVotesByTitle = new Map<string, LeanVoteRow[]>();
+  for (const v of leanVoteRows) {
+    const rows = leanVotesByTitle.get(v.title) ?? [];
+    rows.push(v);
+    leanVotesByTitle.set(v.title, rows);
+  }
+
+  // H1: keeps the current member's own reviewText (ReviewForm prefill) and
+  // strips everyone else's (see mapGroupReviewRow); F-2: when reviews are
+  // hidden this never ships votes/reviews — only the computed score/userVote.
+  const withScore = groupTitles.map((title) =>
+    buildTitlePayload(title, {
+      canViewReviews,
+      currentUserId: session?.id,
+      leanVotesByTitle,
+      ownReviewTextByTitle,
+    }),
+  );
+  // ponytail: H-3 is a payload trim; true scalability needs pagination of the
+  // titles list (deferred — would require a page-size contract with the client).
 
   const isOwnerOrAdmin = currentUserRole === "owner" || Boolean(session?.isAdmin);
 

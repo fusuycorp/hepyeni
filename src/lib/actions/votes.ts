@@ -30,11 +30,14 @@ export async function voteOnTitle(
   }
 
   try {
-    const access = await resolveCircleAccess(groupId, session.id);
+    // M-4: independent reads — resolve access and title-in-group in parallel.
+    const [access] = await Promise.all([
+      resolveCircleAccess(groupId, session.id),
+      requireTitleInGroup(titleId, groupId),
+    ]);
     if (!access.canVote) {
       return { success: false, error: "You do not have permission to vote in this circle." };
     }
-    await requireTitleInGroup(titleId, groupId);
 
     const pb = await getSuperuserClient();
     const id = await voteRecordId(titleId, session.id);

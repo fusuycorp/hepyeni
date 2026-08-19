@@ -6,55 +6,14 @@ import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { requireMembership, requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
-import { getProvider } from "@/lib/providers";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 
-export type SearchTitlesResponse = {
-  success: boolean;
-  results: NormalizedSearchResult[];
-  error?: string;
-  traceId?: string;
-};
-
 export interface AddTitleOptions {
   moods?: MoodType[] | string[];
   pace?: PaceType | string;
-}
-
-export async function searchTitles(
-  mediaType: MediaType,
-  query: string,
-): Promise<SearchTitlesResponse> {
-  const session = await getSession();
-  if (!session) {
-    return { success: false, results: [], error: "Please sign in again" };
-  }
-  const cleanQuery = query.trim();
-  if (!cleanQuery) return { success: true, results: [] };
-  if (!MEDIA_TYPES.includes(mediaType)) {
-    return { success: false, results: [], error: "Invalid media type" };
-  }
-
-  try {
-    const results = await getProvider(mediaType).search(cleanQuery);
-    return { success: true, results };
-  } catch (err) {
-    const diag = logDiagnostic(err, {
-      action: "searchTitles",
-      mediaType,
-      // S2: never log the raw user search query
-      queryLength: cleanQuery.length,
-    });
-    return {
-      success: false,
-      results: [],
-      error: "Search failed. Please try again in a few moments.",
-      traceId: diag.traceId,
-    };
-  }
 }
 
 export async function addTitle(
@@ -213,8 +172,11 @@ export async function markConsumed(
   }
 
   try {
-    await requireMembership(groupId, session.id);
-    await requireTitleInGroup(titleId, groupId);
+    // M-4: independent reads — membership and title-in-group in parallel.
+    await Promise.all([
+      requireMembership(groupId, session.id),
+      requireTitleInGroup(titleId, groupId),
+    ]);
 
     const pb = await getSuperuserClient();
     await pb.collection("titles").update(titleId, {
@@ -241,8 +203,11 @@ export async function unmarkConsumed(
   }
 
   try {
-    await requireMembership(groupId, session.id);
-    await requireTitleInGroup(titleId, groupId);
+    // M-4: independent reads — membership and title-in-group in parallel.
+    await Promise.all([
+      requireMembership(groupId, session.id),
+      requireTitleInGroup(titleId, groupId),
+    ]);
 
     const pb = await getSuperuserClient();
     await pb.collection("titles").update(titleId, {

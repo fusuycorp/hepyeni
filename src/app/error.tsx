@@ -6,6 +6,39 @@ import { AlertTriangle, RefreshCw, Home, Copy, Check } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+// ponytail: error boundaries render outside the I18nProvider (a root-layout
+// crash skips the provider entirely), so useTranslations() is unavailable and
+// next/headers cookies() throws outside the Server Component request scope.
+// We read the NEXT_LOCALE/locale cookie from document.cookie instead and fall
+// back to Turkish. Upgrade path: SSR the boundary per-locale with a dedicated
+// layout, or precompute locale-specific error bundles at build time.
+const ERROR_COPY = {
+  tr: {
+    title: "Bir Hata Oluştu",
+    desc: "Sunucu ile iletişim kurulurken veya sayfa işlenirken beklenmeyen bir durumla karşılaşıldı.",
+    errorCode: "Hata Kodu",
+    copyReport: "Raporu Kopyala",
+    copied: "Kopyalandı",
+    retry: "Yeniden Dene",
+    circles: "Çemberlerim",
+  },
+  en: {
+    title: "Something Went Wrong",
+    desc: "An unexpected error occurred while loading or processing this page.",
+    errorCode: "Error Code",
+    copyReport: "Copy Report",
+    copied: "Copied",
+    retry: "Try Again",
+    circles: "My Circles",
+  },
+} as const;
+
+function getLocaleCookie(): keyof typeof ERROR_COPY {
+  if (typeof document === "undefined") return "tr";
+  const match = document.cookie.match(/(?:^|;\s*)(?:NEXT_LOCALE|locale)=([^;]+)/);
+  return match?.[1] === "en" ? "en" : "tr";
+}
+
 export default function RootError({
   error,
   reset,
@@ -14,8 +47,11 @@ export default function RootError({
   reset: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [locale, setLocale] = useState<keyof typeof ERROR_COPY>("tr");
+  const copy = ERROR_COPY[locale];
 
   useEffect(() => {
+    setLocale(getLocaleCookie());
     // Structured error logging in browser console
     console.error("[Titirek Application Error Caught]:", {
       digest: error.digest,
@@ -50,23 +86,23 @@ export default function RootError({
 
           <div className="space-y-1.5">
             <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Bir Hata Oluştu
+              {copy.title}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Sunucu ile iletişim kurulurken veya sayfa işlenirken beklenmeyen bir durumla karşılaşıldı.
+              {copy.desc}
             </p>
           </div>
 
           {error.digest && (
             <div className="w-full p-2.5 rounded-lg bg-muted/40 border border-border/60 text-[11px] font-mono text-muted-foreground flex items-center justify-between gap-2">
-              <span>Hata Kodu: <strong className="text-foreground">{error.digest}</strong></span>
+              <span>{copy.errorCode}: <strong className="text-foreground">{error.digest}</strong></span>
               <button
                 type="button"
                 onClick={handleCopyReport}
                 className="text-[10px] font-sans text-primary hover:underline flex items-center gap-1 shrink-0"
               >
                 {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                <span>{copied ? "Kopyalandı" : "Raporu Kopyala"}</span>
+                <span>{copied ? copy.copied : copy.copyReport}</span>
               </button>
             </div>
           )}
@@ -77,7 +113,7 @@ export default function RootError({
               className="w-full sm:flex-1 gap-2 text-xs font-semibold h-9"
             >
               <RefreshCw className="size-3.5" />
-              <span>Yeniden Dene</span>
+              <span>{copy.retry}</span>
             </Button>
 
             <Link
@@ -88,7 +124,7 @@ export default function RootError({
               })}
             >
               <Home className="size-3.5" />
-              <span>Çemberlerim</span>
+              <span>{copy.circles}</span>
             </Link>
           </div>
         </CardContent>

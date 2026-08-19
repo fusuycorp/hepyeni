@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/pocketbase/session";
+import { getSession, type Session } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { resolveCircleAccess, requireMembership } from "@/lib/membership";
+import {
+  resolveCircleAccess,
+  requireMembership,
+  type CircleAccess,
+} from "@/lib/membership";
 import { extractErrorMessage, logDiagnostic } from "@/lib/errors";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { ActionResult } from "@/types/actions";
@@ -46,16 +50,17 @@ export interface SaveMediaProgressInput {
 
 export async function getPersonalShelf(
   statusFilter?: UserMediaProgressStatusOptions,
+  session?: Session | null,
 ) {
-  const session = await getSession();
-  if (!session) return [];
+  const resolvedSession = session || (await getSession());
+  if (!resolvedSession) return [];
 
   try {
     const pb = await getSuperuserClient();
-    let filter = pb.filter("user = {:userId}", { userId: session.id });
+    let filter = pb.filter("user = {:userId}", { userId: resolvedSession.id });
     if (statusFilter) {
       filter = pb.filter("user = {:userId} && status = {:status}", {
-        userId: session.id,
+        userId: resolvedSession.id,
         status: statusFilter,
       });
     }
@@ -289,24 +294,32 @@ export interface TitleMemberProgressItem {
 
 export async function getTitleCircleProgress(
   titleId: string,
+  title: TitlesResponse | null,
   groupId: string,
+  session?: Session | null,
+  access?: CircleAccess | null,
 ): Promise<TitleMemberProgressItem[]> {
-  const session = await getSession();
-  const access = await resolveCircleAccess(groupId, session?.id);
-  if (!access.isMember && !access.group.isPublic) {
+  // P2-mirror hoist (H-1): the page already resolved session/access and the
+  // title record (requireTitleInGroup) — skip the redundant getSession,
+  // resolveCircleAccess, and title fetch when provided.
+  const resolvedSession = session || (await getSession());
+  const resolvedAccess = access || (await resolveCircleAccess(groupId, resolvedSession?.id));
+  if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
     return [];
   }
 
   try {
     const pb = await getSuperuserClient();
 
-    const [title, members] = await Promise.all([
-      pb
-        .collection("titles")
-        .getFirstListItem<TitlesResponse>(
-          pb.filter("id = {:titleId} && group = {:groupId}", { titleId, groupId }),
-        )
-        .catch(() => null),
+    const [resolvedTitle, members] = await Promise.all([
+      title
+        ? Promise.resolve(title)
+        : pb
+            .collection("titles")
+            .getFirstListItem<TitlesResponse>(
+              pb.filter("id = {:titleId} && group = {:groupId}", { titleId, groupId }),
+            )
+            .catch(() => null),
       pb
         .collection("group_members")
         .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
@@ -315,19 +328,24 @@ export async function getTitleCircleProgress(
         }),
     ]);
 
-    if (!title) return [];
+    if (!resolvedTitle) return [];
 
     const memberUserIds = members.map((m) => m.user);
     if (memberUserIds.length === 0) return [];
 
-    const filter = pb.filter(
-      "groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})",
-      {
-        titleId,
-        src: title.externalSource,
-        extId: title.externalId,
-      },
-    );
+    // L5: custom rows carry no externalSource/externalId — only bind the
+    // external clause when both exist so unbound params never reach the filter.
+    const filter =
+      resolvedTitle.externalSource && resolvedTitle.externalId
+        ? pb.filter(
+            "groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})",
+            {
+              titleId,
+              src: resolvedTitle.externalSource,
+              extId: resolvedTitle.externalId,
+            },
+          )
+        : pb.filter("groupTitle = {:titleId}", { titleId });
 
     const progressRecords = await pb
       .collection("user_media_progress")
@@ -346,7 +364,7 @@ export async function getTitleCircleProgress(
     const result: TitleMemberProgressItem[] = [];
     for (const p of progressRecords) {
       if (memberMap.has(p.user)) {
-        if (p.isSharedWithCircles !== false || p.user === session?.id) {
+        if (p.isSharedWithCircles !== false || p.user === resolvedSession?.id) {
           const user = memberMap.get(p.user)!;
           let percentage: number | undefined;
           if (p.status === "completed") {

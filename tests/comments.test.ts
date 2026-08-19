@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { afterAll, beforeEach, mock, spyOn } from "bun:test";
 import {
   canDeleteComment,
   organizeCommentsTree,
@@ -191,5 +192,124 @@ describe("Comments - +1 Depth Replies Hierarchy & Tree Organization", () => {
 
     expect(resolveParentId("root_1")).toBe("root_1");
     expect(resolveParentId("reply_1")).toBe("root_1"); // Collapses to root (+1 depth max!)
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M-4 regression gate — addComment's guards (resolveCircleAccess +
+// requireTitleInGroup) run in Promise.all. Behavior must stay identical:
+// permissions are still enforced and a permitted comment is still created.
+// Mirrors the marginalia.test.ts mock pattern.
+// ---------------------------------------------------------------------------
+
+const { addComment } = await import("@/lib/actions/comments");
+const sessionModule = await import("@/lib/pocketbase/session");
+const superuserModule = await import("@/lib/pocketbase/superuser");
+const membershipModule = await import("@/lib/membership");
+const nextCacheModule = await import("next/cache");
+
+const commentDb = {
+  canComment: true,
+  titleInGroup: true,
+  createdComments: [] as Array<Record<string, unknown>>,
+};
+
+function resetCommentDb() {
+  commentDb.canComment = true;
+  commentDb.titleInGroup = true;
+  commentDb.createdComments = [];
+}
+
+function makeCommentPb() {
+  return {
+    filter: (expr: string, params: Record<string, unknown>) => {
+      let out = expr;
+      for (const [k, v] of Object.entries(params)) {
+        out = out.replaceAll(`{:${k}}`, JSON.stringify(v));
+      }
+      return out;
+    },
+    collection: (name: string) => {
+      if (name !== "comments") throw new Error(`unexpected collection: ${name}`);
+      return {
+        create: async (payload: Record<string, unknown>) => {
+          commentDb.createdComments.push(payload);
+          return { id: "c1", ...payload, expand: { user: { id: "u1", name: "Me" } } };
+        },
+      };
+    },
+  };
+}
+
+describe("Server-Action addComment M-4 guards (parallelized, mocked PB)", () => {
+  beforeEach(() => {
+    resetCommentDb();
+    spyOn(sessionModule, "getSession").mockResolvedValue({
+      id: "me",
+      isAdmin: false,
+      name: "Me",
+      email: "me@example.com",
+    } as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(makeCommentPb() as never);
+    spyOn(nextCacheModule, "revalidatePath").mockImplementation(() => {});
+    spyOn(membershipModule, "resolveCircleAccess").mockImplementation(async () => {
+      const access = {
+        group: { id: "g1" },
+        isOwner: false,
+        isMember: true,
+        isGuest: false,
+        canViewBacklog: true,
+        canViewFinished: true,
+        canViewReviews: true,
+        canViewComments: true,
+        canVote: true,
+        canComment: commentDb.canComment,
+        canReview: true,
+        canPropose: true,
+      };
+      return access as never;
+    });
+    spyOn(membershipModule, "requireTitleInGroup").mockImplementation(async () => {
+      if (!commentDb.titleInGroup) throw new Error("Title not found in this group");
+      return { id: "t1", group: "g1" } as never;
+    });
+  });
+
+  afterAll(() => {
+    mock.restore();
+  });
+
+  it("rejects when canComment is false — no comment is created despite the title check passing", async () => {
+    commentDb.canComment = false;
+    const form = new FormData();
+    form.set("content", "Nice book.");
+
+    const result = await addComment("t1", "g1", form);
+    expect(result.success).toBe(false);
+    expect(commentDb.createdComments).toHaveLength(0);
+  });
+
+  it("rejects when the title is not in the group — the parallel title guard still applies", async () => {
+    commentDb.titleInGroup = false;
+    const form = new FormData();
+    form.set("content", "Nice book.");
+
+    const result = await addComment("t1", "g1", form);
+    expect(result.success).toBe(false);
+    expect(commentDb.createdComments).toHaveLength(0);
+  });
+
+  it("creates and returns a comment when both guards pass", async () => {
+    const form = new FormData();
+    form.set("content", "  Nice book.  ");
+
+    const result = await addComment("t1", "g1", form);
+    expect(result.success).toBe(true);
+    expect(commentDb.createdComments).toHaveLength(1);
+    expect(commentDb.createdComments[0].user).toBe("me");
+    expect(commentDb.createdComments[0].content).toBe("Nice book.");
+    if (result.success) {
+      expect(result.data.id).toBe("c1");
+    }
   });
 });

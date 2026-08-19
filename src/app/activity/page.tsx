@@ -159,7 +159,7 @@ export default async function ActivityPage() {
                 const { title } = item;
                 const group = title.expand?.group;
                 const author = title.expand?.addedBy;
-                const authorName = getDisplayName(author);
+                const authorName = getDisplayName(author, t.common.unnamedUser);
                 const initials = getInitials(author?.name, author?.email);
 
                 return (
@@ -225,7 +225,7 @@ export default async function ActivityPage() {
                 const title = review.expand?.title;
                 const group = title?.expand?.group;
                 const reviewer = review.expand?.user;
-                const reviewerName = getDisplayName(reviewer);
+                const reviewerName = getDisplayName(reviewer, t.common.unnamedUser);
                 const initials = getInitials(reviewer?.name, reviewer?.email);
 
                 return (
@@ -292,7 +292,7 @@ export default async function ActivityPage() {
                 const title = comment.expand?.title;
                 const group = title?.expand?.group;
                 const commenter = comment.expand?.user;
-                const commenterName = getDisplayName(commenter);
+                const commenterName = getDisplayName(commenter, t.common.unnamedUser);
                 const initials = getInitials(commenter?.name, commenter?.email);
 
                 return (

@@ -24,11 +24,14 @@ export async function submitReview(
   }
 
   try {
-    const access = await resolveCircleAccess(groupId, session.id);
+    // M-4: independent reads — access and title-in-group in parallel.
+    const [access] = await Promise.all([
+      resolveCircleAccess(groupId, session.id),
+      requireTitleInGroup(titleId, groupId),
+    ]);
     if (!access.canReview) {
       return { success: false, error: "You do not have permission to review in this circle." };
     }
-    await requireTitleInGroup(titleId, groupId);
 
     const rating = Number(formData.get("rating"));
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -56,7 +59,12 @@ export async function submitReview(
             userId: session.id,
           }),
         );
-      await pb.collection("reviews").update(existing.id, { rating, reviewText });
+      // H1-defensive: an empty/whitespace incoming reviewText means the client
+      // lost its prefill (cluster-1 P1 strip regressed this). Never null out an
+      // existing review body on a rating-only save — keep the stored body.
+      const hasExistingBody = Boolean(existing.reviewText?.trim());
+      const finalReviewText = reviewText ?? (hasExistingBody ? existing.reviewText : null);
+      await pb.collection("reviews").update(existing.id, { rating, reviewText: finalReviewText });
     }
 
     revalidatePath(`/groups/${groupId}`);

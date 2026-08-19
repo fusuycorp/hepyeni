@@ -387,6 +387,10 @@ export interface Translations {
     passwordAuthDesc: string;
     otpAuth: string;
     otpAuthDesc: string;
+    badgeGoogle: string;
+    badgeApple: string;
+    badgePassword: string;
+    badgeOtp: string;
   };
   admin: {
     title: string;
@@ -521,6 +525,14 @@ export interface Translations {
     mediaTypesHeadline: string;
     mediaTypesDesc: string;
     joinWithCode: string;
+    mediaShelfNoteBook: string;
+    mediaShelfNoteMovie: string;
+    mediaShelfNoteTv: string;
+    mediaShelfNoteMusic: string;
+    mediaShelfNotePodcast: string;
+    previewCircleName: string;
+    customMediaDesc: string;
+    customBadge: string;
   };
   guestManagement: {
     publicCircleTitle: string;

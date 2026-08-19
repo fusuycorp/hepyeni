@@ -180,7 +180,10 @@ export async function getGroupByInviteCode(
       pb.collection("group_members").getList(1, 1, {
         filter: pb.filter("group = {:groupId}", { groupId: group.id }),
       }),
-      pb.collection("titles").getFullList({
+      // F-5: this runs on the public /invite/[code] page — cap the preview
+      // list so a large backlog can't make the page arbitrarily heavy for
+      // any caller holding a valid code. Count stays true via totalItems.
+      pb.collection("titles").getList(1, 20, {
         filter: pb.filter("group = {:groupId} && status = 'proposed'", {
           groupId: group.id,
         }),
@@ -208,10 +211,10 @@ export async function getGroupByInviteCode(
   return {
     group,
     memberCount: membersResult.totalItems,
-    proposedCount: proposedTitles.length,
+    proposedCount: proposedTitles.totalItems,
     consumedCount: consumedResult.totalItems,
     isMember: Boolean(userMembership),
-    proposedTitles: proposedTitles.map((t) => ({
+    proposedTitles: proposedTitles.items.map((t) => ({
       id: t.id,
       title: t.title,
       creator: t.creator,

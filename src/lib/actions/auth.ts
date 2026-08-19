@@ -5,10 +5,10 @@ import PocketBase from "pocketbase";
 import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import {
+  buildOAuthInitUrl,
   clearSessionCookie,
   consumeOtpCookie,
   getPbUrl,
-  oauth2RedirectUrl,
   setOAuth2StateCookie,
   setOtpCookie,
   setSessionCookie,
@@ -110,15 +110,14 @@ async function signInWithOAuth2(provider: "google" | "apple") {
 
   const { headers } = await import("next/headers");
   const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") || "https";
-  const origin =
-    host && !host.includes("0.0.0.0") ? `${proto}://${host}` : undefined;
 
   // authURL ends with `redirect_uri=` (no value) — PocketBase's documented
   // pattern is to concatenate the redirect URL directly, not merge query
-  // params via the URL API.
-  redirect(method.authURL + oauth2RedirectUrl(origin));
+  // params via the URL API. Origin resolution runs through getRequestOrigin
+  // (S6 contract): APP_URL is authoritative, x-forwarded-host/-proto are
+  // honored only under TRUST_FORWARDED_HEADERS, and the loopback fallback
+  // keeps local dev (:8090) working.
+  redirect(buildOAuthInitUrl(method.authURL, { headers: headerStore }));
 }
 
 

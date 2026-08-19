@@ -132,7 +132,7 @@ export const spotifyProvider: MediaProvider = {
       } catch (err) {
         logDiagnostic(err, {
           action: "spotify:search",
-          query: cleanQuery,
+          queryLength: cleanQuery.length,
           note: "Falling back to iTunes music search",
         });
       }

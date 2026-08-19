@@ -422,11 +422,14 @@ describe("Adversarial Fuzzing: Input Validators & Sanitizers", () => {
       expect(getDisplayName({ name: "Ada Lovelace", email: "ada@example.com" })).toBe("Ada Lovelace");
       expect(getDisplayName({ email: "ada@example.com" })).toBe("ada@example.com");
       expect(getDisplayName({ name: "", email: "ada@example.com" })).toBe("ada@example.com");
-      expect(getDisplayName({})).toBe("Üye");
-      expect(getDisplayName(undefined)).toBe("Üye");
-      expect(getDisplayName(null as unknown as { name?: string })).toBe("Üye");
-      expect(getDisplayName(123 as unknown as { name?: string })).toBe("Üye");
-      expect(getDisplayName("string" as unknown as { name?: string })).toBe("Üye");
+      expect(getDisplayName({}, "Unnamed User")).toBe("Unnamed User");
+      expect(getDisplayName(undefined, "Unnamed User")).toBe("Unnamed User");
+      expect(getDisplayName(null as unknown as { name?: string }, "Unnamed User")).toBe("Unnamed User");
+      expect(getDisplayName(123 as unknown as { name?: string }, "Unnamed User")).toBe("Unnamed User");
+      expect(getDisplayName("string" as unknown as { name?: string }, "Unnamed User")).toBe("Unnamed User");
+      // Locale-neutral default: empty fallback, never a hardcoded Turkish token.
+      expect(getDisplayName({})).toBe("");
+      expect(getDisplayName(undefined)).toBe("");
 
       // SQLi / XSS preserved safely as display string
       expect(getDisplayName({ name: "<script>alert(1)</script>" })).toBe("<script>alert(1)</script>");

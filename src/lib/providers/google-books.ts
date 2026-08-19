@@ -146,7 +146,8 @@ export const googleBooksProvider: MediaProvider = {
     } catch (googleErr) {
       logDiagnostic(googleErr, {
         action: "searchTitles:google-books",
-        query: cleanQuery,
+        // S2: never log the raw user search query — length only
+        queryLength: cleanQuery.length,
         note: "Google Books quota/rate-limited, falling back to iTunes Books",
       });
     }
@@ -158,7 +159,7 @@ export const googleBooksProvider: MediaProvider = {
     } catch (itunesErr) {
       logDiagnostic(itunesErr, {
         action: "searchTitles:itunes-ebook-fallback",
-        query: cleanQuery,
+        queryLength: cleanQuery.length,
         note: "Falling back to Open Library",
       });
     }
@@ -169,7 +170,7 @@ export const googleBooksProvider: MediaProvider = {
     } catch (openLibErr) {
       logDiagnostic(openLibErr, {
         action: "searchTitles:open-library-fallback",
-        query: cleanQuery,
+        queryLength: cleanQuery.length,
       });
       return [];
     }

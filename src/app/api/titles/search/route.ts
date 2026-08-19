@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
     const diag = logDiagnostic(err, {
       action: "api/titles/search",
       mediaType,
-      query,
+      // S2: never log the raw user search query — length only
+      queryLength: query.length,
     });
     return NextResponse.json(
       {
