@@ -36,7 +36,13 @@ migrate((app) => {
       { type: "autodate", name: "createdAt", onCreate: true, onUpdate: false },
     ],
   });
-  usage.addIndex("idx_llm_usage_window_user", false, "window, user");
+  // ponytail: composite index (`window, user`) fails with "sql: no rows in
+  // result set" on PocketBase 0.39.x when a relation field is in a multi-column
+  // index (verified on a fresh DB) — write two single-column indexes instead;
+  // atomicity comes from unique reservation ids, not this index. Upgrade path:
+  // revisit composite-relation indexes on a PocketBase version where they apply.
+  usage.addIndex("idx_llm_usage_window", false, "window");
+  usage.addIndex("idx_llm_usage_user", false, "user");
   app.save(usage);
 }, (app) => {
   const usage = app.findCollectionByNameOrId("llm_usage");
