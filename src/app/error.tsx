@@ -54,7 +54,7 @@ export default function RootError({
 
   useEffect(() => {
     // Structured error logging in browser console
-    console.error("[Titirek Application Error Caught]:", {
+    console.error("[HepYeni Application Error Caught]:", {
       digest: error.digest,
       message: error.message,
       stack: error.stack,
@@ -64,7 +64,7 @@ export default function RootError({
 
   const handleCopyReport = () => {
     const report = {
-      app: "Titirek",
+      app: "HepYeni",
       digest: error.digest || "none",
       message: error.message || "Unknown client/server error",
       url: typeof window !== "undefined" ? window.location.href : "",

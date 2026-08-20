@@ -1,4 +1,4 @@
-# Security Review Round 2 — titirek
+# Security Review Round 2 — hepyeni
 
 **Scope:** `src/` (Next.js App Router + Server Actions, PocketBase/SQLite, Bun). Read-only review — no files modified. Commit `c5899d9` (Cluster 1/2/4/5) and `153fe94` (Cluster 3) from the impl-plan were inspected line-by-line against `reviews/security-review.md` and `reviews/impl-plan.md`, plus a fresh pass over every Server Action/route/middleware for new issues.
 

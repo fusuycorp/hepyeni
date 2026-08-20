@@ -1,6 +1,6 @@
 # Architectural Decision Records (ADRs)
 
-This document records the major architectural pivots, design decisions, and security strategies for the **Titirek** codebase, adhering to the operating principles defined in `AGENTS.md`.
+This document records the major architectural pivots, design decisions, and security strategies for the **HepYeni** codebase, adhering to the operating principles defined in `AGENTS.md`.
 
 ---
 
@@ -44,7 +44,7 @@ This document records the major architectural pivots, design decisions, and secu
 
 ## ADR-004: External Provider Adapter Pattern & Resilience
 - **Status**: Accepted & Implemented (2026-08-15)
-- **Context**: Titirek integrates with multiple disparate media APIs (Google Books, TMDB, Spotify, iTunes Podcasts) with differing authentication flows, query formats, and payload structures.
+- **Context**: HepYeni integrates with multiple disparate media APIs (Google Books, TMDB, Spotify, iTunes Podcasts) with differing authentication flows, query formats, and payload structures.
 - **Decision**:
   - Standardized all external providers under the `MediaProvider` interface (`search(query): Promise<NormalizedSearchResult[]>`).
   - Wrapped all external API calls in `AbortSignal.timeout(8000)` to prevent hanging requests from exhausting connection pools.

@@ -2,7 +2,7 @@
 
 ## Active Epics & Tasks
 - **Current State**: Shipped full 5-phase modular evolution:
-  1. **Phase 0 (Titirek Labs & Feature Flags)**: Zero-dependency flag engine (`src/lib/flags/`) with multi-scope evaluation, cookie persistence, and Profile Labs UI card.
+  1. **Phase 0 (HepYeni Labs & Feature Flags)**: Zero-dependency flag engine (`src/lib/flags/`) with multi-scope evaluation, cookie persistence, and Profile Labs UI card.
   2. **Phase 1 (Universal Data Portability Hub)**: `/shelf/import-export` with streaming CSV parsers for Goodreads, Letterboxd, and StoryGraph, plus Obsidian Markdown ZIP, JSON, and CSV exporters.
   3. **Phase 2 (Dual-Layer Spoiler Protection & Campfires)**: `<SpoilerText>` interactive inline `||spoiler||` blur filters, `milestone_comments` collection, and server-gated pre-checkin milestone campfire discussions.
   4. **Phase 3 (Digital Marginalia & Quote Snaps)**: `shelf_quotes` collection, `<QuoteCard>`, `<AddQuoteDialog>`, and Quotes gallery tab on `/shelf` with dual private/circle sharing.
@@ -78,5 +78,5 @@ All three must pass. Skipping `next build` = silently broken production deploy.
 
 ## Activity log
 
-- 2026-08-19 — Runtime-test round 2 (verify R8): disposable PB 0.39.11 in Docker (container `titirek-review-test-pb`, 127.0.0.1:8095; prod swarm service `publicality-titirek-*` untouched — separate container, no shared volumes/network/ports, never ran docker-compose.yml). Seeded users Alice(owner/admin)/Bob, 2 titles, 2 reviews, 2 votes. Proved the R8-fallback pattern: titles query drops `reviews_via_title`, reviews ride a lean `reviews` getList (filter `title.group`, `expand=user`, projected `expand.user.{id,name,avatarUrl}`), own-review bodies via compound `user=x && title.group=y` filter. End-to-end: group page renders reviewer names + per-user body visibility (H1) verified for Alice and Bob on the running app (PORT 3001); admin group detail renders. Committed as df1c398. Seed/verify scripts in /tmp/opencode/{seed,verify-final,fetch-pages}.sh.
+- 2026-08-19 — Runtime-test round 2 (verify R8): disposable PB 0.39.11 in Docker (container `hepyeni-review-test-pb`, 127.0.0.1:8095; prod swarm service `publicality-hepyeni-*` untouched — separate container, no shared volumes/network/ports, never ran docker-compose.yml). Seeded users Alice(owner/admin)/Bob, 2 titles, 2 reviews, 2 votes. Proved the R8-fallback pattern: titles query drops `reviews_via_title`, reviews ride a lean `reviews` getList (filter `title.group`, `expand=user`, projected `expand.user.{id,name,avatarUrl}`), own-review bodies via compound `user=x && title.group=y` filter. End-to-end: group page renders reviewer names + per-user body visibility (H1) verified for Alice and Bob on the running app (PORT 3001); admin group detail renders. Committed as df1c398. Seed/verify scripts in /tmp/opencode/{seed,verify-final,fetch-pages}.sh.
 - 2026-08-19 — Round-2 review & fixes (clusters via 6 worktrees): committed 1f02174 (fixes), 826d49b (memory docs), a7cdf90 (activity log).

@@ -258,7 +258,7 @@ export async function exportShelfData(
         success: true,
         data: {
           data: jsonContent,
-          filename: `titirek-shelf-${dateStr}.json`,
+          filename: `hepyeni-shelf-${dateStr}.json`,
           mimeType: "application/json",
           isBase64: false,
         },
@@ -271,7 +271,7 @@ export async function exportShelfData(
         success: true,
         data: {
           data: csvContent,
-          filename: `titirek-shelf-${dateStr}.csv`,
+          filename: `hepyeni-shelf-${dateStr}.csv`,
           mimeType: "text/csv;charset=utf-8",
           isBase64: false,
         },
@@ -285,7 +285,7 @@ export async function exportShelfData(
         success: true,
         data: {
           data: base64Data,
-          filename: `titirek-shelf-obsidian-${dateStr}.zip`,
+          filename: `hepyeni-shelf-obsidian-${dateStr}.zip`,
           mimeType: "application/zip",
           isBase64: true,
         },

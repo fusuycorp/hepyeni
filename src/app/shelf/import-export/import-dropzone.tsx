@@ -43,8 +43,8 @@ export function ImportDropzone({
         return t.importExport.formatLetterboxd;
       case "storygraph":
         return t.importExport.formatStorygraph;
-      case "titirek_json":
-        return t.importExport.formatTitirekJson;
+      case "hepyeni_json":
+        return t.importExport.formatHepYeniJson;
       case "generic_csv":
         return t.importExport.formatGenericCsv;
       default:

@@ -80,14 +80,14 @@
   - Strict sub-resource multi-tenant guards: `requireTitleInGroup`, `requireScheduleInGroup`, and `requireMilestoneInGroup` enforced on all nested database mutations.
 - **Consequences**: Zero masked production digests, complete error transparency with traceable reference codes, uniform user feedback in toasts without form resets, and accessible confirmation dialogs across the whole application.
 
-## ADR-010: Titirek Labs Feature Flag Engine, Data Portability Hub & Dual-Layer Spoiler Protection
+## ADR-010: HepYeni Labs Feature Flag Engine, Data Portability Hub & Dual-Layer Spoiler Protection
 - **Status**: Accepted & Implemented (2026-08-18)
 - **Context**: Rapid product evolution requires a safe way to introduce and test experimental capabilities (e.g. Data Portability, Spoilers, Campfires, Marginalia, Moods) without compromising core stability or introducing third-party vendor bloat. Furthermore, users migrating from Goodreads/Letterboxd/StoryGraph needed a zero-friction import path, and communal pacing required strict server-level spoiler guarantees.
 - **Decision**:
-  - **Feature Flag Engine (`src/lib/flags/`)**: Zero-dependency, multi-scope (`global`, `user`, `circle`) evaluation pipeline resolving environment variables (`FLAG_ENABLE_*`) -> circle settings -> user cookies (`titirek_flags`) -> registry defaults. Integrated via `<FeatureFlagsProvider />`, `useFeatureFlag()`, `isFeatureEnabled()`, and `requireFeature()`.
+  - **Feature Flag Engine (`src/lib/flags/`)**: Zero-dependency, multi-scope (`global`, `user`, `circle`) evaluation pipeline resolving environment variables (`FLAG_ENABLE_*`) -> circle settings -> user cookies (`hepyeni_flags`) -> registry defaults. Integrated via `<FeatureFlagsProvider />`, `useFeatureFlag()`, `isFeatureEnabled()`, and `requireFeature()`.
   - **Data Portability Hub (`/shelf/import-export`)**: Pure zero-dependency RFC 4180 streaming CSV parsers for Goodreads, Letterboxd, and StoryGraph with automatic format detection, interactive preview tables, and lossless exports (full-fidelity JSON, universal CSV, and Obsidian/Logseq Markdown ZIP with YAML frontmatter).
   - **Dual-Layer Spoiler Protection**: Inline `||spoiler||` token parsing with interactive accessible Base UI blur overlays (`<SpoilerText />`), combined with server-side body redaction for `milestone_comments` when the caller has not checked in to that milestone.
-- **Consequences**: Zero third-party analytics/flag overhead, full user data sovereignty, leak-proof communal spoiler gating, and self-service opt-in/out for experimental features via Titirek Labs on `/profile`.
+- **Consequences**: Zero third-party analytics/flag overhead, full user data sovereignty, leak-proof communal spoiler gating, and self-service opt-in/out for experimental features via HepYeni Labs on `/profile`.
 
 ## ADR-011: Digital Marginalia, Quote Snaps & Multi-Scope Sharing Matrix
 - **Status**: Accepted & Implemented (2026-08-18)

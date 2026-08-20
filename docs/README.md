@@ -1,6 +1,6 @@
-# Titirek Documentation Index
+# HepYeni Documentation Index
 
-Welcome to the **Titirek** developer and agent documentation. This directory provides an authoritative, comprehensive reference for the architecture, codebase organization, data models, authentication, external integrations, and deployment configurations of the project.
+Welcome to the **HepYeni** developer and agent documentation. This directory provides an authoritative, comprehensive reference for the architecture, codebase organization, data models, authentication, external integrations, and deployment configurations of the project.
 
 ---
 
@@ -8,12 +8,12 @@ Welcome to the **Titirek** developer and agent documentation. This directory pro
 
 | Document | Description |
 |---|---|
-| [**`ARCHITECTURE.md`**](file:///home/devhax/projects/fusuycorp/titirek/docs/ARCHITECTURE.md) | High-level system design, Next.js 15+ Server Action model, PocketBase superuser client, live session re-verification, routing/proxy gate, and concurrency handling. |
-| [**`CODEBASE_MAP.md`**](file:///home/devhax/projects/fusuycorp/titirek/docs/CODEBASE_MAP.md) | Exhaustive directory tree and file-by-file breakdown covering `src/lib/`, `src/app/`, `src/components/`, `src/types/`, `pb_migrations/`, and `tests/`. |
-| [**`AUTH_AND_SECURITY.md`**](file:///home/devhax/projects/fusuycorp/titirek/docs/AUTH_AND_SECURITY.md) | In-depth authentication flows (Google/Apple OAuth2, Email OTP, Password auth/reset), session cookie security, multi-tenant IDOR defense, and bounds enforcement. |
-| [**`DATA_MODELS.md`**](file:///home/devhax/projects/fusuycorp/titirek/docs/DATA_MODELS.md) | PocketBase collections (`users`, `groups`, `group_members`, `titles`, `votes`, `reviews`), relations, cascading rules, and TypeScript type generation. |
-| [**`EXTERNAL_APIS.md`**](file:///home/devhax/projects/fusuycorp/titirek/docs/EXTERNAL_APIS.md) | External media providers (Google Books, TMDB, Spotify, iTunes Podcasts), normalized result contract, token caching, and timeout resilience. |
-| [**`DEPLOYMENT_AND_INFRA.md`**](file:///home/devhax/projects/fusuycorp/titirek/docs/DEPLOYMENT_AND_INFRA.md) | Docker containerization (`Dockerfile`, `Dockerfile.pocketbase`), Docker Swarm stack, Dokploy deployment, CI/CD pipeline, and environment variable requirements. |
+| [**`ARCHITECTURE.md`**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/ARCHITECTURE.md) | High-level system design, Next.js 15+ Server Action model, PocketBase superuser client, live session re-verification, routing/proxy gate, and concurrency handling. |
+| [**`CODEBASE_MAP.md`**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/CODEBASE_MAP.md) | Exhaustive directory tree and file-by-file breakdown covering `src/lib/`, `src/app/`, `src/components/`, `src/types/`, `pb_migrations/`, and `tests/`. |
+| [**`AUTH_AND_SECURITY.md`**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/AUTH_AND_SECURITY.md) | In-depth authentication flows (Google/Apple OAuth2, Email OTP, Password auth/reset), session cookie security, multi-tenant IDOR defense, and bounds enforcement. |
+| [**`DATA_MODELS.md`**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/DATA_MODELS.md) | PocketBase collections (`users`, `groups`, `group_members`, `titles`, `votes`, `reviews`), relations, cascading rules, and TypeScript type generation. |
+| [**`EXTERNAL_APIS.md`**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/EXTERNAL_APIS.md) | External media providers (Google Books, TMDB, Spotify, iTunes Podcasts), normalized result contract, token caching, and timeout resilience. |
+| [**`DEPLOYMENT_AND_INFRA.md`**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/DEPLOYMENT_AND_INFRA.md) | Docker containerization (`Dockerfile`, `Dockerfile.pocketbase`), Docker Swarm stack, Dokploy deployment, CI/CD pipeline, and environment variable requirements. |
 
 ---
 
@@ -21,7 +21,7 @@ Welcome to the **Titirek** developer and agent documentation. This directory pro
 
 ### 1. Application Routes & Access Matrix
 
-All routes are evaluated by the edge middleware in [`src/proxy.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/proxy.ts).
+All routes are evaluated by the edge middleware in [`src/proxy.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/proxy.ts).
 
 | Route Path | Type | Purpose | Access Control |
 |---|---|---|---|
@@ -46,40 +46,40 @@ All routes are evaluated by the edge middleware in [`src/proxy.ts`](file:///home
 
 ### 2. Server Actions Summary
 
-All mutations are defined under [`src/lib/actions/`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/).
+All mutations are defined under [`src/lib/actions/`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/).
 
 | Module | Action Function | Key Parameters | Authorization Guard | Key Side Effects |
 |---|---|---|---|---|
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `signInWithGoogle` | None | Public | Sets OAuth2 state cookie, redirects to Google |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `signInWithApple` | None | Public | Sets OAuth2 state cookie, redirects to Apple |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `signInWithEmail` | `FormData` (`email`) | Public | Creates user if absent, requests OTP, sets OTP cookie |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `verifyEmailCode` | `FormData` (`code`) | Public (Consumes OTP cookie) | Exchanges OTP for auth token, sets session cookie |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `signInWithPassword` | `FormData` (`email`, `password`) | Public | Authenticates credentials, sets session cookie |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `signUpWithPassword` | `FormData` (`email`, `password`) | Public | Creates user via superuser, authenticates, sets cookie |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `requestPasswordReset` | `FormData` (`email`) | Public | Sends password reset email (anti-enumeration safe) |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `confirmPasswordReset` | `FormData` (`token`, `password`, `confirm`) | Public | Validates reset token and sets new password |
-| [`auth.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/auth.ts) | `signOutAction` | None | Session | Clears session cookie, redirects to `/login` |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `createGroup` | `FormData` (`name`) | Session | Creates group with unique invite code, assigns owner |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `joinGroup` | `FormData` (`code`) | Session | Validates code, creates `group_members` row |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `renameGroup` | `groupId`, `FormData` (`name`) | `requireOwner` | Updates group name, revalidates group paths |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `regenerateInviteCode` | `groupId` | `requireOwner` | Replaces invite code with new 8-char code |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `removeMember` | `groupId`, `memberId` | `requireOwner` | Deletes member record from circle |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `leaveGroup` | `groupId` | `requireMembership` | Removes member; deletes group if sole owner |
-| [`groups.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/groups.ts) | `deleteGroup` | `groupId` | `requireOwner` | Cascades delete across all group records |
-| [`titles.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/titles.ts) | `searchTitles` | `mediaType`, `query` | Session | Invokes external provider search with 8s timeout |
-| [`titles.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/titles.ts) | `addTitle` | `groupId`, `mediaType`, `result` | `requireMembership` | Creates title in group (idempotent on duplicate) |
-| [`titles.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/titles.ts) | `markConsumed` | `titleId`, `groupId` | `requireMembership` + `requireTitleInGroup` | Sets `status: 'consumed'` and `consumedAt` timestamp |
-| [`votes.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/votes.ts) | `voteOnTitle` | `titleId`, `groupId`, `value` | `requireMembership` + `requireTitleInGroup` | Atomic vote toggle/flip via deterministic SHA-256 ID |
-| [`reviews.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/reviews.ts) | `submitReview` | `titleId`, `groupId`, `FormData` | `requireMembership` + `requireTitleInGroup` | Creates or updates 1–5 star rating and comment |
-| [`profile.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/profile.ts) | `updateProfileName` | `FormData` (`name`) | Session | Updates user `name` field (max 200 chars) |
-| [`profile.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/profile.ts) | `deleteAccount` | None | Session | Deletes user (fails with 400 if groups/titles owned) |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `setUserAdmin` | `userId`, `isAdmin` | `requireAdmin` (Not self) | Promotes/demotes user admin privileges |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `banUser` | `userId` | `requireAdmin` (Not self) | Sets `bannedAt: ISOString` (instantly revokes session) |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `unbanUser` | `userId` | `requireAdmin` | Sets `bannedAt: null` |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `adminDeleteGroup` | `groupId` | `requireAdmin` | Cascades delete across group and children |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `adminDeleteTitle` | `titleId`, `groupId` | `requireAdmin` | Verifies title in group and deletes |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `adminDeleteReview` | `reviewId`, `groupId` | `requireAdmin` | Verifies review in group title and deletes |
-| [`admin.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/admin.ts) | `adminRemoveGroupMember` | `groupId`, `userId` | `requireAdmin` | Removes member from group |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `signInWithGoogle` | None | Public | Sets OAuth2 state cookie, redirects to Google |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `signInWithApple` | None | Public | Sets OAuth2 state cookie, redirects to Apple |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `signInWithEmail` | `FormData` (`email`) | Public | Creates user if absent, requests OTP, sets OTP cookie |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `verifyEmailCode` | `FormData` (`code`) | Public (Consumes OTP cookie) | Exchanges OTP for auth token, sets session cookie |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `signInWithPassword` | `FormData` (`email`, `password`) | Public | Authenticates credentials, sets session cookie |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `signUpWithPassword` | `FormData` (`email`, `password`) | Public | Creates user via superuser, authenticates, sets cookie |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `requestPasswordReset` | `FormData` (`email`) | Public | Sends password reset email (anti-enumeration safe) |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `confirmPasswordReset` | `FormData` (`token`, `password`, `confirm`) | Public | Validates reset token and sets new password |
+| [`auth.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/auth.ts) | `signOutAction` | None | Session | Clears session cookie, redirects to `/login` |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `createGroup` | `FormData` (`name`) | Session | Creates group with unique invite code, assigns owner |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `joinGroup` | `FormData` (`code`) | Session | Validates code, creates `group_members` row |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `renameGroup` | `groupId`, `FormData` (`name`) | `requireOwner` | Updates group name, revalidates group paths |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `regenerateInviteCode` | `groupId` | `requireOwner` | Replaces invite code with new 8-char code |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `removeMember` | `groupId`, `memberId` | `requireOwner` | Deletes member record from circle |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `leaveGroup` | `groupId` | `requireMembership` | Removes member; deletes group if sole owner |
+| [`groups.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/groups.ts) | `deleteGroup` | `groupId` | `requireOwner` | Cascades delete across all group records |
+| [`titles.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/titles.ts) | `searchTitles` | `mediaType`, `query` | Session | Invokes external provider search with 8s timeout |
+| [`titles.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/titles.ts) | `addTitle` | `groupId`, `mediaType`, `result` | `requireMembership` | Creates title in group (idempotent on duplicate) |
+| [`titles.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/titles.ts) | `markConsumed` | `titleId`, `groupId` | `requireMembership` + `requireTitleInGroup` | Sets `status: 'consumed'` and `consumedAt` timestamp |
+| [`votes.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/votes.ts) | `voteOnTitle` | `titleId`, `groupId`, `value` | `requireMembership` + `requireTitleInGroup` | Atomic vote toggle/flip via deterministic SHA-256 ID |
+| [`reviews.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/reviews.ts) | `submitReview` | `titleId`, `groupId`, `FormData` | `requireMembership` + `requireTitleInGroup` | Creates or updates 1–5 star rating and comment |
+| [`profile.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/profile.ts) | `updateProfileName` | `FormData` (`name`) | Session | Updates user `name` field (max 200 chars) |
+| [`profile.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/profile.ts) | `deleteAccount` | None | Session | Deletes user (fails with 400 if groups/titles owned) |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `setUserAdmin` | `userId`, `isAdmin` | `requireAdmin` (Not self) | Promotes/demotes user admin privileges |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `banUser` | `userId` | `requireAdmin` (Not self) | Sets `bannedAt: ISOString` (instantly revokes session) |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `unbanUser` | `userId` | `requireAdmin` | Sets `bannedAt: null` |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `adminDeleteGroup` | `groupId` | `requireAdmin` | Cascades delete across group and children |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `adminDeleteTitle` | `titleId`, `groupId` | `requireAdmin` | Verifies title in group and deletes |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `adminDeleteReview` | `reviewId`, `groupId` | `requireAdmin` | Verifies review in group title and deletes |
+| [`admin.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/admin.ts) | `adminRemoveGroupMember` | `groupId`, `userId` | `requireAdmin` | Removes member from group |
 
 ---
 

@@ -205,12 +205,12 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
       expect(detectImportSource(genericCsv, "storygraph_export.csv").source).toBe("storygraph");
     });
 
-    it("detects Titirek JSON format and recovers from corrupt JSON", () => {
+    it("detects HepYeni JSON format and recovers from corrupt JSON", () => {
       const validArrayJson = JSON.stringify([{ title: "Dune", mediaType: "book" }]);
-      expect(detectImportSource(validArrayJson).source).toBe("titirek_json");
+      expect(detectImportSource(validArrayJson).source).toBe("hepyeni_json");
 
       const validItemsJson = JSON.stringify({ items: [{ title: "Dune" }] });
-      expect(detectImportSource(validItemsJson).source).toBe("titirek_json");
+      expect(detectImportSource(validItemsJson).source).toBe("hepyeni_json");
 
       // Corrupt / Non-matching JSON falls back to CSV gracefully
       expect(detectImportSource("{ invalid json").source).toBe("generic_csv");
@@ -355,7 +355,7 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
   // 6. parseStoryGraphCsv (Adversarial Data & Status Normalization)
   // =========================================================================
   describe("parseStoryGraphCsv", () => {
-    it("maps all StoryGraph read statuses correctly to Titirek progress states", () => {
+    it("maps all StoryGraph read statuses correctly to HepYeni progress states", () => {
       const sgCsv =
         "Title,Authors,Read Status,Star Rating,Number of Pages\n" +
         "Book Read,Author 1,read,4.5,350\n" +
@@ -413,7 +413,7 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
       );
     });
 
-    it("parses valid Titirek JSON export array and items wrapper", () => {
+    it("parses valid HepYeni JSON export array and items wrapper", () => {
       const arrayJson = JSON.stringify([
         {
           title: "Dune",
@@ -431,7 +431,7 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
       ]);
 
       const res = parseImportFile(arrayJson);
-      expect(res.source).toBe("titirek_json");
+      expect(res.source).toBe("hepyeni_json");
       expect(res.items.length).toBe(1);
       expect(res.items[0].title).toBe("Dune");
       expect(res.items[0].rating).toBe(5);
@@ -448,7 +448,7 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
       });
 
       const resWrapped = parseImportFile(wrappedJson);
-      expect(resWrapped.source).toBe("titirek_json");
+      expect(resWrapped.source).toBe("hepyeni_json");
       expect(resWrapped.items.length).toBe(1);
       expect(resWrapped.items[0].title).toBe("Foundation");
     });
@@ -467,7 +467,7 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
       ]);
 
       const res = parseImportFile(mixedJson);
-      expect(res.source).toBe("titirek_json");
+      expect(res.source).toBe("hepyeni_json");
       expect(res.items.length).toBe(1);
       expect(res.items[0].title).toBe("Real Book");
       expect(res.items[0].rating).toBe(4);

@@ -100,7 +100,7 @@ export function logDiagnostic(
 
   // Structured logging to console
   console.error(
-    `[TITIREK_DIAGNOSTIC] ${entry.traceId} [${entry.code}] (${entry.action}): ${entry.userMessage}`,
+    `[HEPYENI_DIAGNOSTIC] ${entry.traceId} [${entry.code}] (${entry.action}): ${entry.userMessage}`,
     JSON.stringify(entry.technicalDetails),
   );
 

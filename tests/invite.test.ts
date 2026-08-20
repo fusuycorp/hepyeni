@@ -41,7 +41,7 @@ describe("Invite System & Translations", () => {
 
   it("formats invite URLs correctly with code parameter", () => {
     const code = "ABC23456";
-    const origin = "https://app.titirek.com";
+    const origin = "https://app.hepyeni.com";
     const expectedUrl = `${origin}/invite/${code}`;
 
     expect(new URL(`/invite/${code}`, origin).toString()).toBe(expectedUrl);

@@ -1,9 +1,9 @@
 services:
-  titirek:
+  hepyeni:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: titirek
+    container_name: hepyeni
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -20,8 +20,8 @@ services:
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
     networks:
-      - titirek-network
+      - hepyeni-network
 
 networks:
-  titirek-network:
+  hepyeni-network:
     driver: bridge

@@ -1,4 +1,4 @@
-# Code Review #2 — titirek codebase (post-fix verification round)
+# Code Review #2 — hepyeni codebase (post-fix verification round)
 
 Scope: all of `src/lib/**`, `src/components/**`, app pages, both fix commits
 (`c5899d9`, `153fe94`). READ-ONLY — no files modified. Sanity: `bun test`

@@ -6,8 +6,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Kullanım Koşulları (Terms of Service) — Titirek",
-  description: "Titirek ve hepyeni.net platformu kullanım şartları ve topluluk kuralları.",
+  title: "Kullanım Koşulları (Terms of Service) — HepYeni",
+  description: "HepYeni ve hepyeni.net platformu kullanım şartları ve topluluk kuralları.",
 };
 
 export default function TermsOfServicePage() {
@@ -22,7 +22,7 @@ export default function TermsOfServicePage() {
             <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <BookmarkCheck className="size-4" />
             </div>
-            <span>Titirek</span>
+            <span>HepYeni</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -56,7 +56,7 @@ export default function TermsOfServicePage() {
               Kullanım Koşulları (Terms of Service)
             </h1>
             <p className="text-xs text-muted-foreground">
-              Son Güncelleme: {lastUpdated} &middot; hepyeni.net (Titirek Platformu)
+              Son Güncelleme: {lastUpdated} &middot; hepyeni.net (HepYeni Platformu)
             </p>
           </div>
 
@@ -69,7 +69,7 @@ export default function TermsOfServicePage() {
                 <span>1. Koşulların Kabulü</span>
               </h2>
               <p>
-                Titirek platformuna (<code className="font-mono text-foreground">hepyeni.net</code>) erişerek veya platformu kullanarak, işbu Kullanım Koşulları&apos;nı ve <Link href="/privacy" className="text-primary hover:underline font-medium">Gizlilik Politikası</Link>&apos;nı kabul etmiş sayılırsınız. Bu koşulları kabul etmiyorsanız lütfen platformu kullanmayınız.
+                HepYeni platformuna (<code className="font-mono text-foreground">hepyeni.net</code>) erişerek veya platformu kullanarak, işbu Kullanım Koşulları&apos;nı ve <Link href="/privacy" className="text-primary hover:underline font-medium">Gizlilik Politikası</Link>&apos;nı kabul etmiş sayılırsınız. Bu koşulları kabul etmiyorsanız lütfen platformu kullanmayınız.
               </p>
             </section>
 
@@ -80,7 +80,7 @@ export default function TermsOfServicePage() {
                 <span>2. Hizmetin Tanımı ve Kapsamı</span>
               </h2>
               <p>
-                Titirek; kitap kulüpleri, arkadaş grupları ve topluluklar için ortak medya listeleri oluşturma, oylama ve değerlendirme yapma olanağı tanıyan iş birlikçi bir medya takip aracıdır. Platform, üçüncü taraf veri sağlayıcıları (TMDB, Spotify, Google Books, Apple Podcasts) aracılığıyla medya meta verilerini görüntüler.
+                HepYeni; kitap kulüpleri, arkadaş grupları ve topluluklar için ortak medya listeleri oluşturma, oylama ve değerlendirme yapma olanağı tanıyan iş birlikçi bir medya takip aracıdır. Platform, üçüncü taraf veri sağlayıcıları (TMDB, Spotify, Google Books, Apple Podcasts) aracılığıyla medya meta verilerini görüntüler.
               </p>
             </section>
 
@@ -115,7 +115,7 @@ export default function TermsOfServicePage() {
                 5. Sorumluluğun Sınırlandırılması
               </h2>
               <p>
-                Titirek hizmeti &quot;olduğu gibi&quot; (as-is) ve &quot;mevcut olduğu şekilde&quot; sağlanmaktadır. hepyeni.net, hizmetin kesintisiz veya hatasız olacağını garanti etmez; veri kaybı veya hizmet kesintilerinden doğabilecek dolaylı zararlardan sorumlu tutulamaz.
+                HepYeni hizmeti &quot;olduğu gibi&quot; (as-is) ve &quot;mevcut olduğu şekilde&quot; sağlanmaktadır. hepyeni.net, hizmetin kesintisiz veya hatasız olacağını garanti etmez; veri kaybı veya hizmet kesintilerinden doğabilecek dolaylı zararlardan sorumlu tutulamaz.
               </p>
             </section>
 
@@ -149,7 +149,7 @@ export default function TermsOfServicePage() {
       {/* Footer */}
       <footer className="border-t bg-card/60 py-6 px-4 text-center text-xs text-muted-foreground">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>&copy; {new Date().getFullYear()} Titirek &middot; hepyeni.net. Tüm hakları saklıdır.</p>
+          <p>&copy; {new Date().getFullYear()} HepYeni &middot; hepyeni.net. Tüm hakları saklıdır.</p>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Gizlilik Politikası</Link>
             <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Kullanım Koşulları</Link>

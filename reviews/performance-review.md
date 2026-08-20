@@ -1,6 +1,6 @@
 I've completed a thorough read-only review. I examined the page components, server actions, PocketBase session/query layer, importers/exporters, admin pages, providers, client components, and the PB schema/migrations for index coverage. Here is the performance review.
 
-## Review — Titirek performance
+## Review — HepYeni performance
 
 **Method:** traced the group page / shelf / title-detail / activity hot paths, the server-action layer (`src/lib/actions/`), the PocketBase superuser/session layer (`src/lib/pocketbase/`), the import/export pipeline, and checked DB index coverage in `pb_migrations/`. Read-only; no files modified, no shell commands run. All timings are estimates, not measured.
 

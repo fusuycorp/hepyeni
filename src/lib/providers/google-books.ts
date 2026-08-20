@@ -31,7 +31,9 @@ type OpenLibraryDoc = {
   number_of_pages_median?: number;
 };
 
-async function searchItunesBooks(query: string): Promise<NormalizedSearchResult[]> {
+async function searchItunesBooks(
+  query: string,
+): Promise<NormalizedSearchResult[]> {
   const url = new URL("https://itunes.apple.com/search");
   url.searchParams.set("term", query);
   url.searchParams.set("media", "ebook");
@@ -40,7 +42,7 @@ async function searchItunesBooks(query: string): Promise<NormalizedSearchResult[
 
   const res = await fetch(url, {
     cache: "no-store",
-    headers: { "User-Agent": "Titirek/1.0 (https://hepyeni.net)" },
+    headers: { "User-Agent": "HepYeni/1.0 (https://hepyeni.net)" },
     signal: AbortSignal.timeout(4000),
   });
 
@@ -63,16 +65,21 @@ async function searchItunesBooks(query: string): Promise<NormalizedSearchResult[
   }));
 }
 
-async function searchOpenLibrary(query: string): Promise<NormalizedSearchResult[]> {
+async function searchOpenLibrary(
+  query: string,
+): Promise<NormalizedSearchResult[]> {
   const url = new URL("https://openlibrary.org/search.json");
   url.searchParams.set("q", query);
-  url.searchParams.set("fields", "key,title,author_name,cover_i,first_publish_year,number_of_pages_median");
+  url.searchParams.set(
+    "fields",
+    "key,title,author_name,cover_i,first_publish_year,number_of_pages_median",
+  );
   url.searchParams.set("limit", "12");
 
   const res = await fetch(url, {
     cache: "no-store",
     headers: {
-      "User-Agent": "Titirek/1.0 (https://hepyeni.net; contact@titirek.app)",
+      "User-Agent": "HepYeni/1.0 (https://hepyeni.net; contact@hepyeni.net)",
     },
     signal: AbortSignal.timeout(4000),
   });
@@ -120,7 +127,7 @@ export const googleBooksProvider: MediaProvider = {
 
       const res = await fetch(url, {
         cache: "no-store",
-        headers: { "User-Agent": "Titirek/1.0 (https://hepyeni.net)" },
+        headers: { "User-Agent": "HepYeni/1.0 (https://hepyeni.net)" },
         signal: AbortSignal.timeout(4000),
       });
 

@@ -72,7 +72,7 @@ describe("JSON Exporter", () => {
     const parsed = JSON.parse(jsonStr);
 
     expect(parsed.version).toBe("1.0");
-    expect(parsed.appName).toBe("Titirek");
+    expect(parsed.appName).toBe("HepYeni");
     expect(parsed.totalCount).toBe(2);
     expect(parsed.items).toHaveLength(2);
     expect(parsed.items[0].title).toBe("Dune: Part Two");
@@ -199,7 +199,7 @@ describe("Zero-Dependency PKZip Archive Builder", () => {
 
   it("builds a valid ZIP archive binary with PK signatures", () => {
     const zipBytes = createZipArchive([
-      { name: "test.txt", content: "Hello Titirek!" },
+      { name: "test.txt", content: "Hello HepYeni!" },
       { name: "folder/note.md", content: "# Markdown Note" },
     ]);
 

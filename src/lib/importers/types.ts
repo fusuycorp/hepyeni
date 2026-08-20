@@ -13,7 +13,7 @@ export type ImportSource =
   | "goodreads"
   | "letterboxd"
   | "storygraph"
-  | "titirek_json"
+  | "hepyeni_json"
   | "generic_csv";
 
 export interface NormalizedImportItem {

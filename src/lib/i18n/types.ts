@@ -716,7 +716,7 @@ export interface Translations {
     formatGoodreads: string;
     formatLetterboxd: string;
     formatStorygraph: string;
-    formatTitirekJson: string;
+    formatHepYeniJson: string;
     formatGenericCsv: string;
     formatUnknown: string;
     previewTitle: string;

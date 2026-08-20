@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Development Workflow
 
-Titirek uses **trunk-based development**: work happens on short-lived branches that become pull requests and are squash-merged into `main` after review. `main` is protected — no direct pushes.
+HepYeni uses **trunk-based development**: work happens on short-lived branches that become pull requests and are squash-merged into `main` after review. `main` is protected — no direct pushes.
 
 ## Branch naming
 

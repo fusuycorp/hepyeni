@@ -1,4 +1,4 @@
-# Bakes titirek's own pb_migrations/ into the stock PocketBase image so
+# Bakes hepyeni's own pb_migrations/ into the stock PocketBase image so
 # Dokploy (which only ever pulls images, never builds from a git checkout)
 # has something to run. Everything else — superuser bootstrap via
 # PB_ADMIN_EMAIL/PB_ADMIN_PASSWORD, default --dir=/pb_data, automigrate
