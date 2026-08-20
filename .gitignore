@@ -45,3 +45,7 @@ next-env.d.ts
 # dir, not the committed pb_migrations/ schema
 /pocketbase
 /pb_data
+
+# tool state (pi + glla) — not repo content
+/.pi/
+/.pi-glla/
