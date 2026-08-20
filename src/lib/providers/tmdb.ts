@@ -36,7 +36,7 @@ async function searchItunesVideo(
   const res = await fetch(url, {
     cache: "no-store",
     headers: {
-      "User-Agent": "Titirek/1.0 (https://hepyeni.net)",
+      "User-Agent": "HepYeni/1.0 (https://hepyeni.net)",
     },
     signal: AbortSignal.timeout(8000),
   });

@@ -24,7 +24,7 @@ export default async function PrivacyPolicyPage() {
             <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <BookmarkCheck className="size-4" />
             </div>
-            <span>Titirek</span>
+            <span>HepYeni</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export default async function PrivacyPolicyPage() {
 
       <footer className="border-t bg-card/60 py-6 px-4 text-center text-xs text-muted-foreground">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>&copy; {new Date().getFullYear()} Titirek &middot; hepyeni.net. {p.footerCopyright}</p>
+          <p>&copy; {new Date().getFullYear()} HepYeni &middot; hepyeni.net. {p.footerCopyright}</p>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">{p.privacyLink}</Link>
             <Link href="/terms" className="hover:text-foreground underline underline-offset-4">{p.termsLink}</Link>

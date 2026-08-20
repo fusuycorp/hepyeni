@@ -251,7 +251,7 @@ describe("Auto Detection & Unified parseImportFile", () => {
     expect(result.source).toBe("storygraph");
   });
 
-  it("auto-detects Titirek JSON format", () => {
+  it("auto-detects HepYeni JSON format", () => {
     const json = JSON.stringify({
       version: "1.0",
       items: [
@@ -264,10 +264,10 @@ describe("Auto Detection & Unified parseImportFile", () => {
       ],
     });
     const result = detectImportSource(json);
-    expect(result.source).toBe("titirek_json");
+    expect(result.source).toBe("hepyeni_json");
 
     const parsed = parseImportFile(json);
-    expect(parsed.source).toBe("titirek_json");
+    expect(parsed.source).toBe("hepyeni_json");
     expect(parsed.items).toHaveLength(1);
     expect(parsed.items[0].title).toBe("Interstellar");
     expect(parsed.items[0].mediaType).toBe("movie");

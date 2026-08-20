@@ -100,7 +100,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
               <BookOpen className="size-4.5" />
             </div>
             <span className="text-foreground tracking-tight font-semibold">
-              Titirek
+              HepYeni
             </span>
           </Link>
 
@@ -530,7 +530,7 @@ export function LandingView({ currentUser }: LandingViewProps) {
         <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <BookOpen className="size-4 text-primary" />
-            <span className="font-semibold text-foreground">Titirek</span>
+            <span className="font-semibold text-foreground">HepYeni</span>
             <span>&middot;</span>
             <span>{t.common.appDescription}</span>
           </div>

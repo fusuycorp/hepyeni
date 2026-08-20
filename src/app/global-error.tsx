@@ -48,7 +48,7 @@ export default function GlobalError({
   const copy = ERROR_COPY[cookieLocale];
 
   useEffect(() => {
-    console.error("[Titirek Global Root Error Caught]:", {
+    console.error("[HepYeni Global Root Error Caught]:", {
       digest: error.digest,
       message: error.message,
       stack: error.stack,
@@ -58,7 +58,7 @@ export default function GlobalError({
 
   const handleCopyReport = () => {
     const report = {
-      app: "Titirek",
+      app: "HepYeni",
       level: "critical_global",
       digest: error.digest || "none",
       message: error.message || "Unknown root error",

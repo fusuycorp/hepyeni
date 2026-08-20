@@ -100,7 +100,7 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
 
     usedFilenames.add(uniqueName);
     files.push({
-      name: `Titirek Shelf/${uniqueName}`,
+      name: `HepYeni Shelf/${uniqueName}`,
       content,
     });
   }
@@ -108,12 +108,12 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
   // Also include an index overview note
   const indexLines = [
     "---",
-    'title: "Titirek Shelf Overview"',
+    'title: "HepYeni Shelf Overview"',
     `exported_at: "${new Date().toISOString()}"`,
     `total_items: ${items.length}`,
     "---",
     "",
-    "# Titirek Shelf Overview",
+    "# HepYeni Shelf Overview",
     "",
     `Exported **${items.length}** media items on ${new Date().toLocaleDateString()}.`,
     "",
@@ -132,7 +132,7 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
   }
 
   files.push({
-    name: "Titirek Shelf/Index.md",
+    name: "HepYeni Shelf/Index.md",
     content: indexLines.join("\n"),
   });
 

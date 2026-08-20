@@ -11,7 +11,7 @@ export interface ShelfJsonExport {
 export function exportShelfToJson(items: UserMediaProgressResponse[]): string {
   const exportData: ShelfJsonExport = {
     version: "1.0",
-    appName: "Titirek",
+    appName: "HepYeni",
     exportedAt: new Date().toISOString(),
     totalCount: items.length,
     items,

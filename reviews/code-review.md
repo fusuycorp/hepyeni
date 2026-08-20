@@ -2,7 +2,7 @@ I have completed a thorough read of the source and verified my findings against 
 
 ---
 
-# Code Review — titirek codebase
+# Code Review — hepyeni codebase
 
 Scope reviewed: `src/lib/actions/*.ts` (all 14), core `src/lib/*.ts` (`date`, `format`, `comments`, `marginalia`, `schedules`, `membership`, `moods`, `errors`, `invite-code`, `utils`, `flags/*`, `pocketbase/*`), key components and app pages, and `pb_migrations` for schema/unique-index ground truth. `node_modules`, `.git`, `.agents` excluded per instructions. Multiple unit/adversarial test suites confirm the codebase is well-tested; the ADR/user-facing invariants are largely honored.
 

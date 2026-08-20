@@ -5,7 +5,7 @@ import {
   type FeatureFlagKey,
 } from "./registry";
 
-export const FEATURE_FLAGS_COOKIE_NAME = "titirek_flags";
+export const FEATURE_FLAGS_COOKIE_NAME = "hepyeni_flags";
 
 export interface FeatureFlagContext {
   cookies?:

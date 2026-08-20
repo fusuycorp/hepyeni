@@ -1,6 +1,6 @@
-# Titirek Data Models & Database Schema
+# HepYeni Data Models & Database Schema
 
-This document details the database architecture, PocketBase schema collections, relational cascading rules, indexes, and TypeScript types for **Titirek**.
+This document details the database architecture, PocketBase schema collections, relational cascading rules, indexes, and TypeScript types for **HepYeni**.
 
 ---
 
@@ -195,13 +195,13 @@ PocketBase manages referential integrity through native `cascadeDelete` settings
    - `votes.title` and `reviews.title` (`cascadeDelete: true`) $\to$ Automatically deleted when their parent title is removed.
 2. **User Account Deletion (`users.delete(id)`)**:
    - `group_members.user`, `votes.user`, `reviews.user` have `cascadeDelete: true`.
-   - **Protection Rule**: `groups.createdBy` and `titles.addedBy` specify `cascadeDelete: false`. If a user attempts to delete their account while still owning a circle or active titles, PocketBase returns a `400 ClientResponseError`, requiring them to transfer ownership or remove groups first ([`src/lib/actions/profile.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/actions/profile.ts#L22-L42)).
+   - **Protection Rule**: `groups.createdBy` and `titles.addedBy` specify `cascadeDelete: false`. If a user attempts to delete their account while still owning a circle or active titles, PocketBase returns a `400 ClientResponseError`, requiring them to transfer ownership or remove groups first ([`src/lib/actions/profile.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/profile.ts#L22-L42)).
 
 ---
 
 ## 4. TypeScript Definitions & Type Generation
 
-Generated TypeScript types are stored in [`src/types/pocketbase-types.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/types/pocketbase-types.ts).
+Generated TypeScript types are stored in [`src/types/pocketbase-types.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/types/pocketbase-types.ts).
 
 ### Regenerating Schema Types
 Whenever migrations in `pb_migrations/` are updated, regenerate types using `pocketbase-typegen`:

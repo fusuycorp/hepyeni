@@ -1,4 +1,4 @@
-name: Build, Push and Deploy Titirek
+name: Build, Push and Deploy HepYeni
 
 on:
   push:
@@ -58,7 +58,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: registry.bogazici.app/budok/titirek
+          images: registry.bogazici.app/budok/hepyeni
           tags: |
             type=raw,value=latest
             type=sha,format=long
@@ -102,7 +102,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: registry.bogazici.app/budok/titirek-pb
+          images: registry.bogazici.app/budok/hepyeni-pb
           tags: |
             type=raw,value=latest
             type=sha,format=long

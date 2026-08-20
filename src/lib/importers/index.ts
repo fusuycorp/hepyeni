@@ -40,7 +40,7 @@ export function detectImportSource(
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed) || (parsed && typeof parsed === "object" && "items" in parsed)) {
-        return { source: "titirek_json" };
+        return { source: "hepyeni_json" };
       }
     } catch {
       // Not valid JSON, fall through to CSV
@@ -197,7 +197,7 @@ function parseGenericCsv(content: string): NormalizedImportItem[] {
   return items;
 }
 
-function parseTitirekJson(content: string): NormalizedImportItem[] {
+function parseHepYeniJson(content: string): NormalizedImportItem[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
@@ -293,8 +293,8 @@ export function parseImportFile(content: string, filename?: string): ParseResult
       case "storygraph":
         items = parseStoryGraphCsv(content);
         break;
-      case "titirek_json":
-        items = parseTitirekJson(content);
+      case "hepyeni_json":
+        items = parseHepYeniJson(content);
         break;
       case "generic_csv":
       default:

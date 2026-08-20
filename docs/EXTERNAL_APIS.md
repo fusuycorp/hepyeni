@@ -1,12 +1,12 @@
-# Titirek External Media Integrations
+# HepYeni External Media Integrations
 
-This document details the multi-provider external media search architecture, authentication requirements, caching policies, and error-handling strategies in **Titirek**.
+This document details the multi-provider external media search architecture, authentication requirements, caching policies, and error-handling strategies in **HepYeni**.
 
 ---
 
 ## 1. Provider Adapter Pattern
 
-Titirek standardizes external media integrations using an adapter pattern defined in [`src/lib/providers/types.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/types.ts).
+HepYeni standardizes external media integrations using an adapter pattern defined in [`src/lib/providers/types.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/types.ts).
 
 ### Normalized Data Contract
 
@@ -31,7 +31,7 @@ export interface MediaProvider {
 ## 2. Provider Implementations
 
 ### 2.1 Google Books (`book`)
-- **Module**: [`src/lib/providers/google-books.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/google-books.ts)
+- **Module**: [`src/lib/providers/google-books.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/google-books.ts)
 - **External Source**: `"google-books"`
 - **Endpoint**: `https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=12`
 - **Authentication**: None (public endpoint).
@@ -39,7 +39,7 @@ export interface MediaProvider {
 - **Extracted Metadata**: `description`, `publishedDate`, `pageCount`.
 
 ### 2.2 The Movie Database (TMDB) (`movie`, `tv`)
-- **Module**: [`src/lib/providers/tmdb.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/tmdb.ts)
+- **Module**: [`src/lib/providers/tmdb.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/tmdb.ts)
 - **External Source**: `"tmdb"`
 - **Endpoints**:
   - Movies: `https://api.themoviedb.org/3/search/movie?query={query}&include_adult=false`
@@ -49,7 +49,7 @@ export interface MediaProvider {
 - **Extracted Metadata**: `overview`, `releaseDate` (`release_date` for movies, `first_air_date` for TV).
 
 ### 2.3 Spotify (`music`)
-- **Module**: [`src/lib/providers/spotify.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/spotify.ts)
+- **Module**: [`src/lib/providers/spotify.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/spotify.ts)
 - **External Source**: `"spotify"`
 - **Endpoint**: `https://api.spotify.com/v1/search?type=album&limit=12&q={query}`
 - **Authentication**: Client-Credentials flow via `https://accounts.spotify.com/api/token`.
@@ -60,7 +60,7 @@ export interface MediaProvider {
 - **Extracted Metadata**: `releaseDate`.
 
 ### 2.4 Apple iTunes Podcasts (`podcast`)
-- **Module**: [`src/lib/providers/itunes-podcasts.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/itunes-podcasts.ts)
+- **Module**: [`src/lib/providers/itunes-podcasts.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/itunes-podcasts.ts)
 - **External Source**: `"itunes"`
 - **Endpoint**: `https://itunes.apple.com/search?media=podcast&limit=12&term={query}`
 - **Authentication**: None (public endpoint).
@@ -88,12 +88,12 @@ const res = await fetch(url, {
 
 ## 4. Provider Registry & UI Rendering
 
-The provider registry in [`src/lib/providers/index.ts`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/index.ts) exposes:
-- [`getProvider(mediaType)`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/index.ts#L16): Resolves the `MediaProvider` instance for a given media category.
-- [`isProviderAvailable(mediaType)`](file:///home/devhax/projects/fusuycorp/titirek/src/lib/providers/index.ts#L24): Verifies provider registration before invoking search actions.
+The provider registry in [`src/lib/providers/index.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/index.ts) exposes:
+- [`getProvider(mediaType)`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/index.ts#L16): Resolves the `MediaProvider` instance for a given media category.
+- [`isProviderAvailable(mediaType)`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/providers/index.ts#L24): Verifies provider registration before invoking search actions.
 
 ### UI Media Presentation
-All third-party cover images render through [`MediaCover`](file:///home/devhax/projects/fusuycorp/titirek/src/components/media-cover.tsx):
+All third-party cover images render through [`MediaCover`](file:///home/devhax/projects/fusuycorp/hepyeni/src/components/media-cover.tsx):
 - Enforces an `aspect-[2/3]` container with subtle background shimmer.
 - Renders fallback icons when `coverUrl` is absent or failed to load.
 - Prevents Cumulative Layout Shift (CLS) across heterogeneous third-party image domains.

@@ -1,6 +1,6 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// Initial titirek schema: extends the built-in `users` auth collection with
+// Initial hepyeni schema: extends the built-in `users` auth collection with
 // admin/ban/avatar fields and disables password auth (Google OAuth2 + email
 // OTP only), then creates the 5 product collections (groups, group_members,
 // titles, votes, reviews) — the PocketBase equivalent of

@@ -37,7 +37,7 @@ export default async function InviteRootPage({
               <BookmarkCheck className="size-5" />
             </div>
             <span className="text-foreground tracking-tight font-semibold text-lg">
-              Titirek
+              HepYeni
             </span>
           </Link>
         </div>

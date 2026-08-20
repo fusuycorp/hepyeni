@@ -31,14 +31,14 @@ describe("Reverse-Proxy Origin Resolution & OAuth URL Protocol", () => {
     process.env.TRUST_FORWARDED_HEADERS = "true";
     const mockReq = {
       headers: new Headers({
-        "x-forwarded-host": "stage.titirek.app:8443",
+        "x-forwarded-host": "stage.hepyeni.app:8443",
         "x-forwarded-proto": "https",
         host: "0.0.0.0:3000",
       }),
     };
 
     const origin = getRequestOrigin(mockReq);
-    expect(origin).toBe("https://stage.titirek.app:8443");
+    expect(origin).toBe("https://stage.hepyeni.app:8443");
   });
 
   it("ignores x-forwarded-* when not trusted and falls back to the validated Host header", () => {

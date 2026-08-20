@@ -282,7 +282,7 @@
 
 `src/lib/flags/server.ts` · 206 ln · ← actions, adversarial-flags-and-security.test, app/layout, flags.test, +3 · 1 commit/90d
   :5    type FeatureFlagKey,
-  :8    export const FEATURE_FLAGS_COOKIE_NAME = "titirek_flags";
+  :8    export const FEATURE_FLAGS_COOKIE_NAME = "hepyeni_flags";
   :10   export interface FeatureFlagContext
   :24   function parseCookieFlags(cookieValue?: string): Partial<Record<FeatureFlagKey, boolean…
   :52   async function getCookieValue(
@@ -322,7 +322,7 @@
 `src/lib/importers/index.ts` · 305 ln · ← adversarial-importers.test, exporters.test, import-dropzone, import-export-view, +2 · 1 commit/90d
   :18   export function detectImportSource(
   :74   function parseGenericCsv(content: string): NormalizedImportItem[]
-  :190  function parseTitirekJson(content: string): NormalizedImportItem[]
+  :190  function parseHepYeniJson(content: string): NormalizedImportItem[]
   :266  export function parseImportFile(content: string, filename?: string): ParseResult
 
 `src/lib/actions/titles.ts` · 260 ln · ← [groupId]/page, [titleId]/page, add-title-form · 12 commits/90d

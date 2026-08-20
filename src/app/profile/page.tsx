@@ -173,7 +173,7 @@ export default async function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Titirek Labs */}
+        {/* HepYeni Labs */}
         <LabsCard />
 
         {/* Developer Diagnostics / Troubleshooting — admin-only (server action also

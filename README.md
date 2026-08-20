@@ -1,6 +1,6 @@
-# Titirek
+# HepYeni
 
-**Titirek** is a modern, responsive collaborative media recommendation, voting, and consumption tracker for groups (book clubs, movie nights, music listening circles, podcast clubs).
+**HepYeni** is a modern, responsive collaborative media recommendation, voting, and consumption tracker for groups (book clubs, movie nights, music listening circles, podcast clubs).
 
 ---
 
@@ -110,7 +110,7 @@ bun run build
 
 ### LLM data processing
 
-The optional Extract from Text importer sends only the text the user pastes, and only after the user checks the localized acknowledgement. The request does not include the user's account identity or PocketBase records. Titirek does not use submitted text to train its own models, but the configured provider may process or retain requests under its own policy. Users should not paste passwords, tokens, private messages, or other sensitive data; a local LLM endpoint is available through `LLM_API_URL`.
+The optional Extract from Text importer sends only the text the user pastes, and only after the user checks the localized acknowledgement. The request does not include the user's account identity or PocketBase records. HepYeni does not use submitted text to train its own models, but the configured provider may process or retain requests under its own policy. Users should not paste passwords, tokens, private messages, or other sensitive data; a local LLM endpoint is available through `LLM_API_URL`.
 
 `LLM_API_KEY` is a runtime secret. Pass it through `.env.local`, Docker Compose, or the production secret manager. Do not add it to `Dockerfile` build arguments, `ENV` instructions, source files, or image layers.
 
@@ -118,7 +118,7 @@ The optional Extract from Text importer sends only the text the user pastes, and
 
 ## Development Workflow
 
-Titirek uses **trunk-based development**: work happens on short-lived branches that become pull requests and are squash-merged into `main` after review. `main` is protected — no direct pushes.
+HepYeni uses **trunk-based development**: work happens on short-lived branches that become pull requests and are squash-merged into `main` after review. `main` is protected — no direct pushes.
 
 ### Branch naming
 
@@ -151,23 +151,23 @@ gh pr create --base main --head fix/my-thing
 
 ## Documentation
 
-Comprehensive architecture, security, and developer reference guides are available in the [`docs/`](file:///home/devhax/projects/fusuycorp/titirek/docs/README.md) directory:
+Comprehensive architecture, security, and developer reference guides are available in the [`docs/`](file:///home/devhax/projects/fusuycorp/hepyeni/docs/README.md) directory:
 
-- [**System Architecture**](file:///home/devhax/projects/fusuycorp/titirek/docs/ARCHITECTURE.md): Server Action model, PocketBase superuser client, live session verification, and concurrency defense.
-- [**Codebase Map**](file:///home/devhax/projects/fusuycorp/titirek/docs/CODEBASE_MAP.md): Detailed directory tree and file breakdown.
-- [**Auth & Security**](file:///home/devhax/projects/fusuycorp/titirek/docs/AUTH_AND_SECURITY.md): Multi-provider auth flows, IDOR defense, and ban enforcement.
-- [**Data Models**](file:///home/devhax/projects/fusuycorp/titirek/docs/DATA_MODELS.md): PocketBase collections, ERD, and relational cascading.
-- [**External Media APIs**](file:///home/devhax/projects/fusuycorp/titirek/docs/EXTERNAL_APIS.md): Google Books, TMDB, Spotify, and iTunes integrations.
-- [**Deployment & Infrastructure**](file:///home/devhax/projects/fusuycorp/titirek/docs/DEPLOYMENT_AND_INFRA.md): Docker Swarm, Dokploy, and environment setup.
+- [**System Architecture**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/ARCHITECTURE.md): Server Action model, PocketBase superuser client, live session verification, and concurrency defense.
+- [**Codebase Map**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/CODEBASE_MAP.md): Detailed directory tree and file breakdown.
+- [**Auth & Security**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/AUTH_AND_SECURITY.md): Multi-provider auth flows, IDOR defense, and ban enforcement.
+- [**Data Models**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/DATA_MODELS.md): PocketBase collections, ERD, and relational cascading.
+- [**External Media APIs**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/EXTERNAL_APIS.md): Google Books, TMDB, Spotify, and iTunes integrations.
+- [**Deployment & Infrastructure**](file:///home/devhax/projects/fusuycorp/hepyeni/docs/DEPLOYMENT_AND_INFRA.md): Docker Swarm, Dokploy, and environment setup.
 
 ---
 
 ## Architectural Decision Records
 
-Major architectural choices, security defenses, and design patterns are documented in [`DECISIONS.md`](file:///home/devhax/projects/fusuycorp/titirek/DECISIONS.md).
+Major architectural choices, security defenses, and design patterns are documented in [`DECISIONS.md`](file:///home/devhax/projects/fusuycorp/hepyeni/DECISIONS.md).
 
 ---
 
 ## Deployment
 
-Containerized via `Dockerfile` and deployed on **Docker Swarm** with **Dokploy**. CI (`.github/workflows/deploy.yml`) builds the image, pushes to `registry.bogazici.app/budok/titirek`, and triggers Dokploy redeployments.
+Containerized via `Dockerfile` and deployed on **Docker Swarm** with **Dokploy**. CI (`.github/workflows/deploy.yml`) builds the image, pushes to `registry.bogazici.app/budok/hepyeni`, and triggers Dokploy redeployments.

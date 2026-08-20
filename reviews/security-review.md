@@ -2,7 +2,7 @@ All evidence is gathered. Here is the complete security review artifact.
 
 ---
 
-# Security Review — titirek
+# Security Review — hepyeni
 
 **Scope:** `src/` and `pb_migrations/` (Next.js App Router + PocketBase/SQLite + Bun, multi-tenant media circles). Reviewed all server actions, middleware (`src/proxy.ts`), session/auth layer, invite handler, importers/exporters, and all PB migrations. Read-only review — no files modified, no git/test commands run (verification is static; tests out of scope).
 
@@ -145,7 +145,7 @@ if (host && !host.includes("0.0.0.0")) return `${proto}://${host}`;
 `signInWithEmail` (server action `auth.ts:118-141`, creates a user on every unknown email — **unlimited account creation** by design), `signUpWithPassword`, `requestPasswordReset`, `verifyEmailCode`, `signInWithPassword`, and `joinGroupByCodeAction` have no throttling; the app relies entirely on PocketBase's built-in per-endpoint auth limits. Missing: auth-endpoint rate limiting (IP/email), CAPTCHA/reCAPTCHA on signup, and OTP retry backoff. Also `signUpWithPassword` returns a distinct `EmailInUse` error (`auth.ts:174-176`) — mild account enumeration, acceptable for standard signup UX but worth noting.
 
 #### L-5 — Feature flags are client-controlled, so `requireFeature` is not a security boundary
-`src/lib/flags/actions.ts` (`toggleUserFeatureFlag`) lets *any* user write `titirek_flags`/`flag_<key>` cookies, and `requireFeature("digital_marginalia")` (`marginalia.ts:35,81,142,175`) is resolved from those same cookies (`flags/server.ts:96-120`). Anyone can self-enable the quotes feature. Not exploitable today because record-level ownership checks are intact, but treat flags strictly as UX gating — never as an access control.
+`src/lib/flags/actions.ts` (`toggleUserFeatureFlag`) lets *any* user write `hepyeni_flags`/`flag_<key>` cookies, and `requireFeature("digital_marginalia")` (`marginalia.ts:35,81,142,175`) is resolved from those same cookies (`flags/server.ts:96-120`). Anyone can self-enable the quotes feature. Not exploitable today because record-level ownership checks are intact, but treat flags strictly as UX gating — never as an access control.
 
 #### L-6 — Ops notes
 - `docker-compose.yml` default `PB_URL=${PB_URL:-http://localhost:8090}` points at the container's own localhost while the prod fallback in code is `http://pocketbase:8090` (`session.ts:20-22`) — misconfig-prone; align the compose default with the code fallback.

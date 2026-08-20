@@ -14,7 +14,7 @@ import {
 import { en } from "@/lib/i18n/en";
 import { tr } from "@/lib/i18n/tr";
 
-describe("Titirek Labs Feature Flag Engine", () => {
+describe("HepYeni Labs Feature Flag Engine", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
