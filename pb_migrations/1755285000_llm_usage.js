@@ -1,11 +1,7 @@
-/// <reference path="../pb_data/types.d.ts" />
-
 // Fixed-slot reservations make LLM limits atomic across all Next replicas:
 // concurrent requests compete on unique PocketBase record ids instead of
 // reading and incrementing a shared counter.
 migrate((app) => {
-  if (app.findCollectionByNameOrId("llm_usage")) return;
-
   const users = app.findCollectionByNameOrId("users");
   const usage = new Collection({
     type: "base",
@@ -36,13 +32,11 @@ migrate((app) => {
       { type: "autodate", name: "createdAt", onCreate: true, onUpdate: false },
     ],
   });
-  // ponytail: composite index (`window, user`) fails with "sql: no rows in
-  // result set" on PocketBase 0.39.x when a relation field is in a multi-column
-  // index (verified on a fresh DB) — write two single-column indexes instead;
-  // atomicity comes from unique reservation ids, not this index. Upgrade path:
-  // revisit composite-relation indexes on a PocketBase version where they apply.
-  usage.addIndex("idx_llm_usage_window", false, "window");
-  usage.addIndex("idx_llm_usage_user", false, "user");
+  // ponytail: PocketBase 0.39.11 throws `sql: no rows in result set` for the
+  // old not-found guard and for explicit indexes here (the composite relation
+  // index fails on fresh data; single-column indexes fail on the production
+  // volume). No index needed: rate-limit.ts creates and deletes by unique
+  // reservation id, covered by the implicit primary-key index.
   app.save(usage);
 }, (app) => {
   const usage = app.findCollectionByNameOrId("llm_usage");
