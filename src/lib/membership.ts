@@ -130,31 +130,34 @@ export async function resolveCircleAccess(
   userId?: string,
 ): Promise<CircleAccess> {
   const pb = await getSuperuserClient();
-  let group: GroupsResponse;
-  try {
-    group = await pb.collection("groups").getOne<GroupsResponse>(groupId);
-  } catch (err) {
-    if (isNotFound(err)) throw new Error("Circle not found");
-    throw err;
-  }
 
-  let membership: GroupMembersResponse | null = null;
-  if (userId) {
-    try {
-      membership = await pb
+  // The two reads are independent — run them in parallel so every page render
+  // and mutation action saves one serial PocketBase round trip.
+  const membershipQuery: Promise<GroupMembersResponse | null> = userId
+    ? pb
         .collection("group_members")
         .getFirstListItem<GroupMembersResponse>(
           pb.filter("group = {:groupId} && user = {:userId}", {
             groupId,
             userId,
           }),
-        );
-    } catch (err) {
-      if (!isNotFound(err)) throw err;
-    }
-  }
+        )
+        .catch((err) => {
+          if (!isNotFound(err)) throw err;
+          return null;
+        })
+    : Promise.resolve(null);
 
-  return evaluateCircleAccess(group, membership);
+  try {
+    const [group, membership] = await Promise.all([
+      pb.collection("groups").getOne<GroupsResponse>(groupId),
+      membershipQuery,
+    ]);
+    return evaluateCircleAccess(group, membership);
+  } catch (err) {
+    if (isNotFound(err)) throw new Error("Circle not found");
+    throw err;
+  }
 }
 
 export async function requireMembership(
