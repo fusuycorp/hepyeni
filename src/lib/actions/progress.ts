@@ -10,6 +10,7 @@ import {
 } from "@/lib/membership";
 import { extractErrorMessage, logDiagnostic } from "@/lib/errors";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
+import { pickReviewerUser, type PublicUser } from "@/lib/group-titles";
 import type { ActionResult } from "@/types/actions";
 import type {
   GroupMembersResponse,
@@ -287,7 +288,8 @@ export async function deleteMediaProgress(
 }
 
 export interface TitleMemberProgressItem {
-  user: UsersResponse;
+  // R2: projected to id/name/avatarUrl — member emails never reach the client.
+  user: PublicUser;
   progress: UserMediaProgressResponse;
   percentage?: number;
 }
@@ -349,23 +351,23 @@ export async function getTitleCircleProgress(
 
     const progressRecords = await pb
       .collection("user_media_progress")
-      .getFullList<UserMediaProgressResponse<{ user?: UsersResponse }>>({
+      .getFullList<UserMediaProgressResponse>({
         filter,
-        expand: "user",
       });
 
-    const memberMap = new Map<string, UsersResponse>();
+    const memberMap = new Map<string, PublicUser>();
     for (const m of members) {
-      if (m.expand?.user) {
-        memberMap.set(m.user, m.expand.user);
+      const user = pickReviewerUser(m.expand?.user);
+      if (user) {
+        memberMap.set(m.user, user);
       }
     }
 
     const result: TitleMemberProgressItem[] = [];
     for (const p of progressRecords) {
-      if (memberMap.has(p.user)) {
+      const user = memberMap.get(p.user);
+      if (user) {
         if (p.isSharedWithCircles !== false || p.user === resolvedSession?.id) {
-          const user = memberMap.get(p.user)!;
           let percentage: number | undefined;
           if (p.status === "completed") {
             percentage = 100;
@@ -397,66 +399,7 @@ export async function getTitleCircleProgress(
 }
 
 export interface CircleLiveActivityItem {
-  user: UsersResponse;
+  user: PublicUser;
   progress: UserMediaProgressResponse;
 }
 
-export async function getCircleLiveActivity(
-  groupId: string,
-): Promise<CircleLiveActivityItem[]> {
-  const session = await getSession();
-  const access = await resolveCircleAccess(groupId, session?.id);
-  if (!access.isMember && !access.group.isPublic) {
-    return [];
-  }
-
-  try {
-    const pb = await getSuperuserClient();
-    const members = await pb
-      .collection("group_members")
-      .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
-        filter: pb.filter("group = {:groupId}", { groupId }),
-        expand: "user",
-      });
-
-    const memberMap = new Map<string, UsersResponse>();
-    for (const m of members) {
-      if (m.expand?.user) {
-        memberMap.set(m.user, m.expand.user);
-      }
-    }
-
-    if (memberMap.size === 0) return [];
-
-    // C7: include the viewer's own in-progress record even when they marked it
-    // private, mirroring getTitleCircleProgress's self-visibility rule.
-    const filter = session?.id
-      ? pb.filter(
-          'status = "in_progress" && (isSharedWithCircles != false || user = {:userId})',
-          { userId: session.id },
-        )
-      : 'status = "in_progress" && isSharedWithCircles != false';
-
-    const activeProgress = await pb
-      .collection("user_media_progress")
-      .getFullList<UserMediaProgressResponse>({
-        filter,
-        sort: "-updatedAt",
-      });
-
-    const result: CircleLiveActivityItem[] = [];
-    for (const p of activeProgress) {
-      if (memberMap.has(p.user)) {
-        result.push({
-          user: memberMap.get(p.user)!,
-          progress: p,
-        });
-      }
-    }
-
-    return result;
-  } catch (err) {
-    logDiagnostic(err, { action: "getCircleLiveActivity", groupId });
-    return [];
-  }
-}

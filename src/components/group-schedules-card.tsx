@@ -547,7 +547,7 @@ export function GroupSchedulesCard({
                                 <Avatar key={c.id} className="size-5 border border-background">
                                   <AvatarImage src={c.expand?.user?.avatarUrl} />
                                   <AvatarFallback className="text-[8px] font-mono">
-                                    {getInitials(c.expand?.user?.name, c.expand?.user?.email)}
+                                    {getInitials(c.expand?.user?.name)}
                                   </AvatarFallback>
                                 </Avatar>
                               ))}

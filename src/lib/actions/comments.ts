@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { canDeleteComment, validateCommentContent } from "@/lib/comments";
+import { canDeleteComment, projectCommentRow, validateCommentContent, type PublicComment } from "@/lib/comments";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
@@ -19,7 +19,7 @@ export async function addComment(
   titleId: string,
   groupId: string,
   formData: FormData,
-): Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>>> {
+): Promise<ActionResult<PublicComment>> {
   const session = await getSession();
   if (!session) {
     return { success: false, error: "Please sign in first." };
@@ -76,7 +76,7 @@ export async function addComment(
     revalidatePath(`/groups/${groupId}/titles/${titleId}`);
     revalidatePath("/activity");
 
-    return { success: true, data: comment };
+    return { success: true, data: projectCommentRow(comment) };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "addComment", titleId, groupId });
     return { success: false, error: "Failed to add comment.", traceId: diag.traceId };
@@ -86,7 +86,7 @@ export async function addComment(
 export async function getComments(
   titleId: string,
   groupId: string,
-): Promise<CommentsResponse<{ user?: UsersResponse }>[]> {
+): Promise<PublicComment[]> {
   const session = await getSession();
   const access = await resolveCircleAccess(groupId, session?.id);
   if (!access.canViewComments) {
@@ -96,13 +96,19 @@ export async function getComments(
   try {
     await requireTitleInGroup(titleId, groupId);
     const pb = await getSuperuserClient();
-    return await pb
+    const rows = await pb
       .collection("comments")
       .getFullList<CommentsResponse<{ user?: UsersResponse }>>({
         filter: pb.filter("title = {:t}", { t: titleId }),
         sort: "createdAt",
         expand: "user",
+        // R2: expand.user arrives trimmed to id/name/avatarUrl — email never
+        // crosses the wire.
+        fields:
+          "id,title,user,group,content,parentId,createdAt," +
+          "expand.user.id,expand.user.name,expand.user.avatarUrl",
       });
+    return rows.map(projectCommentRow);
   } catch (err) {
     logDiagnostic(err, { action: "getComments", titleId, groupId });
     return [];

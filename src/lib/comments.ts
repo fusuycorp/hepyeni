@@ -1,3 +1,20 @@
+import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
+import { pickReviewerUser, type ReviewerUser } from "@/lib/group-titles";
+
+// R2 invariant: comment authors ship to the client as {id, name, avatarUrl}
+// only — the full expanded UsersResponse (with email) never leaves the server.
+export type PublicComment = CommentsResponse<{ user?: ReviewerUser }>;
+
+export function projectCommentRow(
+  row: CommentsResponse<{ user?: UsersResponse }>,
+): PublicComment {
+  const author = pickReviewerUser(row.expand?.user);
+  return {
+    ...row,
+    expand: author ? { user: author } : {},
+  };
+}
+
 export function validateCommentContent(raw: unknown): string {
   if (raw === null || raw === undefined) {
     throw new Error("Comment content cannot be empty");

@@ -26,9 +26,9 @@ import { MOODS, MOOD_DETAILS, type MoodType } from "@/lib/moods";
 import { Smile } from "lucide-react";
 import type { TitlePayload } from "@/lib/group-titles";
 import type { ActionResult } from "@/types/actions";
+import type { PublicComment } from "@/lib/comments";
 import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
 import type {
-  CommentsResponse,
   GroupMembersResponse,
   GroupsResponse,
   UsersResponse,
@@ -68,11 +68,9 @@ interface GroupContentViewProps {
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  ) => Promise<ActionResult<PublicComment> | PublicComment>;
   onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
-  onFetchComments?: (
-    titleId: string,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
+  onFetchComments?: (titleId: string) => Promise<PublicComment[]>;
 }
 
 export function GroupContentView({

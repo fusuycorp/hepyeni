@@ -2,6 +2,7 @@ import type {
   MilestoneCommentsResponse,
   UsersResponse,
 } from "@/types/pocketbase-types";
+import { pickReviewerUser, type ReviewerUser } from "@/lib/group-titles";
 
 export interface MilestoneCommentItem {
   id: string;
@@ -12,12 +13,7 @@ export interface MilestoneCommentItem {
   isSpoiler?: boolean;
   createdAt: string;
   isLocked?: boolean;
-  author?: {
-    id: string;
-    name?: string;
-    email?: string;
-    avatarUrl?: string;
-  };
+  author?: ReviewerUser;
 }
 
 export interface MilestoneCommentsResult {
@@ -50,13 +46,7 @@ export function filterMilestoneCommentsForViewer(
       isSpoiler: c.isSpoiler,
       createdAt: c.createdAt,
       isLocked: true,
-      author: c.expand?.user
-        ? {
-            id: c.expand.user.id,
-            name: c.expand.user.name,
-            avatarUrl: c.expand.user.avatarUrl,
-          }
-        : undefined,
+      author: pickReviewerUser(c.expand?.user),
     }));
 
     return {
@@ -76,14 +66,7 @@ export function filterMilestoneCommentsForViewer(
     isSpoiler: c.isSpoiler,
     createdAt: c.createdAt,
     isLocked: false,
-    author: c.expand?.user
-      ? {
-          id: c.expand.user.id,
-          name: c.expand.user.name,
-          email: c.expand.user.email,
-          avatarUrl: c.expand.user.avatarUrl,
-        }
-      : undefined,
+    author: pickReviewerUser(c.expand?.user),
   }));
 
   return {
