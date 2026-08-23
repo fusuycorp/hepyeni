@@ -31,7 +31,7 @@ export const viewport = {
   initialScale: 1,
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [locale, flags] = await Promise.all([
     getLocale(),
     getFeatureFlags(),
