@@ -167,8 +167,8 @@ export function GroupContentView({
     return matchesType && matchesRecommender && matchesMood;
   };
 
-  const filteredProposed = proposed.filter(filterTitle);
-  const filteredConsumed = consumed.filter(filterTitle);
+  const filteredProposed = useMemo(() => proposed.filter(filterTitle), [proposed, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
+  const filteredConsumed = useMemo(() => consumed.filter(filterTitle), [consumed, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
 
   const isFiltered =
     selectedMediaType !== "all" ||
