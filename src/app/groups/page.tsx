@@ -81,7 +81,7 @@ export default async function GroupsPage() {
     <AppShell user={currentUser} maxWidth="wide" title={t.groups.title}>
       <div className="flex flex-col gap-8">
         {/* Header Hero */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border/60">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               {t.groups.yourCircles}
@@ -91,7 +91,7 @@ export default async function GroupsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full border">
+            <span className="text-xs font-mono font-medium text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-xs border border-border/60">
               {t.groups.groupCount.replace("{n}", String(memberships.length))}
             </span>
           </div>
@@ -112,7 +112,7 @@ export default async function GroupsPage() {
                   href={`/groups/${group.id}`}
                   className="group block"
                 >
-                  <Card className="h-full flex flex-col justify-between border-border/70 hover:border-primary/50 hover:shadow-md transition-all duration-200 group-active:scale-[0.99]">
+                  <Card className="h-full flex flex-col justify-between border-border/60 hover:border-primary/50 transition-all duration-200 group-active:scale-[0.99]">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
                         <CardTitle className="text-base font-semibold group-hover:text-primary transition-colors line-clamp-1">
@@ -120,7 +120,7 @@ export default async function GroupsPage() {
                         </CardTitle>
                         <Badge
                           variant={isOwner ? "default" : "secondary"}
-                          className="shrink-0 text-[10px] uppercase tracking-wider font-semibold"
+                          className="shrink-0 text-[10px] uppercase tracking-wider font-mono font-semibold"
                         >
                           {isOwner ? t.groups.ownerBadge : t.groups.memberBadge}
                         </Badge>
@@ -132,7 +132,7 @@ export default async function GroupsPage() {
                     </CardHeader>
 
                     <CardContent className="pt-0">
-                      <div className="flex items-center justify-between border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
                         <div className="flex items-center gap-3">
                           <span className="inline-flex items-center gap-1 font-medium text-foreground">
                             <span className="text-primary font-bold">{stats.proposed}</span> {t.media.upNext}
@@ -162,8 +162,8 @@ export default async function GroupsPage() {
         )}
 
         {/* Create & Join Actions Section */}
-        <div className="space-y-3 pt-4 border-t">
-          <h2 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">
+        <div className="space-y-3 pt-4 border-t border-border/60">
+          <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
             {t.groups.createOrJoin}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

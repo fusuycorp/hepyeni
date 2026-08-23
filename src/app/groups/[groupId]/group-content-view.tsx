@@ -197,7 +197,7 @@ export function GroupContentView({
   return (
     <div className="flex flex-col gap-6">
       {/* View Switcher & Filters */}
-      <div className="space-y-3 pb-3 border-b">
+      <div className="space-y-3 pb-3 border-b border-border/60">
         {/* Main Tabs (Up Next vs In Progress vs Consumed) & Media Types */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
@@ -205,7 +205,7 @@ export function GroupContentView({
             <div
               role="tablist"
               aria-label={t.groups.contentViewAria}
-              className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 w-fit"
+              className="flex items-center gap-1 bg-muted/60 p-1 rounded-sm border border-border/60 w-fit"
             >
               {canViewBacklog && (
                 <button
@@ -216,9 +216,9 @@ export function GroupContentView({
                   aria-controls="proposed-panel"
                   onClick={() => setActiveTab("proposed")}
                   className={cn(
-                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
                     activeTab === "proposed"
-                      ? "bg-background text-foreground shadow-xs"
+                      ? "bg-background text-foreground shadow-2xs font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -226,9 +226,9 @@ export function GroupContentView({
                   <span>{t.media.upNext}</span>
                   <span
                     className={cn(
-                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      "px-1.5 py-0.2 rounded-xs font-mono text-[10px]",
                       activeTab === "proposed"
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-primary/10 text-primary font-semibold"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
@@ -246,9 +246,9 @@ export function GroupContentView({
                   aria-controls="in-progress-panel"
                   onClick={() => setActiveTab("in_progress")}
                   className={cn(
-                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
                     activeTab === "in_progress"
-                      ? "bg-background text-foreground shadow-xs"
+                      ? "bg-background text-foreground shadow-2xs font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -256,9 +256,9 @@ export function GroupContentView({
                   <span>{t.media.inProgress}</span>
                   <span
                     className={cn(
-                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      "px-1.5 py-0.2 rounded-xs font-mono text-[10px]",
                       activeTab === "in_progress"
-                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
@@ -276,9 +276,9 @@ export function GroupContentView({
                   aria-controls="consumed-panel"
                   onClick={() => setActiveTab("consumed")}
                   className={cn(
-                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
                     activeTab === "consumed"
-                      ? "bg-background text-foreground shadow-xs"
+                      ? "bg-background text-foreground shadow-2xs font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -286,9 +286,9 @@ export function GroupContentView({
                   <span>{t.media.finished}</span>
                   <span
                     className={cn(
-                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      "px-1.5 py-0.2 rounded-xs font-mono text-[10px]",
                       activeTab === "consumed"
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
@@ -305,9 +305,9 @@ export function GroupContentView({
                 aria-controls="schedules-panel"
                 onClick={() => setActiveTab("schedules")}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
                   activeTab === "schedules"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -316,9 +316,9 @@ export function GroupContentView({
                 {schedules && schedules.length > 0 && (
                   <span
                     className={cn(
-                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      "px-1.5 py-0.2 rounded-xs font-mono text-[10px]",
                       activeTab === "schedules"
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-primary/10 text-primary font-semibold"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
@@ -336,10 +336,10 @@ export function GroupContentView({
               aria-pressed={selectedMediaType === "all"}
               onClick={() => setSelectedMediaType("all")}
               className={cn(
-                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                "px-2.5 py-1 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
                 selectedMediaType === "all"
                   ? "bg-foreground text-background border-foreground font-semibold"
-                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+                  : "bg-background text-muted-foreground hover:bg-muted"
               )}
             >
               {t.media.allTypes}
@@ -351,10 +351,10 @@ export function GroupContentView({
                 aria-pressed={selectedMediaType === type}
                 onClick={() => setSelectedMediaType(type)}
                 className={cn(
-                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap flex items-center gap-1",
+                  "px-2.5 py-1 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap flex items-center gap-1",
                   selectedMediaType === type
                     ? "bg-foreground text-background border-foreground font-semibold"
-                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                    : "bg-background text-muted-foreground hover:bg-muted"
                 )}
               >
                 <MediaBadge
@@ -390,10 +390,10 @@ export function GroupContentView({
             aria-pressed={selectedRecommender === "all"}
             onClick={() => setSelectedRecommender("all")}
             className={cn(
-              "px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+              "px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
               selectedRecommender === "all"
                 ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
-                : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             {t.groups.allRecommenders}
@@ -413,17 +413,17 @@ export function GroupContentView({
                   setSelectedRecommender(isSelected ? "all" : rec.id)
                 }
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
                   isSelected
                     ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
-                    : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <span>{isMe ? t.groups.myRecommendations : rec.name}</span>
                 {rec.count > 0 && (
                   <span
                     className={cn(
-                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      "px-1.5 py-0.2 rounded-xs font-mono text-[10px]",
                       isSelected
                         ? "bg-primary-foreground/20 text-primary-foreground"
                         : "bg-muted text-muted-foreground"
@@ -444,7 +444,7 @@ export function GroupContentView({
                 setSelectedRecommender("all");
                 setSelectedMood("all");
               }}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap ml-auto"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap ml-auto"
             >
               <X className="size-3" />
               <span>{t.groups.clearFilters}</span>
@@ -454,7 +454,7 @@ export function GroupContentView({
 
         {/* Tertiary Filter: Mood & Tone Pills (if flag enabled) */}
         {moodFeatureEnabled && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs pt-1 border-t border-border/40">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs pt-1 border-t border-border/60">
             <div className="flex items-center gap-1 text-muted-foreground font-medium shrink-0 pr-1">
               <Smile className="size-3.5" />
               <span className="hidden sm:inline">{t.moods.filterByMood}:</span>
@@ -465,10 +465,10 @@ export function GroupContentView({
               aria-pressed={selectedMood === "all"}
               onClick={() => setSelectedMood("all")}
               className={cn(
-                "px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                "px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
                 selectedMood === "all"
                   ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
-                  : "bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                  : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               {t.moods.allMoods}
@@ -484,11 +484,11 @@ export function GroupContentView({
                   aria-pressed={isSelected}
                   onClick={() => setSelectedMood(isSelected ? "all" : mood)}
                   className={cn(
-                    "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                    "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
                     isSelected
                       ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
                       : cn(
-                          "bg-background text-muted-foreground border-border hover:text-foreground",
+                          "bg-background text-muted-foreground hover:text-foreground",
                           detail?.bgColor
                         )
                   )}

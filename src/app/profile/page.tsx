@@ -43,7 +43,7 @@ export default async function ProfilePage() {
   return (
     <AppShell user={currentUser} maxWidth="default" title={t.profile.title}>
       <div className="space-y-6">
-        <div className="pb-4 border-b">
+        <div className="pb-4 border-b border-border/60">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {t.profile.title}
           </h1>
@@ -53,9 +53,9 @@ export default async function ProfilePage() {
         </div>
 
         {/* Profile Card Header */}
-        <Card className="border-border/70 shadow-xs">
+        <Card className="border-border/60">
           <CardContent className="p-6 flex flex-col sm:flex-row items-center sm:items-start gap-4">
-            <Avatar size="lg" className="size-16 ring-2 ring-primary/20 shrink-0">
+            <Avatar size="lg" className="size-16 shrink-0">
               {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name || user.email} />}
               <AvatarFallback className="text-base font-bold">
                 {getInitials(user.name, user.email)}
@@ -68,7 +68,7 @@ export default async function ProfilePage() {
                   {user.name || t.common.unnamedUser}
                 </h2>
                 {user.isAdmin && (
-                  <Badge variant="default" className="text-[10px] gap-1 py-0">
+                  <Badge variant="default" className="text-[10px] gap-1 py-0 rounded-xs font-mono">
                     <Shield className="size-3" />
                     <span>{t.profile.adminBadge}</span>
                   </Badge>
@@ -85,7 +85,7 @@ export default async function ProfilePage() {
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/30"
+                className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/30 rounded-sm"
               >
                 <LogOut className="size-3.5" />
                 <span>{t.nav.signOut}</span>
@@ -95,7 +95,7 @@ export default async function ProfilePage() {
         </Card>
 
         {/* Display Name Card */}
-        <Card className="border-border/70 shadow-xs">
+        <Card className="border-border/60">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <User className="size-4 text-primary" />

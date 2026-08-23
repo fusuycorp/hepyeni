@@ -19,7 +19,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 md:hidden border-t bg-background/95 backdrop-blur-md supports-backdrop-filter:bg-background/80"
+      className="fixed inset-x-0 bottom-0 z-40 md:hidden border-t border-border/60 bg-background/95 backdrop-blur-md supports-backdrop-filter:bg-background/80"
       aria-label="Mobile Navigation"
     >
       <div className="mx-auto flex w-full max-w-md items-center justify-around px-2 py-1 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
@@ -31,7 +31,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-1 py-1.5 px-4 rounded-xl text-[11px] font-medium transition-all min-w-[64px]",
+                "relative flex flex-col items-center justify-center gap-1 py-1.5 px-4 rounded-sm text-[11px] font-medium transition-all min-w-[64px]",
                 active
                   ? "text-primary font-semibold"
                   : "text-muted-foreground hover:text-foreground active:scale-95"
@@ -41,7 +41,7 @@ export function BottomNav() {
               {active && (
                 <span className="absolute -top-1 size-1 rounded-full bg-primary" />
               )}
-              <Icon className={cn("size-5 transition-transform", active && "scale-110 text-primary")} />
+              <Icon className={cn("size-5 transition-transform", active && "scale-105 text-primary")} />
               <span>{label}</span>
             </Link>
           );

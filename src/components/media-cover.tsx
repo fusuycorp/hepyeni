@@ -27,7 +27,7 @@ export function MediaCover({
       <div
         className={cn(
           sizeClass,
-          "shrink-0 rounded-lg bg-muted/70 border border-border/60 flex items-center justify-center text-muted-foreground/60 shadow-2xs",
+          "shrink-0 rounded-sm bg-muted/70 border border-border/60 flex items-center justify-center text-muted-foreground/60",
           className
         )}
         aria-hidden="true"
@@ -44,7 +44,7 @@ export function MediaCover({
     <div
       className={cn(
         sizeClass,
-        "shrink-0 relative overflow-hidden rounded-lg border border-border/60 bg-muted shadow-2xs",
+        "shrink-0 relative overflow-hidden rounded-sm border border-border/60 bg-muted",
         className
       )}
     >

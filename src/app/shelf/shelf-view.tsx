@@ -80,21 +80,21 @@ export function ShelfView({
     switch (item.status) {
       case "in_progress":
         return (
-          <Badge variant="secondary" className="text-[10px] gap-1 py-0 px-2 font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
+          <Badge variant="secondary" className="text-[10px] gap-1 py-0 px-1.5 font-mono font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 rounded-xs">
             <Clock className="size-2.5" />
             <span>{t.shelf.statusInProgress}</span>
           </Badge>
         );
       case "completed":
         return (
-          <Badge variant="secondary" className="text-[10px] gap-1 py-0 px-2 font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
+          <Badge variant="secondary" className="text-[10px] gap-1 py-0 px-1.5 font-mono font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 rounded-xs">
             <CheckCircle2 className="size-2.5" />
             <span>{t.shelf.statusCompleted}</span>
           </Badge>
         );
       case "plan_to_consume":
         return (
-          <Badge variant="outline" className="text-[10px] gap-1 py-0 px-2 font-normal text-muted-foreground border-border/70">
+          <Badge variant="outline" className="text-[10px] gap-1 py-0 px-1.5 font-mono font-normal text-muted-foreground border-border/60 rounded-xs">
             <Bookmark className="size-2.5" />
             <span>{t.shelf.statusPlanToConsume}</span>
           </Badge>
@@ -117,7 +117,7 @@ export function ShelfView({
   return (
     <div className="space-y-6">
       {/* Header & Main Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <BookOpen className="size-5 text-primary shrink-0" />
@@ -135,7 +135,7 @@ export function ShelfView({
             <Button
               variant="outline"
               size="sm"
-              className="text-xs gap-1.5 h-9"
+              className="text-xs gap-1.5 h-8 rounded-sm"
             >
               <ArrowUpDown className="size-3.5" />
               <span>{t.shelf.importExport}</span>
@@ -149,7 +149,7 @@ export function ShelfView({
       <div className="w-full overflow-x-auto scrollbar-none pb-1">
         <div
           role="tablist"
-          className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50 min-w-full sm:min-w-fit"
+          className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-sm border border-border/60 min-w-full sm:min-w-fit"
         >
           {tabs.map((tab) => (
             <button
@@ -159,7 +159,7 @@ export function ShelfView({
               aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 text-center",
+                "flex-1 sm:flex-initial px-3 py-1.5 rounded-xs text-xs font-medium transition-all whitespace-nowrap shrink-0 text-center",
                 activeTab === tab.id
                   ? "bg-background text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground",
@@ -180,8 +180,8 @@ export function ShelfView({
           isAdmin={isAdmin}
         />
       ) : filteredItems.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl border border-dashed border-border/70 bg-card/40 space-y-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground mx-auto">
+        <div className="p-12 text-center rounded-sm border border-dashed border-border/60 bg-card/40 space-y-3">
+          <div className="flex size-10 items-center justify-center rounded-sm bg-muted/60 text-muted-foreground mx-auto">
             <Sparkles className="size-5" />
           </div>
           <div className="space-y-1 max-w-sm mx-auto">
@@ -219,7 +219,7 @@ export function ShelfView({
             return (
               <Card
                 key={item.id}
-                className="overflow-hidden border-border/70 shadow-2xs hover:border-border transition-colors bg-card flex flex-col justify-between"
+                className="overflow-hidden border-border/60 hover:border-border transition-colors bg-card flex flex-col justify-between"
               >
                 <CardContent className="p-4 space-y-3.5">
                   {/* Top Row: Cover, Info, Status */}
@@ -228,7 +228,7 @@ export function ShelfView({
                       src={item.coverUrl}
                       alt={item.title}
                       size="md"
-                      className="shrink-0 rounded-lg shadow-2xs"
+                      className="shrink-0 rounded-sm"
                     />
 
                     <div className="min-w-0 flex-1 space-y-1">

@@ -153,7 +153,7 @@ export function TitleDetailView({
   return (
     <div className="space-y-8 pb-12">
       {/* Hero Media Section */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 sm:p-7 shadow-xs">
+      <div className="relative overflow-hidden rounded-sm border border-border/60 bg-card p-5 sm:p-7">
         <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-start">
           {/* Large Cover Poster */}
           <div className="shrink-0 mx-auto sm:mx-0">
@@ -161,7 +161,7 @@ export function TitleDetailView({
               src={title.coverUrl}
               alt={title.title}
               size="lg"
-              className="w-36 h-52 sm:w-44 sm:h-64 rounded-xl shadow-md ring-1 ring-border/50 object-cover"
+              className="w-36 h-52 sm:w-44 sm:h-64 rounded-sm border border-border/60 object-cover"
             />
           </div>
 
@@ -174,7 +174,7 @@ export function TitleDetailView({
               {isFinished ? (
                 <Badge
                   variant="default"
-                  className="gap-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs font-semibold"
+                  className="gap-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs font-semibold rounded-xs"
                 >
                   <CheckCircle2 className="size-3" />
                   <span>{t.media.finished}</span>
@@ -182,7 +182,7 @@ export function TitleDetailView({
               ) : (
                 <Badge
                   variant="secondary"
-                  className="gap-1 bg-primary/10 text-primary border-primary/20 text-xs font-semibold"
+                  className="gap-1 bg-primary/10 text-primary border-primary/20 text-xs font-semibold rounded-xs"
                 >
                   <Sparkles className="size-3" />
                   <span>{t.media.upNext}</span>
@@ -192,7 +192,7 @@ export function TitleDetailView({
               {title.externalSource && title.externalSource !== "custom" && (
                 <Badge
                   variant="outline"
-                  className="text-[10px] text-muted-foreground uppercase tracking-wider"
+                  className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono rounded-xs"
                 >
                   {title.externalSource}
                 </Badge>
@@ -212,8 +212,8 @@ export function TitleDetailView({
             </div>
 
             {/* Recommender Attribution Card */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40 border border-border/50 w-fit text-xs">
-              <Avatar size="sm" className="size-6 ring-1 ring-border shrink-0">
+            <div className="flex items-center gap-2.5 p-2 rounded-xs bg-muted/40 border border-border/60 w-fit text-xs">
+              <Avatar size="sm" className="size-6 shrink-0">
                 {recommender?.avatarUrl && (
                   <AvatarImage src={recommender.avatarUrl} alt={recommenderName} />
                 )}
@@ -234,7 +234,7 @@ export function TitleDetailView({
             {/* Rating Summary (if finished or reviewed) */}
             {avgRating !== null && (
               <div className="flex items-center gap-2">
-                <div className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                <div className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-500 bg-amber-500/10 px-3 py-1 rounded-xs border border-amber-500/20 font-mono">
                   <Star className="size-4 fill-amber-500 text-amber-500" />
                   <span>{avgRating.toFixed(1)}</span>
                 </div>
@@ -248,7 +248,7 @@ export function TitleDetailView({
             <div className="flex flex-wrap items-center gap-3 pt-2">
               {/* Vote Control (when proposed/up next) */}
               {!isFinished && (
-                <div className="p-1 rounded-xl bg-muted/60 border border-border/50">
+                <div className="p-1 rounded-xs bg-muted/60 border border-border/60">
                   <VoteControl
                     score={title.score}
                     userVote={title.userVote}
@@ -266,16 +266,16 @@ export function TitleDetailView({
                     variant="outline"
                     size="sm"
                     showIcon={true}
-                    className="h-9 px-3.5 text-xs font-semibold border-border hover:bg-muted"
+                    className="h-8 px-3 text-xs font-semibold border-border hover:bg-muted rounded-sm"
                     onMark={onUnmarkConsumed}
                   />
                 ) : (
                   <MarkConsumedButton
                     direction="consume"
-                    variant="default"
+                    variant="outline"
                     size="sm"
                     showIcon={true}
-                    className="h-9 px-3.5 text-xs font-semibold shadow-xs"
+                    className="h-8 px-3 text-xs font-semibold rounded-sm"
                     onMark={onMarkConsumed}
                   />
                 )
@@ -287,7 +287,7 @@ export function TitleDetailView({
                 variant="outline"
                 size="sm"
                 onClick={handleCopyLink}
-                className="h-9 px-3 text-xs gap-1.5 text-muted-foreground hover:text-foreground font-medium"
+                className="h-8 px-3 text-xs gap-1.5 text-muted-foreground hover:text-foreground font-medium rounded-sm"
               >
                 <Share2 className="size-3.5" />
                 <span>{t.media.copyMediaLink}</span>
@@ -298,31 +298,31 @@ export function TitleDetailView({
       </div>
 
       {/* Media Details & Synopsis */}
-      <Card className="border-border/70 shadow-xs">
-        <CardHeader className="pb-3">
+      <Card className="border-border/60">
+        <CardHeader className="pb-3 border-b border-border/60">
           <CardTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
             <FileText className="size-4 text-primary" />
             <span>{t.media.synopsis}</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+        <CardContent className="space-y-4 pt-4 text-sm text-muted-foreground leading-relaxed">
           {description ? (
-            <p className="whitespace-pre-wrap">{description}</p>
+            <p className="font-serif text-base text-foreground/90 leading-relaxed whitespace-pre-wrap">{description}</p>
           ) : (
             <p className="italic text-muted-foreground/70">{t.media.noSynopsis}</p>
           )}
 
           {/* Key Facts / Metadata Grid */}
           {(releaseDate || pageCount || totalTracks) && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-border/60 text-xs">
               {releaseDate && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40">
+                <div className="flex items-center gap-2 p-2.5 rounded-xs bg-muted/30 border border-border/60">
                   <Calendar className="size-3.5 text-primary/80 shrink-0" />
                   <div>
                     <span className="block text-[10px] text-muted-foreground font-medium">
                       {t.media.releaseDate}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold font-mono text-foreground">
                       {releaseDate.slice(0, 10)}
                     </span>
                   </div>
@@ -330,13 +330,13 @@ export function TitleDetailView({
               )}
 
               {pageCount && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40">
+                <div className="flex items-center gap-2 p-2.5 rounded-xs bg-muted/30 border border-border/60">
                   <Layers className="size-3.5 text-primary/80 shrink-0" />
                   <div>
                     <span className="block text-[10px] text-muted-foreground font-medium">
                       {t.media.pageCount}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold font-mono text-foreground">
                       {pageCount}
                     </span>
                   </div>
@@ -344,7 +344,7 @@ export function TitleDetailView({
               )}
 
               {totalTracks && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40">
+                <div className="flex items-center gap-2 p-2.5 rounded-xs bg-muted/30 border border-border/60">
                   <Layers className="size-3.5 text-primary/80 shrink-0" />
                   <div>
                     <span className="block text-[10px] text-muted-foreground font-medium">
@@ -384,15 +384,15 @@ export function TitleDetailView({
                 aria-selected={activeTab === "discussion"}
                 onClick={() => setActiveTab("discussion")}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-xs text-xs font-medium transition-all",
                   activeTab === "discussion"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <MessageSquare className="size-3.5 text-primary" />
                 <span>{t.comments.title}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-muted-foreground">
+                <span className="px-1.5 py-0.2 rounded-xs font-mono text-[10px] bg-muted text-muted-foreground">
                   {comments.length}
                 </span>
               </button>
@@ -403,15 +403,15 @@ export function TitleDetailView({
                 aria-selected={activeTab === "reviews"}
                 onClick={() => setActiveTab("reviews")}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-xs text-xs font-medium transition-all",
                   activeTab === "reviews"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Star className="size-3.5 text-amber-500" />
                 <span>{t.reviews.groupReviews}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-muted text-muted-foreground">
+                <span className="px-1.5 py-0.2 rounded-xs font-mono text-[10px] bg-muted text-muted-foreground">
                   {reviews.length}
                 </span>
               </button>
@@ -420,8 +420,8 @@ export function TitleDetailView({
 
           {/* Discussion Tab (Comments + Nested Replies) */}
           {activeTab === "discussion" && canViewComments && (
-            <Card className="border-border/70 shadow-xs">
-              <CardHeader className="pb-3 border-b">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3 border-b border-border/60">
                 <CardTitle className="text-base font-bold tracking-tight">
                   {t.comments.title}
                 </CardTitle>
@@ -451,13 +451,13 @@ export function TitleDetailView({
             <div className="space-y-6">
               {/* My Review Form Card */}
               {canReview && (
-                <Card className="border-border/70 shadow-xs">
-                  <CardHeader className="pb-2">
+                <Card className="border-border/60">
+                  <CardHeader className="pb-2 border-b border-border/60">
                     <CardTitle className="text-sm font-semibold text-foreground">
                       {myReview ? t.reviews.yourRatingAndReview : t.reviews.rateThisTitle}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-4">
                     <ReviewForm
                       defaultRating={myReview?.rating ?? 5}
                       defaultText={myReview?.reviewText ?? ""}
@@ -469,9 +469,9 @@ export function TitleDetailView({
               )}
 
             {/* Other Member Reviews */}
-            <Card className="border-border/70 shadow-xs">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-semibold text-foreground uppercase tracking-wider text-muted-foreground">
+            <Card className="border-border/60">
+              <CardHeader className="pb-3 border-b border-border/60">
+                <CardTitle className="text-xs font-semibold text-foreground uppercase tracking-wider text-muted-foreground">
                   {t.reviews.groupReviews} ({reviews.length})
                 </CardTitle>
               </CardHeader>
@@ -487,15 +487,15 @@ export function TitleDetailView({
                       <div
                         key={r.id}
                         className={cn(
-                          "p-3.5 rounded-xl border text-xs space-y-2 transition-colors",
+                          "p-3.5 rounded-sm border text-xs space-y-2 transition-colors",
                           isOwn
                             ? "bg-primary/5 border-primary/20"
-                            : "bg-muted/30 border-border/40"
+                            : "bg-muted/30 border-border/60"
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <Avatar size="sm" className="size-6 ring-1 ring-border shrink-0">
+                            <Avatar size="sm" className="size-6 shrink-0">
                               {reviewAuthor?.avatarUrl && (
                                 <AvatarImage
                                   src={reviewAuthor.avatarUrl}
@@ -510,7 +510,7 @@ export function TitleDetailView({
                               {name}
                             </span>
                             {isOwn && (
-                              <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 rounded-xs font-mono">
                                 {t.groups.myRecommendations}
                               </Badge>
                             )}
@@ -524,7 +524,7 @@ export function TitleDetailView({
                         </div>
 
                         {r.reviewText && (
-                          <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed pl-8">
+                          <div className="font-serif text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed pl-8">
                             &ldquo;<SpoilerText text={r.reviewText} />&rdquo;
                           </div>
                         )}

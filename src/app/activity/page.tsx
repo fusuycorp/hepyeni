@@ -143,7 +143,7 @@ export default async function ActivityPage() {
   return (
     <AppShell user={currentUser} maxWidth="wide" title={t.activity.title}>
       <div className="flex flex-col gap-6">
-        <div className="pb-4 border-b">
+        <div className="pb-4 border-b border-border/60">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             {t.activity.title}
           </h1>
@@ -168,9 +168,9 @@ export default async function ActivityPage() {
                     href={group ? `/groups/${group.id}` : "#"}
                     className="group block"
                   >
-                    <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                    <Card className="border-border/60 hover:border-primary/40 transition-all duration-200">
                       <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
-                        <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
+                        <Avatar size="sm" className="shrink-0 mt-0.5">
                           {author?.avatarUrl && <AvatarImage src={author.avatarUrl} alt={authorName} />}
                           <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
@@ -183,7 +183,7 @@ export default async function ActivityPage() {
                               {group && (
                                 <>
                                   <span>&middot;</span>
-                                  <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                  <Badge variant="secondary" className="text-[10px] font-mono font-medium py-0 rounded-xs">
                                     {group.name}
                                   </Badge>
                                 </>
@@ -194,12 +194,12 @@ export default async function ActivityPage() {
                             </span>
                           </div>
 
-                          <div className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/30 border border-border/40 group-hover:bg-muted/50 transition-colors">
+                          <div className="flex items-start gap-3 p-2.5 rounded-xs bg-muted/30 border border-border/60 group-hover:bg-muted/50 transition-colors">
                             <MediaCover
                               src={title.coverUrl}
                               alt={title.title}
                               size="sm"
-                              className="shrink-0"
+                              className="shrink-0 rounded-sm"
                             />
                             <div className="flex-1 min-w-0 space-y-1">
                               <div className="flex items-center gap-1.5">
@@ -234,9 +234,9 @@ export default async function ActivityPage() {
                     href={group ? `/groups/${group.id}` : "#"}
                     className="group block"
                   >
-                    <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                    <Card className="border-border/60 hover:border-primary/40 transition-all duration-200">
                       <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
-                        <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
+                        <Avatar size="sm" className="shrink-0 mt-0.5">
                           {reviewer?.avatarUrl && <AvatarImage src={reviewer.avatarUrl} alt={reviewerName} />}
                           <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
@@ -250,7 +250,7 @@ export default async function ActivityPage() {
                               {group && (
                                 <>
                                   <span>&middot;</span>
-                                  <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                  <Badge variant="secondary" className="text-[10px] font-mono font-medium py-0 rounded-xs">
                                     {group.name}
                                   </Badge>
                                 </>
@@ -261,7 +261,7 @@ export default async function ActivityPage() {
                             </span>
                           </div>
 
-                          <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
+                          <div className="p-3 rounded-xs bg-muted/30 border border-border/60 space-y-1.5 group-hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-1 text-amber-400">
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
@@ -271,13 +271,13 @@ export default async function ActivityPage() {
                                   }`}
                                 />
                               ))}
-                              <span className="text-xs font-semibold text-foreground ml-1.5">
+                              <span className="text-xs font-semibold font-mono text-foreground ml-1.5">
                                 {review.rating}.0 / 5.0
                               </span>
                             </div>
 
                             {review.reviewText && (
-                              <div className="text-xs text-muted-foreground leading-relaxed italic">
+                              <div className="font-serif text-sm text-foreground/90 leading-relaxed italic">
                                 &ldquo;<SpoilerText text={review.reviewText} />&rdquo;
                               </div>
                             )}
@@ -291,9 +291,9 @@ export default async function ActivityPage() {
                 const { comment } = item;
                 const title = comment.expand?.title;
                 const group = title?.expand?.group;
-                const commenter = comment.expand?.user;
-                const commenterName = getDisplayName(commenter, t.common.unnamedUser);
-                const initials = getInitials(commenter?.name, commenter?.email);
+                const author = comment.expand?.user;
+                const authorName = getDisplayName(author, t.common.unnamedUser);
+                const initials = getInitials(author?.name, author?.email);
 
                 return (
                   <Link
@@ -301,23 +301,23 @@ export default async function ActivityPage() {
                     href={group ? `/groups/${group.id}` : "#"}
                     className="group block"
                   >
-                    <Card className="border-border/70 hover:border-primary/40 transition-all duration-200 shadow-2xs hover:shadow-xs">
+                    <Card className="border-border/60 hover:border-primary/40 transition-all duration-200">
                       <CardContent className="p-4 flex items-start gap-3 sm:gap-4">
-                        <Avatar size="sm" className="ring-1 ring-border shrink-0 mt-0.5">
-                          {commenter?.avatarUrl && <AvatarImage src={commenter.avatarUrl} alt={commenterName} />}
+                        <Avatar size="sm" className="shrink-0 mt-0.5">
+                          {author?.avatarUrl && <AvatarImage src={author.avatarUrl} alt={authorName} />}
                           <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span className="font-semibold text-foreground">{commenterName}</span>
+                              <span className="font-semibold text-foreground">{authorName}</span>
                               <span>{t.activity.commented}:</span>
                               <span className="font-semibold text-foreground line-clamp-1">{title?.title}</span>
                               {group && (
                                 <>
                                   <span>&middot;</span>
-                                  <Badge variant="secondary" className="text-[10px] font-medium py-0">
+                                  <Badge variant="secondary" className="text-[10px] font-mono font-medium py-0 rounded-xs">
                                     {group.name}
                                   </Badge>
                                 </>
@@ -328,12 +328,14 @@ export default async function ActivityPage() {
                             </span>
                           </div>
 
-                          <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5 group-hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-1.5 text-primary text-xs font-medium">
+                          <div className="p-3 rounded-xs bg-muted/30 border border-border/60 space-y-1.5 group-hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-1 text-primary">
                               <MessageSquare className="size-3.5" />
-                              <span>{t.comments.title}</span>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {t.comments.title}
+                              </span>
                             </div>
-                            <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                            <p className="text-xs text-foreground/90 leading-relaxed line-clamp-2">
                               {comment.content}
                             </p>
                           </div>

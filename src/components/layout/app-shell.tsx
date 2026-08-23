@@ -51,7 +51,7 @@ export function AppShell({
       <DesktopSidebar user={user} />
 
       {/* Mobile Top Header (Only on < md) */}
-      <header className="sticky top-0 z-30 flex md:hidden h-14 items-center justify-between border-b bg-background/90 backdrop-blur-md px-4 supports-backdrop-filter:bg-background/80">
+      <header className="sticky top-0 z-30 flex md:hidden h-14 items-center justify-between border-b border-border/60 bg-background/90 backdrop-blur-md px-4 supports-backdrop-filter:bg-background/80">
         <div className="flex items-center gap-2 min-w-0">
           {backHref ? (
             <Link
@@ -67,7 +67,7 @@ export function AppShell({
             </Link>
           ) : (
             <Link href="/groups" className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-2xs">
+              <div className="flex size-7 items-center justify-center rounded-sm bg-primary text-primary-foreground font-bold shadow-2xs">
                 <BookmarkCheck className="size-4" />
               </div>
               <span className="font-semibold text-sm tracking-tight">{t.common.appName}</span>
@@ -75,7 +75,7 @@ export function AppShell({
           )}
 
           {title && !backHref && (
-            <span className="text-xs text-muted-foreground truncate border-l pl-2 ml-1">
+            <span className="text-xs text-muted-foreground truncate border-l border-border/60 pl-2 ml-1">
               {title}
             </span>
           )}

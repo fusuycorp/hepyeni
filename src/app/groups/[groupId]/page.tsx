@@ -332,7 +332,7 @@ export default async function GroupPage({
       <div className="flex flex-col gap-6">
         {/* Guest Viewing Notice Banner */}
         {access.isGuest && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-primary/10 border border-primary/20 text-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-sm bg-primary/10 border border-primary/20 text-foreground">
             <div className="flex items-center gap-2.5">
               <Globe className="size-4 text-primary shrink-0" />
               <p className="text-xs sm:text-sm font-medium">
@@ -354,7 +354,7 @@ export default async function GroupPage({
         )}
 
         {/* Group Hero Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">

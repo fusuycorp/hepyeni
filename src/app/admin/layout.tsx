@@ -21,11 +21,11 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Admin Top Navbar */}
-      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md px-4 sm:px-8">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-card/80 backdrop-blur-md px-4 sm:px-8">
         <div className="mx-auto flex w-full max-w-5xl h-14 items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link href="/admin" className="flex items-center gap-2 font-bold text-sm tracking-tight">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="flex size-7 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-2xs">
                 <Shield className="size-4" />
               </div>
               <span>{t.admin.title}</span>
@@ -34,19 +34,19 @@ export default async function AdminLayout({
             <nav className="flex items-center gap-1 text-xs font-medium">
               <Link
                 href="/admin"
-                className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="px-2.5 py-1.5 rounded-xs hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 {t.admin.dashboard}
               </Link>
               <Link
                 href="/admin/users"
-                className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="px-2.5 py-1.5 rounded-xs hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 {t.admin.users}
               </Link>
               <Link
                 href="/admin/groups"
-                className="px-2.5 py-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="px-2.5 py-1.5 rounded-xs hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 {t.admin.groups}
               </Link>
@@ -61,7 +61,7 @@ export default async function AdminLayout({
               className={buttonVariants({
                 variant: "outline",
                 size: "sm",
-                className: "gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8",
+                className: "gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 rounded-sm",
               })}
             >
               <ArrowLeft className="size-3.5" />
