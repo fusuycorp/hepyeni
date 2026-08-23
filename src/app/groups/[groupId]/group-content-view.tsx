@@ -621,7 +621,7 @@ export function GroupContentView({
                                   : t.blindPick.anonymousRecommender}
                               </span>
                             </p>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-2">
                               {canViewComments && (
                                 <MediaComments
                                   titleId={title.id}
@@ -640,22 +640,28 @@ export function GroupContentView({
                                   onFetchComments={onFetchComments}
                                 />
                               )}
-                              {!isGuest && onStartConsuming && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                  onClick={() => onStartConsuming(title.id)}
-                                >
-                                  <Play className="size-3 text-amber-500 fill-amber-500/20" />
-                                  <span>{t.media.startConsuming}</span>
-                                </Button>
-                              )}
                               {!isGuest && (
-                                <MarkConsumedButton
-                                  onMark={() => onMarkConsumed(title.id)}
-                                />
+                                <div className="flex flex-col items-end gap-1.5">
+                                  {onStartConsuming && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                      onClick={() => onStartConsuming(title.id)}
+                                    >
+                                      <Play className="size-3 text-amber-500 fill-amber-500/20 shrink-0" />
+                                      <span>{t.media.startConsuming}</span>
+                                    </Button>
+                                  )}
+                                  <MarkConsumedButton
+                                    variant="outline"
+                                    size="sm"
+                                    showIcon={true}
+                                    className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                    onMark={() => onMarkConsumed(title.id)}
+                                  />
+                                </div>
                               )}
                             </div>
                           </div>
@@ -810,7 +816,7 @@ export function GroupContentView({
                                     : t.blindPick.anonymousRecommender}
                                 </span>
                               </p>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-2">
                                 {canViewComments && (
                                   <MediaComments
                                     titleId={title.id}
@@ -829,29 +835,30 @@ export function GroupContentView({
                                     onFetchComments={onFetchComments}
                                   />
                                 )}
-                                {!isGuest && userStatus !== "completed" && (
-                                  <Button
-                                    type="button"
-                                    variant="default"
-                                    size="sm"
-                                    className="gap-1.5 text-xs font-semibold"
-                                    onClick={() => onMarkConsumed(title.id)}
-                                  >
-                                    <CheckCircle2 className="size-3.5" />
-                                    <span>{t.media.markAsConsumed}</span>
-                                  </Button>
-                                )}
-                                {!isGuest && userStatus === "not_started" && onStartConsuming && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                    onClick={() => onStartConsuming(title.id)}
-                                  >
-                                    <Play className="size-3 text-amber-500 fill-amber-500/20" />
-                                    <span>{t.media.startConsuming}</span>
-                                  </Button>
+                                {!isGuest && (
+                                  <div className="flex flex-col items-end gap-1.5">
+                                    {userStatus === "not_started" && onStartConsuming && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                        onClick={() => onStartConsuming(title.id)}
+                                      >
+                                        <Play className="size-3 text-amber-500 fill-amber-500/20 shrink-0" />
+                                        <span>{t.media.startConsuming}</span>
+                                      </Button>
+                                    )}
+                                    {userStatus !== "completed" && (
+                                      <MarkConsumedButton
+                                        variant="outline"
+                                        size="sm"
+                                        showIcon={true}
+                                        className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                        onMark={() => onMarkConsumed(title.id)}
+                                      />
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -954,6 +961,10 @@ export function GroupContentView({
                               {!isGuest && (
                                 <MarkConsumedButton
                                   direction="unconsume"
+                                  variant="outline"
+                                  size="sm"
+                                  showIcon={true}
+                                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                                   onMark={() => onUnmarkConsumed(title.id)}
                                 />
                               )}

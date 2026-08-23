@@ -64,6 +64,7 @@ export function groupTitleQuery(canViewReviews: boolean): {
 } {
   const fields = [
     "id",
+    "group",
     "title",
     "creator",
     "mediaType",

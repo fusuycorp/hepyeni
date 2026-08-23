@@ -60,8 +60,17 @@ export function MarkConsumedButton({
         })
       }
     >
-      {showIcon && <Icon className="size-3.5 mr-1.5 shrink-0" />}
-      {isPending ? t.common.working : label}
+      {showIcon && (
+        <Icon
+          className={cn(
+            "size-3.5 shrink-0",
+            direction === "consume"
+              ? "text-emerald-500 fill-emerald-500/20"
+              : "text-muted-foreground",
+          )}
+        />
+      )}
+      <span>{isPending ? t.common.working : label}</span>
     </Button>
   );
 }

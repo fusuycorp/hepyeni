@@ -61,6 +61,15 @@ describe("Title Detail Page & Mark as Finished UX Translations", () => {
     expect(en.groups.emptyFinishedDesc).toContain("finished");
     expect(tr.groups.emptyFinishedDesc).toContain("Bitti");
   });
+
+  it("ensures groupTitleQuery projects 'group' field to avoid 404 on item detail page", async () => {
+    const { groupTitleQuery } = await import("@/lib/group-titles");
+    const queryWithReviews = groupTitleQuery(true);
+    const queryWithoutReviews = groupTitleQuery(false);
+
+    expect(queryWithReviews.fields.split(",")).toContain("group");
+    expect(queryWithoutReviews.fields.split(",")).toContain("group");
+  });
 });
 
 describe("Title Detail - Metadata Parsing & Presentation Helpers", () => {
