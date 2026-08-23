@@ -80,3 +80,10 @@ All three must pass. Skipping `next build` = silently broken production deploy.
 
 - 2026-08-19 — Runtime-test round 2 (verify R8): disposable PB 0.39.11 in Docker (container `hepyeni-review-test-pb`, 127.0.0.1:8095; prod swarm service `publicality-hepyeni-*` untouched — separate container, no shared volumes/network/ports, never ran docker-compose.yml). Seeded users Alice(owner/admin)/Bob, 2 titles, 2 reviews, 2 votes. Proved the R8-fallback pattern: titles query drops `reviews_via_title`, reviews ride a lean `reviews` getList (filter `title.group`, `expand=user`, projected `expand.user.{id,name,avatarUrl}`), own-review bodies via compound `user=x && title.group=y` filter. End-to-end: group page renders reviewer names + per-user body visibility (H1) verified for Alice and Bob on the running app (PORT 3001); admin group detail renders. Committed as df1c398. Seed/verify scripts in /tmp/opencode/{seed,verify-final,fetch-pages}.sh.
 - 2026-08-19 — Round-2 review & fixes (clusters via 6 worktrees): committed 1f02174 (fixes), 826d49b (memory docs), a7cdf90 (activity log).
+
+## KNOWN DEBT
+- `src/lib/importers/index.ts` importer errors are English strings <- upgrade path requires passing code and mapping in client i18n -> Fix when i18n strictly required for importer errors
+- `src/lib/actions/*` action-layer errors are hardcoded English <- upgrade path requires returning i18n codes instead of string messages -> Fix when Next.js server actions need full i18n parity
+- `src/lib/actions/progress.ts` Shelf list lacks pagination <- deferred because it requires a page-size contract -> Fix when shelf size grows large enough to impact load time
+- `src/lib/actions/schedules.ts` Non-transactional batch writes for milestones <- PocketBase 0.23+ lacks multi-collection tx -> Fix when PocketBase supports transactions
+- `src/app/groups/[groupId]/page.tsx` Group title list lacks pagination <- deferred to avoid page-size client contract -> Fix when group title list impacts load time
