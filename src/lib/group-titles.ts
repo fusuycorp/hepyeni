@@ -186,3 +186,90 @@ export function buildTitlePayload(
     expand,
   };
 }
+
+export interface MemberTitleProgress {
+  userId: string;
+  status: "in_progress" | "completed";
+  progressCurrent?: number | null;
+  progressTotal?: number | null;
+  progressUnit?: string | null;
+  updatedAt?: string;
+}
+
+export interface TitleProgressSummary {
+  finishedCount: number;
+  inProgressCount: number;
+  totalMembers: number;
+  allMembersFinished: boolean;
+  currentUserStatus: "not_started" | "in_progress" | "completed";
+}
+
+export type TitleWithProgress = TitlePayload & {
+  progressSummary: TitleProgressSummary;
+};
+
+export function categorizeCircleTitles(
+  titles: TitlePayload[],
+  memberProgressByTitle: Map<string, MemberTitleProgress[]>,
+  activeMemberIds: string[],
+  currentUserId?: string,
+): {
+  proposed: TitleWithProgress[];
+  inProgress: TitleWithProgress[];
+  consumed: TitleWithProgress[];
+} {
+  const memberSet = new Set(activeMemberIds);
+  const totalMembers = activeMemberIds.length;
+
+  const proposed: TitleWithProgress[] = [];
+  const inProgress: TitleWithProgress[] = [];
+  const consumed: TitleWithProgress[] = [];
+
+  for (const title of titles) {
+    const rawList = memberProgressByTitle.get(title.id) ?? [];
+    // Only count active members in this circle
+    const activeProgress = rawList.filter((p) => memberSet.has(p.userId));
+
+    let finishedCount = 0;
+    let inProgressCount = 0;
+    let currentUserStatus: "not_started" | "in_progress" | "completed" = "not_started";
+
+    for (const p of activeProgress) {
+      if (p.status === "completed") {
+        finishedCount++;
+      } else if (p.status === "in_progress") {
+        inProgressCount++;
+      }
+      if (currentUserId && p.userId === currentUserId) {
+        currentUserStatus = p.status;
+      }
+    }
+
+    const allMembersFinished =
+      title.status === "consumed" ||
+      (totalMembers > 0 && finishedCount >= totalMembers);
+
+    const progressSummary: TitleProgressSummary = {
+      finishedCount,
+      inProgressCount,
+      totalMembers,
+      allMembersFinished,
+      currentUserStatus,
+    };
+
+    const titleWithProgress: TitleWithProgress = {
+      ...title,
+      progressSummary,
+    };
+
+    if (allMembersFinished) {
+      consumed.push(titleWithProgress);
+    } else if (inProgressCount > 0 || finishedCount > 0) {
+      inProgress.push(titleWithProgress);
+    } else {
+      proposed.push(titleWithProgress);
+    }
+  }
+
+  return { proposed, inProgress, consumed };
+}
