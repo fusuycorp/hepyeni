@@ -19,7 +19,7 @@ export async function addComment(
   titleId: string,
   groupId: string,
   formData: FormData,
-): Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>>> {
+): Promise<ActionResult<CommentsResponse<{ user?: { id: string; name?: string; avatarUrl?: string } }>>> {
   const session = await getSession();
   if (!session) {
     return { success: false, error: "Please sign in first." };
@@ -76,7 +76,7 @@ export async function addComment(
     revalidatePath(`/groups/${groupId}/titles/${titleId}`);
     revalidatePath("/activity");
 
-    return { success: true, data: comment };
+    return { success: true, data: { ...comment, expand: comment.expand?.user ? { user: { id: comment.expand.user.id, name: comment.expand.user.name, avatarUrl: comment.expand.user.avatarUrl } } : undefined } };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "addComment", titleId, groupId });
     return { success: false, error: "Failed to add comment.", traceId: diag.traceId };
@@ -86,7 +86,7 @@ export async function addComment(
 export async function getComments(
   titleId: string,
   groupId: string,
-): Promise<CommentsResponse<{ user?: UsersResponse }>[]> {
+): Promise<CommentsResponse<{ user?: { id: string; name?: string; avatarUrl?: string } }>[]> {
   const session = await getSession();
   const access = await resolveCircleAccess(groupId, session?.id);
   if (!access.canViewComments) {
@@ -96,13 +96,14 @@ export async function getComments(
   try {
     await requireTitleInGroup(titleId, groupId);
     const pb = await getSuperuserClient();
-    return await pb
+    const records = await pb
       .collection("comments")
       .getFullList<CommentsResponse<{ user?: UsersResponse }>>({
         filter: pb.filter("title = {:t}", { t: titleId }),
         sort: "createdAt",
         expand: "user",
       });
+    return records.map(r => ({ ...r, expand: r.expand?.user ? { user: { id: r.expand.user.id, name: r.expand.user.name, avatarUrl: r.expand.user.avatarUrl } } : undefined }));
   } catch (err) {
     logDiagnostic(err, { action: "getComments", titleId, groupId });
     return [];

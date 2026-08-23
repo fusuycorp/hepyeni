@@ -51,7 +51,7 @@ export interface CreateGroupScheduleInput {
 }
 
 export interface MilestoneWithCheckins extends ScheduleMilestonesResponse {
-  checkins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[];
+  checkins: MilestoneCheckinsResponse<{ user?: { id: string; name?: string; avatarUrl?: string } }>[];
   hasCheckedIn: boolean;
   commentCount: number;
 }
@@ -104,14 +104,14 @@ export async function getGroupSchedules(
     const milestoneIds = allMilestones.map((m) => m.id);
 
     // Fetch all checkins for these milestones
-    let allCheckins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[] = [];
+    let allCheckins: MilestoneCheckinsResponse<{ user?: { id: string; name?: string; avatarUrl?: string } }>[] = [];
     let allComments: MilestoneCommentsResponse[] = [];
     if (milestoneIds.length > 0) {
       const milestoneFilter = milestoneIds
         .map((id) => pb.filter("milestone = {:id}", { id }))
         .join(" || ");
       const [checkinsRes, commentsRes] = await Promise.all([
-        pb.collection("milestone_checkins").getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
+        pb.collection("milestone_checkins").getFullList<MilestoneCheckinsResponse<{ user?: { id: string; name?: string; avatarUrl?: string } }>>({
           filter: milestoneFilter,
           expand: "user",
         }),
@@ -121,13 +121,13 @@ export async function getGroupSchedules(
           fields: "id,milestone",
         }),
       ]);
-      allCheckins = checkinsRes;
+      allCheckins = checkinsRes.map(c => ({ ...c, expand: c.expand?.user ? { user: { id: c.expand.user.id, name: c.expand.user.name, avatarUrl: c.expand.user.avatarUrl } } : undefined }));
       allComments = commentsRes;
     }
 
     const checkinsByMilestone = new Map<
       string,
-      MilestoneCheckinsResponse<{ user?: UsersResponse }>[]
+      MilestoneCheckinsResponse<{ user?: { id: string; name?: string; avatarUrl?: string } }>[]
     >();
     for (const c of allCheckins) {
       const list = checkinsByMilestone.get(c.milestone) || [];
@@ -162,7 +162,7 @@ export async function getGroupSchedules(
     return schedules.map((s) => ({
       ...s,
       titleRecord: s.expand?.title,
-      creator: s.expand?.createdBy,
+      creator: s.expand?.createdBy ? { id: s.expand.createdBy.id, name: s.expand.createdBy.name, avatarUrl: s.expand.createdBy.avatarUrl } : undefined,
       milestones: milestonesBySchedule.get(s.id) || [],
     }));
   } catch (err) {
@@ -393,13 +393,14 @@ export async function getMilestoneComments(
       hasCheckedIn = Boolean(checkin);
     }
 
-    const records = await pb
+    let records = await pb
       .collection("milestone_comments")
       .getFullList<MilestoneCommentsResponse<{ user?: UsersResponse }>>({
         filter: pb.filter("milestone = {:milestoneId}", { milestoneId }),
         expand: "user",
         sort: "createdAt",
       });
+    records = records.map(r => ({ ...r, expand: r.expand?.user ? { user: { id: r.expand.user.id, name: r.expand.user.name, avatarUrl: r.expand.user.avatarUrl } } : undefined }));
 
     return {
       success: true,

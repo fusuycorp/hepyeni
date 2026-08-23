@@ -287,7 +287,7 @@ export async function deleteMediaProgress(
 }
 
 export interface TitleMemberProgressItem {
-  user: UsersResponse;
+  user: { id: string; name?: string; avatarUrl?: string };
   progress: UserMediaProgressResponse;
   percentage?: number;
 }
@@ -365,7 +365,8 @@ export async function getTitleCircleProgress(
     for (const p of progressRecords) {
       if (memberMap.has(p.user)) {
         if (p.isSharedWithCircles !== false || p.user === resolvedSession?.id) {
-          const user = memberMap.get(p.user)!;
+          const fullUser = memberMap.get(p.user)!;
+          const user = { id: fullUser.id, name: fullUser.name, avatarUrl: fullUser.avatarUrl };
           let percentage: number | undefined;
           if (p.status === "completed") {
             percentage = 100;
@@ -397,7 +398,7 @@ export async function getTitleCircleProgress(
 }
 
 export interface CircleLiveActivityItem {
-  user: UsersResponse;
+  user: { id: string; name?: string; avatarUrl?: string };
   progress: UserMediaProgressResponse;
 }
 
@@ -448,7 +449,7 @@ export async function getCircleLiveActivity(
     for (const p of activeProgress) {
       if (memberMap.has(p.user)) {
         result.push({
-          user: memberMap.get(p.user)!,
+          user: { id: memberMap.get(p.user)!.id, name: memberMap.get(p.user)!.name, avatarUrl: memberMap.get(p.user)!.avatarUrl },
           progress: p,
         });
       }

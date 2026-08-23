@@ -80,7 +80,7 @@ export function filterMilestoneCommentsForViewer(
       ? {
           id: c.expand.user.id,
           name: c.expand.user.name,
-          email: c.expand.user.email,
+          
           avatarUrl: c.expand.user.avatarUrl,
         }
       : undefined,

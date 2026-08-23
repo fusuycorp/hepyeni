@@ -223,7 +223,7 @@ describe("Adversarial Test Suite 1: Spoilers, Marginalia & Milestone Privacy", (
       );
       expect(result.comments[0].isSpoiler).toBe(true);
       expect(result.comments[0].isLocked).toBe(false);
-      expect(result.comments[0].author?.email).toBe("alice@secret-domain.corp");
+      expect(result.comments[0].author?.email).toBeUndefined();
 
       expect(result.comments[1].content).toBe("I really enjoyed chapter 4 pacing.");
       expect(result.comments[1].isSpoiler).toBe(false);
