@@ -61,7 +61,7 @@ export function VoteControl({
 
   if (orientation === "horizontal") {
     return (
-      <div className="inline-flex items-center gap-1 rounded-xl bg-muted/60 p-1 border border-border/60">
+      <div className="inline-flex items-center gap-1 rounded-xs bg-muted/60 p-1 border border-border/60">
         <Button
           type="button"
           size="icon-sm"
@@ -71,7 +71,7 @@ export function VoteControl({
           disabled={effectiveDisabled}
           onClick={() => vote("up")}
           className={cn(
-            "size-8 rounded-lg transition-all active:scale-90",
+            "size-8 rounded-xs transition-all active:scale-90",
             isUp
               ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-600"
               : "text-muted-foreground hover:text-foreground"
@@ -81,7 +81,7 @@ export function VoteControl({
         </Button>
         <span
           className={cn(
-            "min-w-6 text-center text-xs font-bold tabular-nums",
+            "min-w-6 text-center text-xs font-mono font-bold tabular-nums",
             state.score > 0
               ? "text-emerald-600 dark:text-emerald-400"
               : state.score < 0
@@ -101,7 +101,7 @@ export function VoteControl({
           disabled={effectiveDisabled}
           onClick={() => vote("down")}
           className={cn(
-            "size-8 rounded-lg transition-all active:scale-90",
+            "size-8 rounded-xs transition-all active:scale-90",
             isDown
               ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 hover:text-rose-600"
               : "text-muted-foreground hover:text-foreground"
@@ -114,7 +114,7 @@ export function VoteControl({
   }
 
   return (
-    <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-muted/40 p-1 border border-border/50">
+    <div className="flex shrink-0 flex-col items-center justify-center rounded-xs bg-muted/40 p-1 border border-border/60">
       <Button
         type="button"
         size="icon-sm"
@@ -124,7 +124,7 @@ export function VoteControl({
         disabled={effectiveDisabled}
         onClick={() => vote("up")}
         className={cn(
-          "size-8 rounded-lg transition-all active:scale-90",
+          "size-8 rounded-xs transition-all active:scale-90",
           isUp
             ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-600"
             : "text-muted-foreground hover:text-foreground"
@@ -135,7 +135,7 @@ export function VoteControl({
 
       <span
         className={cn(
-          "py-0.5 text-xs font-bold tabular-nums leading-none tracking-tight",
+          "py-0.5 text-xs font-mono font-bold tabular-nums leading-none tracking-tight",
           state.score > 0
             ? "text-emerald-600 dark:text-emerald-400"
             : state.score < 0
@@ -156,7 +156,7 @@ export function VoteControl({
         disabled={effectiveDisabled}
         onClick={() => vote("down")}
         className={cn(
-          "size-8 rounded-lg transition-all active:scale-90",
+          "size-8 rounded-xs transition-all active:scale-90",
           isDown
             ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 hover:text-rose-600"
             : "text-muted-foreground hover:text-foreground"
