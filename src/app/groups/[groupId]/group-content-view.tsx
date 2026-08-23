@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X, Calendar } from "lucide-react";
+import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X, Calendar, Clock, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
@@ -24,7 +24,7 @@ import { useFeatureFlag } from "@/lib/flags/client";
 import { DecisionWheelDialog } from "@/components/decision-wheel-dialog";
 import { MOODS, MOOD_DETAILS, type MoodType } from "@/lib/moods";
 import { Smile } from "lucide-react";
-import type { TitlePayload } from "@/lib/group-titles";
+import type { TitlePayload, TitleWithProgress } from "@/lib/group-titles";
 import type { ActionResult } from "@/types/actions";
 import type { PublicComment } from "@/lib/comments";
 import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
@@ -34,15 +34,17 @@ import type {
   UsersResponse,
 } from "@/types/pocketbase-types";
 
-type TitleWithScore = TitlePayload & {
+type TitleWithScore = (TitlePayload | TitleWithProgress) & {
   moods?: MoodType[] | null;
   pace?: string | null;
+  progressSummary?: TitleWithProgress["progressSummary"];
 };
 
 interface GroupContentViewProps {
   group: GroupsResponse;
   members: GroupMembersResponse<{ user?: UsersResponse }>[];
   proposed: TitleWithScore[];
+  inProgress?: TitleWithScore[];
   consumed: TitleWithScore[];
   schedules?: GroupScheduleWithMilestones[];
   currentUserId?: string;
@@ -62,6 +64,7 @@ interface GroupContentViewProps {
   canReview?: boolean;
   canPropose?: boolean;
   onVote: (titleId: string, value: "up" | "down") => Promise<ActionResult<void> | void>;
+  onStartConsuming?: (titleId: string) => Promise<ActionResult<void> | void>;
   onMarkConsumed: (titleId: string) => Promise<ActionResult<void> | void>;
   onUnmarkConsumed: (titleId: string) => Promise<ActionResult<void> | void>;
   onSubmitReview: (titleId: string, formData: FormData) => Promise<ActionResult<void> | void>;
@@ -77,6 +80,7 @@ export function GroupContentView({
   group,
   members,
   proposed,
+  inProgress = [],
   consumed,
   schedules = [],
   currentUserId = "",
@@ -96,6 +100,7 @@ export function GroupContentView({
   canReview = true,
   canPropose = true,
   onVote,
+  onStartConsuming,
   onMarkConsumed,
   onUnmarkConsumed,
   onSubmitReview,
@@ -104,7 +109,7 @@ export function GroupContentView({
   onFetchComments,
 }: GroupContentViewProps) {
   const defaultTab = !canViewBacklog && canViewFinished ? "consumed" : "proposed";
-  const [activeTab, setActiveTab] = useState<"proposed" | "consumed" | "schedules">(defaultTab);
+  const [activeTab, setActiveTab] = useState<"proposed" | "in_progress" | "consumed" | "schedules">(defaultTab);
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedRecommender, setSelectedRecommender] = useState<string>("all");
   const [selectedMood, setSelectedMood] = useState<string>("all");
@@ -113,7 +118,14 @@ export function GroupContentView({
   const moodFeatureEnabled = useFeatureFlag("mood_pace_folksonomy");
   const wheelFeatureEnabled = useFeatureFlag("blind_pick_wheel");
 
-  const currentList = activeTab === "proposed" ? proposed : activeTab === "consumed" ? consumed : [];
+  const currentList =
+    activeTab === "proposed"
+      ? proposed
+      : activeTab === "in_progress"
+      ? inProgress
+      : activeTab === "consumed"
+      ? consumed
+      : [];
 
   const recommenderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -168,6 +180,7 @@ export function GroupContentView({
   };
 
   const filteredProposed = useMemo(() => proposed.filter(filterTitle), [proposed, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
+  const filteredInProgress = useMemo(() => inProgress.filter(filterTitle), [inProgress, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
   const filteredConsumed = useMemo(() => consumed.filter(filterTitle), [consumed, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
 
   const isFiltered =
@@ -185,7 +198,7 @@ export function GroupContentView({
     <div className="flex flex-col gap-6">
       {/* View Switcher & Filters */}
       <div className="space-y-3 pb-3 border-b">
-        {/* Main Tabs (Up Next vs Consumed) & Media Types */}
+        {/* Main Tabs (Up Next vs In Progress vs Consumed) & Media Types */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
           {(canViewBacklog || canViewFinished) && (
@@ -220,6 +233,36 @@ export function GroupContentView({
                     )}
                   >
                     {proposed.length}
+                  </span>
+                </button>
+              )}
+
+              {(canViewBacklog || canViewFinished) && (
+                <button
+                  type="button"
+                  role="tab"
+                  id="in-progress-tab"
+                  aria-selected={activeTab === "in_progress"}
+                  aria-controls="in-progress-panel"
+                  onClick={() => setActiveTab("in_progress")}
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                    activeTab === "in_progress"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Clock className="size-3.5 text-amber-500" />
+                  <span>{t.media.inProgress}</span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px]",
+                      activeTab === "in_progress"
+                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {inProgress.length}
                   </span>
                 </button>
               )}
@@ -597,6 +640,18 @@ export function GroupContentView({
                                   onFetchComments={onFetchComments}
                                 />
                               )}
+                              {!isGuest && onStartConsuming && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                  onClick={() => onStartConsuming(title.id)}
+                                >
+                                  <Play className="size-3 text-amber-500 fill-amber-500/20" />
+                                  <span>{t.media.startConsuming}</span>
+                                </Button>
+                              )}
                               {!isGuest && (
                                 <MarkConsumedButton
                                   onMark={() => onMarkConsumed(title.id)}
@@ -660,6 +715,161 @@ export function GroupContentView({
             </div>
           )}
 
+          {activeTab === "in_progress" && (
+            <div id="in-progress-panel" role="tabpanel" aria-labelledby="in-progress-tab">
+              {filteredInProgress.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredInProgress.map((title) => {
+                    const userStatus = title.progressSummary?.currentUserStatus ?? "not_started";
+                    const finishedCount = title.progressSummary?.finishedCount ?? 0;
+                    const totalMembers = title.progressSummary?.totalMembers ?? members.length;
+
+                    return (
+                      <Card
+                        key={title.id}
+                        className="border-border/70 shadow-xs hover:border-border transition-all duration-200"
+                      >
+                        <CardContent className="p-3 sm:p-4 flex items-start gap-3 sm:gap-4">
+                          {/* Vote Controls */}
+                          <div className="shrink-0 flex flex-col items-center">
+                            <VoteControl
+                              score={title.score}
+                              userVote={title.userVote}
+                              disabled={!canVote}
+                              onVote={canVote ? (val) => onVote(title.id, val) : undefined}
+                            />
+                          </div>
+
+                          {/* Cover Image */}
+                          <Link
+                            href={`/groups/${group.id}/titles/${title.id}`}
+                            className="shrink-0 transition-transform hover:scale-105"
+                            aria-label={title.title}
+                          >
+                            <MediaCover
+                              src={title.coverUrl}
+                              alt={title.title}
+                              size="md"
+                              className="rounded-lg shadow-xs"
+                            />
+                          </Link>
+
+                          {/* Title Details */}
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <MediaBadge type={title.mediaType} size="sm" />
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1"
+                              >
+                                <Clock className="size-2.5" />
+                                <span>
+                                  {finishedCount}/{totalMembers} {t.media.membersFinished}
+                                </span>
+                              </Badge>
+                              {userStatus === "completed" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                >
+                                  ✓ {t.media.youFinished}
+                                </Badge>
+                              )}
+                              {userStatus === "in_progress" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                                >
+                                  {t.media.youInProgress}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div>
+                              <Link
+                                href={`/groups/${group.id}/titles/${title.id}`}
+                                className="group/title inline-block"
+                              >
+                                <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight leading-snug line-clamp-2 group-hover/title:text-primary transition-colors">
+                                  {title.title}
+                                </h3>
+                              </Link>
+                              {title.creator && (
+                                <p className="text-xs text-muted-foreground font-medium line-clamp-1 mt-0.5">
+                                  {title.creator}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                              <p className="text-[11px] text-muted-foreground">
+                                {t.media.addedBy}:{" "}
+                                <span className="font-medium text-foreground">
+                                  {title.expand?.addedBy
+                                    ? getDisplayName(title.expand.addedBy, t.common.unnamedUser)
+                                    : t.blindPick.anonymousRecommender}
+                                </span>
+                              </p>
+                              <div className="flex items-center gap-1.5">
+                                {canViewComments && (
+                                  <MediaComments
+                                    titleId={title.id}
+                                    groupId={group.id}
+                                    titleName={title.title}
+                                    initialCount={commentCounts[title.id] ?? 0}
+                                    currentUserId={currentUserId}
+                                    currentUserRole={currentUserRole}
+                                    isAdmin={isAdmin}
+                                    currentUserName={currentUserName}
+                                    currentUserEmail={currentUserEmail}
+                                    currentUserAvatarUrl={currentUserAvatarUrl}
+                                    canComment={canComment}
+                                    onAddComment={onAddComment}
+                                    onDeleteComment={onDeleteComment}
+                                    onFetchComments={onFetchComments}
+                                  />
+                                )}
+                                {!isGuest && userStatus !== "completed" && (
+                                  <Button
+                                    type="button"
+                                    variant="default"
+                                    size="sm"
+                                    className="gap-1.5 text-xs font-semibold"
+                                    onClick={() => onMarkConsumed(title.id)}
+                                  >
+                                    <CheckCircle2 className="size-3.5" />
+                                    <span>{t.media.markAsConsumed}</span>
+                                  </Button>
+                                )}
+                                {!isGuest && userStatus === "not_started" && onStartConsuming && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                    onClick={() => onStartConsuming(title.id)}
+                                  >
+                                    <Play className="size-3 text-amber-500 fill-amber-500/20" />
+                                    <span>{t.media.startConsuming}</span>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Clock}
+                  title={t.media.emptyInProgressTitle}
+                  description={t.media.emptyInProgressDesc}
+                />
+              )}
+            </div>
+          )}
 
           {activeTab === "consumed" && (
             <div id="consumed-panel" role="tabpanel" aria-labelledby="consumed-tab">

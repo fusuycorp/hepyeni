@@ -6,7 +6,7 @@ import { AddTitleDialog } from "@/components/add-title-dialog";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { buttonVariants } from "@/components/ui/button";
 import { GroupContentView } from "./group-content-view";
-import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
+import { markConsumed, unmarkConsumed, startConsuming } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
@@ -18,14 +18,18 @@ import { getServerTranslations } from "@/lib/i18n/server";
 import { redactProposedTitles } from "@/lib/moods";
 import {
   buildTitlePayload,
+  categorizeCircleTitles,
   groupTitleQuery,
   type LeanVoteRow,
+  type MemberTitleProgress,
+  type TitleWithProgress,
 } from "@/lib/group-titles";
 import type {
   CommentsResponse,
   GroupMembersResponse,
   ReviewsResponse,
   TitlesResponse,
+  UserMediaProgressResponse,
   UsersResponse,
   VotesResponse,
 } from "@/types/pocketbase-types";
@@ -73,6 +77,7 @@ export default async function GroupPage({
     leanVoteRows,
     ownReviewRows,
     leanReviewRows,
+    memberProgressRows,
   ] = await Promise.all([
     pb
       .collection("group_members")
@@ -141,7 +146,34 @@ export default async function GroupPage({
               "expand.user.id,expand.user.name,expand.user.avatarUrl",
           })
       : Promise.resolve([]),
+    // Member progress for 3-section lifecycle: fetch active reading/watching
+    // records for members linked to group titles.
+    needsTitles
+      ? pb
+          .collection("user_media_progress")
+          .getFullList<UserMediaProgressResponse>({
+            filter: `groupTitle != "" && (status = "in_progress" || status = "completed")`,
+            fields: "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,updatedAt",
+          })
+          .catch(() => [])
+      : Promise.resolve([]),
   ]);
+
+  const memberIds = members.map((m) => m.user);
+  const memberProgressByTitle = new Map<string, MemberTitleProgress[]>();
+  for (const p of memberProgressRows) {
+    if (!p.groupTitle) continue;
+    const list = memberProgressByTitle.get(p.groupTitle) ?? [];
+    list.push({
+      userId: p.user,
+      status: p.status as "in_progress" | "completed",
+      progressCurrent: p.progressCurrent,
+      progressTotal: p.progressTotal,
+      progressUnit: p.progressUnit,
+      updatedAt: p.updatedAt,
+    });
+    memberProgressByTitle.set(p.groupTitle, list);
+  }
 
   const commentCounts: Record<string, number> = {};
   for (const c of commentRows) {
@@ -187,27 +219,43 @@ export default async function GroupPage({
       ownReviewTextByTitle,
     }),
   );
-  // ponytail: H-3 is a payload trim; true scalability needs pagination of the
-  // titles list (deferred — would require a page-size contract with the client).
 
   const isOwnerOrAdmin = currentUserRole === "owner" || Boolean(session?.isAdmin);
 
+  const categorized = categorizeCircleTitles(
+    withScore,
+    memberProgressByTitle,
+    memberIds,
+    session?.id,
+  );
+
   const rawProposed = access.canViewBacklog
-    ? withScore
-        .filter((t) => t.status === "proposed")
-        .sort(
-          (a, b) =>
-            b.score - a.score ||
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
+    ? categorized.proposed.sort(
+        (a, b) =>
+          b.score - a.score ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
     : [];
   const proposed = redactProposedTitles(
     rawProposed,
     group.isBlindPickEnabled,
     isOwnerOrAdmin,
-  );
+  ) as TitleWithProgress[];
+
+  const inProgress = access.canViewBacklog || access.canViewFinished
+    ? (categorized.inProgress.sort(
+        (a, b) =>
+          b.score - a.score ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ) as TitleWithProgress[])
+    : [];
+
   const consumed = access.canViewFinished
-    ? withScore.filter((t) => t.status === "consumed")
+    ? (categorized.consumed.sort(
+        (a, b) =>
+          new Date(b.consumedAt || b.createdAt).getTime() -
+          new Date(a.consumedAt || a.createdAt).getTime(),
+      ) as TitleWithProgress[])
     : [];
 
   const currentUser = session
@@ -223,6 +271,11 @@ export default async function GroupPage({
   async function handleVote(titleId: string, value: "up" | "down") {
     "use server";
     await voteOnTitle(titleId, groupId, value);
+  }
+
+  async function handleStartConsuming(titleId: string) {
+    "use server";
+    await startConsuming(titleId, groupId);
   }
 
   async function handleMarkConsumed(titleId: string) {
@@ -312,6 +365,7 @@ export default async function GroupPage({
             <p className="text-xs text-muted-foreground">
               {members.length} {t.groups.members}
               {access.canViewBacklog && ` · ${proposed.length} ${t.groups.pendingCountLabel}`}
+              {(access.canViewBacklog || access.canViewFinished) && ` · ${inProgress.length} ${t.groups.inProgressCountLabel}`}
               {access.canViewFinished && ` · ${consumed.length} ${t.groups.finishedCountLabel}`}
             </p>
           </div>
@@ -356,6 +410,7 @@ export default async function GroupPage({
           group={group}
           members={members}
           proposed={proposed}
+          inProgress={inProgress}
           consumed={consumed}
           schedules={schedules}
           currentUserId={session?.id ?? ""}
@@ -375,6 +430,7 @@ export default async function GroupPage({
           canReview={access.canReview}
           canPropose={access.canPropose}
           onVote={handleVote}
+          onStartConsuming={handleStartConsuming}
           onMarkConsumed={handleMarkConsumed}
           onUnmarkConsumed={handleUnmarkConsumed}
           onSubmitReview={handleSubmitReview}

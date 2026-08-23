@@ -162,6 +162,67 @@ export async function addCustomTitle(
   }
 }
 
+export async function startConsuming(
+  titleId: string,
+  groupId: string,
+): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) {
+    return { success: false, error: "Please sign in again" };
+  }
+
+  try {
+    const [, titleRecord] = await Promise.all([
+      requireMembership(groupId, session.id),
+      requireTitleInGroup(titleId, groupId),
+    ]);
+
+    const pb = await getSuperuserClient();
+    const existing = await pb
+      .collection("user_media_progress")
+      .getFirstListItem(
+        pb.filter("user = {:userId} && groupTitle = {:titleId}", {
+          userId: session.id,
+          titleId,
+        }),
+      )
+      .catch(() => null);
+
+    const now = new Date().toISOString();
+
+    if (existing) {
+      await pb.collection("user_media_progress").update(existing.id, {
+        status: "in_progress",
+        startedAt: existing.startedAt || now,
+        completedAt: null,
+      });
+    } else {
+      await pb.collection("user_media_progress").create({
+        user: session.id,
+        groupTitle: titleId,
+        mediaType: titleRecord.mediaType,
+        title: titleRecord.title,
+        creator: titleRecord.creator,
+        coverUrl: titleRecord.coverUrl,
+        externalSource: titleRecord.externalSource,
+        externalId: titleRecord.externalId,
+        status: "in_progress",
+        startedAt: now,
+        isSharedWithCircles: true,
+      });
+    }
+
+    revalidatePath(`/groups/${groupId}`);
+    revalidatePath(`/groups/${groupId}/titles/${titleId}`);
+    revalidatePath("/shelf");
+    revalidatePath("/activity");
+    return { success: true, data: undefined };
+  } catch (err) {
+    const diag = logDiagnostic(err, { action: "startConsuming", titleId, groupId });
+    return { success: false, error: "Failed to start consuming title", traceId: diag.traceId };
+  }
+}
+
 export async function markConsumed(
   titleId: string,
   groupId: string,
@@ -173,19 +234,73 @@ export async function markConsumed(
 
   try {
     // M-4: independent reads — membership and title-in-group in parallel.
-    await Promise.all([
+    const [, titleRecord] = await Promise.all([
       requireMembership(groupId, session.id),
       requireTitleInGroup(titleId, groupId),
     ]);
 
     const pb = await getSuperuserClient();
-    await pb.collection("titles").update(titleId, {
-      status: "consumed",
-      consumedAt: new Date().toISOString(),
+    const now = new Date().toISOString();
+
+    const existing = await pb
+      .collection("user_media_progress")
+      .getFirstListItem(
+        pb.filter("user = {:userId} && groupTitle = {:titleId}", {
+          userId: session.id,
+          titleId,
+        }),
+      )
+      .catch(() => null);
+
+    if (existing) {
+      await pb.collection("user_media_progress").update(existing.id, {
+        status: "completed",
+        completedAt: now,
+      });
+    } else {
+      await pb.collection("user_media_progress").create({
+        user: session.id,
+        groupTitle: titleId,
+        mediaType: titleRecord.mediaType,
+        title: titleRecord.title,
+        creator: titleRecord.creator,
+        coverUrl: titleRecord.coverUrl,
+        externalSource: titleRecord.externalSource,
+        externalId: titleRecord.externalId,
+        status: "completed",
+        startedAt: titleRecord.createdAt || now,
+        completedAt: now,
+        isSharedWithCircles: true,
+      });
+    }
+
+    // Check if all circle members have now completed this title
+    const members = await pb.collection("group_members").getFullList({
+      filter: pb.filter("group = {:groupId}", { groupId }),
     });
+    if (members.length > 0) {
+      const allCompletedProgress = await pb
+        .collection("user_media_progress")
+        .getFullList({
+          filter: pb.filter("groupTitle = {:titleId} && status = 'completed'", {
+            titleId,
+          }),
+        });
+      const completedUserIds = new Set(allCompletedProgress.map((p) => p.user));
+      const allMembersFinished = members.every((m) => completedUserIds.has(m.user));
+
+      if (allMembersFinished) {
+        await pb.collection("titles").update(titleId, {
+          status: "consumed",
+          consumedAt: now,
+        });
+      }
+    }
 
     revalidatePath(`/groups/${groupId}`);
     revalidatePath(`/groups/${groupId}/titles/${titleId}`);
+    revalidatePath("/shelf");
+    revalidatePath("/activity");
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "markConsumed", titleId, groupId });
@@ -210,13 +325,33 @@ export async function unmarkConsumed(
     ]);
 
     const pb = await getSuperuserClient();
+    const existing = await pb
+      .collection("user_media_progress")
+      .getFirstListItem(
+        pb.filter("user = {:userId} && groupTitle = {:titleId}", {
+          userId: session.id,
+          titleId,
+        }),
+      )
+      .catch(() => null);
+
+    if (existing) {
+      await pb.collection("user_media_progress").update(existing.id, {
+        status: "in_progress",
+        completedAt: null,
+      });
+    }
+
+    // If title was marked consumed at title level, demote back to proposed
     await pb.collection("titles").update(titleId, {
       status: "proposed",
       consumedAt: null,
-    });
+    }).catch(() => null);
 
     revalidatePath(`/groups/${groupId}`);
     revalidatePath(`/groups/${groupId}/titles/${titleId}`);
+    revalidatePath("/shelf");
+    revalidatePath("/activity");
     return { success: true, data: undefined };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "unmarkConsumed", titleId, groupId });
