@@ -69,7 +69,7 @@ export function CircleTitleProgress({
           <div className="divide-y divide-border/50">
             {memberProgress.map(({ user, progress, percentage }) => {
               const displayName = getDisplayName(user, t.common.unnamedUser);
-              const initials = getInitials(user.name, user.email);
+              const initials = getInitials(user.name);
               const isCurrentUser = user.id === currentUserId;
 
               const unitLabel = progress.progressUnit

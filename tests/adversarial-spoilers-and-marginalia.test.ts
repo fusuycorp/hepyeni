@@ -198,7 +198,7 @@ describe("Adversarial Test Suite 1: Spoilers, Marginalia & Milestone Privacy", (
         expect(comment.content).toBeUndefined();
         expect(comment.isLocked).toBe(true);
         // Author email MUST NOT be leaked in locked preview
-        expect(comment.author?.email).toBeUndefined();
+        expect("email" in (comment.author ?? {})).toBe(false);
         // Author name and avatar can be visible for placeholder avatars
         expect(comment.author?.name).toBeDefined();
       }
@@ -223,7 +223,8 @@ describe("Adversarial Test Suite 1: Spoilers, Marginalia & Milestone Privacy", (
       );
       expect(result.comments[0].isSpoiler).toBe(true);
       expect(result.comments[0].isLocked).toBe(false);
-      expect(result.comments[0].author?.email).toBe("alice@secret-domain.corp");
+      // R2 invariant: even the unlocked path never ships reviewer emails
+      expect("email" in (result.comments[0].author ?? {})).toBe(false);
 
       expect(result.comments[1].content).toBe("I really enjoyed chapter 4 pacing.");
       expect(result.comments[1].isSpoiler).toBe(false);

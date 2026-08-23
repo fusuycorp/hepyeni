@@ -16,6 +16,10 @@ export type ReviewerUser = {
   avatarUrl?: string;
 };
 
+// Same projection is used for every client-bound expanded user (comment
+// authors, checkin voters, progress members) — email never ships.
+export type PublicUser = ReviewerUser;
+
 export type GroupReviewRow = {
   id: string;
   rating: number;
@@ -68,6 +72,8 @@ export function groupTitleQuery(canViewReviews: boolean): {
     "createdAt",
     "addedBy",
     "metadata",
+    "externalSource",
+    "externalId",
     "expand.addedBy.id",
     "expand.addedBy.name",
     "expand.addedBy.avatarUrl",

@@ -15,10 +15,7 @@ import { CommentThread, type DisplayComment } from "@/components/comment-thread"
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 import type { ActionResult } from "@/types/actions";
-import type {
-  CommentsResponse,
-  UsersResponse,
-} from "@/types/pocketbase-types";
+import type { PublicComment } from "@/lib/comments";
 
 interface MediaCommentsProps {
   titleId: string;
@@ -35,11 +32,9 @@ interface MediaCommentsProps {
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  ) => Promise<ActionResult<PublicComment> | PublicComment>;
   onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
-  onFetchComments?: (
-    titleId: string,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
+  onFetchComments?: (titleId: string) => Promise<PublicComment[]>;
   triggerClassName?: string;
 }
 

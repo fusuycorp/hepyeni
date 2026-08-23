@@ -34,20 +34,14 @@ import { cn } from "@/lib/utils";
 import { useTranslations, useLocale } from "@/lib/i18n/client";
 import type { ActionResult } from "@/types/actions";
 import type { TitleMemberProgressItem } from "@/lib/actions/progress";
+import type { GroupTitleExpand } from "@/lib/group-titles";
+import type { PublicComment } from "@/lib/comments";
 import type {
-  CommentsResponse,
   GroupsResponse,
-  ReviewsResponse,
   TitlesResponse,
-  UsersResponse,
-  VotesResponse,
 } from "@/types/pocketbase-types";
 
-type TitleWithScore = TitlesResponse<{
-  addedBy?: UsersResponse;
-  votes_via_title?: VotesResponse[];
-  reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
-}> & {
+type TitleWithScore = TitlesResponse<GroupTitleExpand> & {
   score: number;
   userVote?: "up" | "down";
 };
@@ -55,7 +49,7 @@ type TitleWithScore = TitlesResponse<{
 interface TitleDetailViewProps {
   group: GroupsResponse;
   title: TitleWithScore;
-  comments: CommentsResponse<{ user?: UsersResponse }>[];
+  comments: PublicComment[];
   memberProgress?: TitleMemberProgressItem[];
   currentUserId?: string;
   currentUserRole?: string;
@@ -76,11 +70,9 @@ interface TitleDetailViewProps {
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  ) => Promise<ActionResult<PublicComment> | PublicComment>;
   onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
-  onFetchComments?: (
-    titleId: string,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
+  onFetchComments?: (titleId: string) => Promise<PublicComment[]>;
 }
 
 export function TitleDetailView({
@@ -122,7 +114,7 @@ export function TitleDetailView({
 
   const recommender = title.expand?.addedBy;
   const recommenderName = getDisplayName(recommender, t.common.unnamedUser);
-  const recommenderInitials = getInitials(recommender?.name, recommender?.email);
+  const recommenderInitials = getInitials(recommender?.name);
 
   // Extract metadata fields if present
   const meta = (title.metadata ?? {}) as Record<string, unknown>;
@@ -488,10 +480,7 @@ export function TitleDetailView({
                   reviews.map((r) => {
                     const reviewAuthor = r.expand?.user;
                     const name = getDisplayName(reviewAuthor, t.common.unnamedUser);
-                    const initials = getInitials(
-                      reviewAuthor?.name,
-                      reviewAuthor?.email,
-                    );
+                    const initials = getInitials(reviewAuthor?.name);
                     const isOwn = r.user === currentUserId;
 
                     return (

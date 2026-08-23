@@ -25,7 +25,7 @@ import { useTranslations, useLocale } from "@/lib/i18n/client";
 import { SpoilerText } from "@/components/spoiler-text";
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/types/actions";
-import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
+import type { PublicComment } from "@/lib/comments";
 
 export type OptimisticComment = {
   id: string;
@@ -33,12 +33,10 @@ export type OptimisticComment = {
   createdAt: string;
   parentId?: string | null;
   pending: true;
-  author: { name?: string; email?: string; avatarUrl?: string };
+  author: { name?: string; avatarUrl?: string };
 };
 
-export type DisplayComment =
-  | CommentsResponse<{ user?: UsersResponse }>
-  | OptimisticComment;
+export type DisplayComment = PublicComment | OptimisticComment;
 
 export interface CommentThreadProps {
   titleId: string;
@@ -54,11 +52,9 @@ export interface CommentThreadProps {
   onAddComment?: (
     titleId: string,
     formData: FormData,
-  ) => Promise<ActionResult<CommentsResponse<{ user?: UsersResponse }>> | CommentsResponse<{ user?: UsersResponse }>>;
+  ) => Promise<ActionResult<PublicComment> | PublicComment>;
   onDeleteComment?: (commentId: string) => Promise<ActionResult<void> | void>;
-  onFetchComments?: (
-    titleId: string,
-  ) => Promise<CommentsResponse<{ user?: UsersResponse }>[]>;
+  onFetchComments?: (titleId: string) => Promise<PublicComment[]>;
   className?: string;
   autoFetch?: boolean;
 }
@@ -137,7 +133,6 @@ export function CommentThread({
       pending: true,
       author: {
         name: currentUserName,
-        email: currentUserEmail,
         avatarUrl: currentUserAvatarUrl,
       },
     };
@@ -174,7 +169,7 @@ export function CommentThread({
           return;
         }
         setComments((prev) =>
-          prev.map((c) => (c.id === tempId ? (res as CommentsResponse<{ user?: UsersResponse }>) : c)),
+          prev.map((c) => (c.id === tempId ? (res as PublicComment) : c)),
         );
         toast.success(t.comments.added);
       } catch (err) {
@@ -245,7 +240,7 @@ export function CommentThread({
             const isPendingComment = "pending" in root;
             const author = isPendingComment ? root.author : root.expand?.user;
             const authorName = getDisplayName(author, t.common.unnamedUser);
-            const initials = getInitials(author?.name, author?.email);
+            const initials = getInitials(author?.name);
             const isOwn = isPendingComment || root.user === currentUserId;
             const canDelete =
               !isPendingComment &&
@@ -356,10 +351,7 @@ export function CommentThread({
                         ? reply.author
                         : reply.expand?.user;
                       const replyAuthorName = getDisplayName(replyAuthor, t.common.unnamedUser);
-                      const replyInitials = getInitials(
-                        replyAuthor?.name,
-                        replyAuthor?.email,
-                      );
+                      const replyInitials = getInitials(replyAuthor?.name);
                       const isReplyOwn =
                         isReplyPending || reply.user === currentUserId;
                       const canDeleteReply =

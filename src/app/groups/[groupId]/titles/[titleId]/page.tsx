@@ -11,19 +11,20 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { getServerTranslations } from "@/lib/i18n/server";
 import { redactProposedTitles } from "@/lib/moods";
+import {
+  computeScoreAndUserVote,
+  groupTitleQuery,
+  mapGroupReviewRow,
+  type GroupReviewRow,
+  type GroupTitleExpand,
+} from "@/lib/group-titles";
+import { projectCommentRow, type PublicComment } from "@/lib/comments";
 import type {
   CommentsResponse,
   ReviewsResponse,
   TitlesResponse,
   UsersResponse,
-  VotesResponse,
 } from "@/types/pocketbase-types";
-
-type TitleExpand = {
-  addedBy?: UsersResponse;
-  votes_via_title?: VotesResponse[];
-  reviews_via_title?: ReviewsResponse<{ user?: UsersResponse }>[];
-};
 
 export default async function TitleDetailPage({
   params,
@@ -57,48 +58,89 @@ export default async function TitleDetailPage({
   // blind pick is stripped from the client-bound copy by redactProposedTitles
   // (src/lib/moods.ts); the score/userVote scalars below are computed from the
   // server-side records before redaction.
-  const titleExpand = access.canViewReviews
-    ? "addedBy,votes_via_title,reviews_via_title.user"
-    : "addedBy,votes_via_title";
+  //
+  // R2: the title fetch uses the shared groupTitleQuery wire projection (lean
+  // votes, addedBy trimmed to id/name/avatarUrl). Reviews ride a separate lean
+  // query on the `reviews` collection — PocketBase 0.39 cannot project the
+  // nested reviews_via_title.user expand (see src/lib/group-titles.ts).
+  const titleQuery = groupTitleQuery(access.canViewReviews);
 
-  const [titleRecord, userRecord, comments, memberProgress] = await Promise.all([
-    pb.collection("titles").getOne<TitlesResponse<TitleExpand>>(titleId, {
-      expand: titleExpand,
-    }),
-    session?.id
-      ? pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null)
-      : Promise.resolve(null),
-    access.canViewComments
-      ? pb.collection("comments").getFullList<CommentsResponse<{ user?: UsersResponse }>>({
-          filter: pb.filter("title = {:titleId} && group = {:groupId}", {
-            titleId,
-            groupId,
-          }),
-          expand: "user",
-          sort: "createdAt",
-        })
-      : Promise.resolve([]),
-    // H-1: pass the already-resolved title (requireTitleInGroup), session, and
-    // access so getTitleCircleProgress skips its own auth/access/title round trips.
-    getTitleCircleProgress(titleId, titleInGroup, groupId, session, access),
-  ]);
+  const [titleRecord, userRecord, leanReviewRows, ownReviewRows, comments, memberProgress] =
+    await Promise.all([
+      pb.collection("titles").getOne<TitlesResponse<GroupTitleExpand>>(titleId, {
+        expand: titleQuery.expand,
+        fields: titleQuery.fields,
+      }),
+      session?.id
+        ? pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null)
+        : Promise.resolve(null),
+      access.canViewReviews
+        ? pb
+            .collection("reviews")
+            .getFullList<ReviewsResponse<{ user?: UsersResponse }>>({
+              filter: pb.filter("title = {:titleId}", { titleId }),
+              sort: "-createdAt",
+              expand: "user",
+              fields:
+                "id,title,user,rating,createdAt," +
+                "expand.user.id,expand.user.name,expand.user.avatarUrl",
+            })
+        : Promise.resolve([]),
+      access.canViewReviews && session?.id
+        ? pb.collection("reviews").getFullList<ReviewsResponse>({
+            filter: pb.filter("user = {:userId} && title = {:titleId}", {
+              userId: session.id,
+              titleId,
+            }),
+            fields: "id,title,reviewText",
+          })
+        : Promise.resolve([]),
+      access.canViewComments
+        ? pb
+            .collection("comments")
+            .getFullList<CommentsResponse<{ user?: UsersResponse }>>({
+              filter: pb.filter("title = {:titleId} && group = {:groupId}", {
+                titleId,
+                groupId,
+              }),
+              expand: "user",
+              sort: "createdAt",
+              fields:
+                "id,title,user,group,content,parentId,createdAt," +
+                "expand.user.id,expand.user.name,expand.user.avatarUrl",
+            })
+        : Promise.resolve([]),
+      // H-1: pass the already-resolved title (requireTitleInGroup), session, and
+      // access so getTitleCircleProgress skips its own auth/access/title round trips.
+      getTitleCircleProgress(titleId, titleInGroup, groupId, session, access),
+    ]);
 
   if (titleRecord.group !== groupId) {
     notFound();
   }
 
-  const votes = titleRecord.expand?.votes_via_title ?? [];
-  const score = votes.reduce(
-    (acc, v) => acc + (v.value === "up" ? 1 : -1),
-    0,
+  // R2: reviewer identities are projected to id/name/avatarUrl; only the
+  // current viewer's own review body survives (ReviewForm prefill).
+  const ownReviewTextByTitle = new Map<string, string>();
+  for (const r of ownReviewRows) {
+    if (r.reviewText && r.title) ownReviewTextByTitle.set(r.title, r.reviewText);
+  }
+  const reviewRows: GroupReviewRow[] = leanReviewRows.map((r) =>
+    mapGroupReviewRow(r, session?.id, ownReviewTextByTitle),
   );
-  const userVote = session?.id
-    ? votes.find((v) => v.user === session.id)?.value
-    : undefined;
+
+  const votes = titleRecord.expand?.votes_via_title ?? [];
+  const { score, userVote } = computeScoreAndUserVote(votes, session?.id);
 
   const isOwnerOrAdmin = access.isOwner || Boolean(session?.isAdmin);
+  // Attach projected reviews BEFORE redaction so blind pick can strip them for
+  // non-owner viewers of proposed titles (same order as the group page).
+  const withReviews: TitlesResponse<GroupTitleExpand> = {
+    ...titleRecord,
+    expand: { ...titleRecord.expand, reviews_via_title: reviewRows },
+  };
   const [redactedTitle] = redactProposedTitles(
-    [titleRecord],
+    [withReviews],
     access.group.isBlindPickEnabled,
     isOwnerOrAdmin,
   );
@@ -108,6 +150,8 @@ export default async function TitleDetailPage({
     score,
     userVote,
   };
+
+  const publicComments: PublicComment[] = comments.map(projectCommentRow);
 
   const currentUser = session
     ? {
@@ -164,7 +208,7 @@ export default async function TitleDetailPage({
       <TitleDetailView
         group={group}
         title={titleWithScore}
-        comments={comments}
+        comments={publicComments}
         memberProgress={memberProgress}
         currentUserId={session?.id ?? ""}
         currentUserRole={access.isOwner ? "owner" : access.isMember ? "member" : undefined}

@@ -31,6 +31,7 @@ import {
   type MilestoneCommentItem,
   type MilestoneCommentsResult,
 } from "@/lib/schedules";
+import { pickReviewerUser, type PublicUser } from "@/lib/group-titles";
 
 export type { ActionResult };
 export type { MilestoneCommentItem, MilestoneCommentsResult } from "@/lib/schedules";
@@ -51,7 +52,8 @@ export interface CreateGroupScheduleInput {
 }
 
 export interface MilestoneWithCheckins extends ScheduleMilestonesResponse {
-  checkins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[];
+  // R2: checkin voters are projected to id/name/avatarUrl before shipping.
+  checkins: MilestoneCheckinsResponse<{ user?: PublicUser }>[];
   hasCheckedIn: boolean;
   commentCount: number;
 }
@@ -104,7 +106,7 @@ export async function getGroupSchedules(
     const milestoneIds = allMilestones.map((m) => m.id);
 
     // Fetch all checkins for these milestones
-    let allCheckins: MilestoneCheckinsResponse<{ user?: UsersResponse }>[] = [];
+    let allCheckins: MilestoneCheckinsResponse<{ user?: PublicUser }>[] = [];
     let allComments: MilestoneCommentsResponse[] = [];
     if (milestoneIds.length > 0) {
       const milestoneFilter = milestoneIds
@@ -114,6 +116,10 @@ export async function getGroupSchedules(
         pb.collection("milestone_checkins").getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
           filter: milestoneFilter,
           expand: "user",
+          // R2: trim the expanded voter to id/name/avatarUrl on the wire.
+          fields:
+            "id,milestone,user,createdAt," +
+            "expand.user.id,expand.user.name,expand.user.avatarUrl",
         }),
         // P6: only the milestone id is needed for the comment tally
         pb.collection("milestone_comments").getFullList<MilestoneCommentsResponse>({
@@ -121,13 +127,16 @@ export async function getGroupSchedules(
           fields: "id,milestone",
         }),
       ]);
-      allCheckins = checkinsRes;
+      allCheckins = checkinsRes.map((c) => {
+        const user = pickReviewerUser(c.expand?.user);
+        return { ...c, expand: user ? { user } : {} };
+      });
       allComments = commentsRes;
     }
 
     const checkinsByMilestone = new Map<
       string,
-      MilestoneCheckinsResponse<{ user?: UsersResponse }>[]
+      MilestoneCheckinsResponse<{ user?: PublicUser }>[]
     >();
     for (const c of allCheckins) {
       const list = checkinsByMilestone.get(c.milestone) || [];
@@ -455,9 +464,13 @@ export async function addMilestoneComment(
         expand: "user",
       });
 
-    const author =
+    const author = pickReviewerUser(
       record.expand?.user ??
-      (await pb.collection("users").getOne<UsersResponse>(session.id).catch(() => undefined));
+        (await pb
+          .collection("users")
+          .getOne<UsersResponse>(session.id)
+          .catch(() => undefined)),
+    );
 
     revalidatePath(`/groups/${groupId}`);
     return {
@@ -471,14 +484,7 @@ export async function addMilestoneComment(
         isSpoiler: record.isSpoiler,
         createdAt: record.createdAt,
         isLocked: false,
-        author: author
-          ? {
-              id: author.id,
-              name: author.name,
-              email: author.email,
-              avatarUrl: author.avatarUrl,
-            }
-          : undefined,
+        author,
       },
     };
   } catch (err) {
