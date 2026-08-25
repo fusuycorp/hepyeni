@@ -46,6 +46,8 @@ next-env.d.ts
 /pocketbase
 /pb_data
 
-# tool state (pi + glla) — not repo content
+# tool state (pi + glla + agents) — not repo content
 /.pi/
 /.pi-glla/
+/.agents/
+/PROJECT.md

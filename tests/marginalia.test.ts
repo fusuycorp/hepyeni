@@ -441,6 +441,13 @@ function makePbClient() {
           },
         };
       }
+      if (name === "user_media_progress") {
+        return {
+          getOne: async (id: string) => {
+            return { id, user: db.session?.id };
+          },
+        };
+      }
       if (name === "users") {
         return {
           getOne: async () => ({ id: db.session?.id, isAdmin: db.userIsAdmin }),
@@ -459,12 +466,14 @@ const sessionModule = await import("@/lib/pocketbase/session");
 const superuserModule = await import("@/lib/pocketbase/superuser");
 const flagsServerModule = await import("@/lib/flags/server");
 const membershipModule = await import("@/lib/membership");
+const nextCacheModule = await import("next/cache");
 
 describe("Server-Action Privacy Gates (mocked PocketBase)", () => {
   beforeEach(() => {
     resetDb();
     // spyOn patches individual exports; the module namespaces remain intact
     // so sibling test files sharing this process are unaffected.
+    spyOn(nextCacheModule, "revalidatePath").mockImplementation(() => {});
     spyOn(sessionModule, "getSession").mockImplementation(async () => {
       getSessionCalls++;
       return db.session as never;
@@ -741,6 +750,22 @@ describe("Server-Action Privacy Gates (mocked PocketBase)", () => {
 
       const recent = getRecentDiagnostics();
       expect(JSON.stringify(recent)).not.toContain(secret);
+    });
+
+    it("strips foreign circle IDs caller is not a member of in addQuote (SEC-R3-01)", async () => {
+      db.session = { id: "user-1" };
+      db.memberCircles.add("circle-valid");
+
+      const result = await addQuote({
+        titleName: "Dune",
+        quoteText: "Fear is the mind-killer",
+        isSharedWithCircles: ["circle-valid", "circle-foreign-secret"],
+      });
+
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error("expected success");
+      expect(result.data.isSharedWithCircles).toEqual(["circle-valid"]);
+      expect(result.data.isSharedWithCircles).not.toContain("circle-foreign-secret");
     });
   });
 

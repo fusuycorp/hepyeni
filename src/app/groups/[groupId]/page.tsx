@@ -152,7 +152,10 @@ export default async function GroupPage({
       ? pb
           .collection("user_media_progress")
           .getFullList<UserMediaProgressResponse>({
-            filter: `groupTitle != "" && (status = "in_progress" || status = "completed")`,
+            filter: pb.filter(
+              "groupTitle.group = {:groupId} && (status = 'in_progress' || status = 'completed')",
+              { groupId },
+            ),
             fields: "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,updatedAt",
           })
           .catch(() => [])

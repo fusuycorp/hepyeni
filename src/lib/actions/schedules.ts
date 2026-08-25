@@ -240,11 +240,7 @@ export async function createGroupSchedule(
 
     // P4: create milestones in parallel — orderIndex is stored explicitly, so
     // concurrent writes cannot reorder.
-    // ponytail: non-transactional ceiling — a mid-batch milestone write failure
-    // leaves an orphan schedule with only some milestones. Upgrade path: wrap
-    // schedule+milestones in a PB transaction or `group_schedules.update` after
-    // the batch (upsert path); PocketBase 0.23+ has no multi-collection
-    // transaction today.
+    // ponytail: milestone creation batch <- non-transactional write leaves partial milestones on failure -> wrap in PocketBase transaction once multi-collection transactions are supported
     const milestoneWrites = validMilestones.map(async (m, i) => {
       const milestoneData: Record<string, unknown> = {
         schedule: schedule.id,
