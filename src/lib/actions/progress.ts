@@ -335,22 +335,26 @@ export async function getTitleCircleProgress(
 
     // L5: custom rows carry no externalSource/externalId — only bind the
     // external clause when both exist so unbound params never reach the filter.
-    const filter =
+    // Scope to circle member IDs and project lean fields (R2-Q02).
+    const userOrClause = memberUserIds.map((_, i) => `user = {:u${i}}`).join(" || ");
+    const userParams = Object.fromEntries(memberUserIds.map((u, i) => [`u${i}`, u]));
+    const baseFilter =
       resolvedTitle.externalSource && resolvedTitle.externalId
-        ? pb.filter(
-            "groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})",
-            {
-              titleId,
-              src: resolvedTitle.externalSource,
-              extId: resolvedTitle.externalId,
-            },
-          )
-        : pb.filter("groupTitle = {:titleId}", { titleId });
+        ? `(groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})) && (${userOrClause})`
+        : `groupTitle = {:titleId} && (${userOrClause})`;
+    const filter = pb.filter(baseFilter, {
+      titleId,
+      src: resolvedTitle.externalSource || "",
+      extId: resolvedTitle.externalId || "",
+      ...userParams,
+    });
 
     const progressRecords = await pb
       .collection("user_media_progress")
       .getFullList<UserMediaProgressResponse>({
         filter,
+        fields:
+          "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,isSharedWithCircles,startedAt,completedAt,updatedAt",
       });
 
     const memberMap = new Map<string, PublicUser>();

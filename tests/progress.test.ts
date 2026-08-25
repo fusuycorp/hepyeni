@@ -321,14 +321,14 @@ describe("Server-Action Progress Gates (H-1/H-2/L5, mocked PocketBase)", () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(progDb.lastProgressFilter).toBe('groupTitle = "t1"');
+      expect(progDb.lastProgressFilter).toBe('groupTitle = "t1" && (user = "me")');
       expect(progDb.lastProgressFilter).not.toContain("externalSource");
     });
 
     it("keeps binding the external clause when external source/id exist", async () => {
       await getTitleCircleProgress("t1", null, "g1");
       expect(progDb.lastProgressFilter).toBe(
-        'groupTitle = "t1" || (externalSource = "gb" && externalId = "abc")',
+        '(groupTitle = "t1" || (externalSource = "gb" && externalId = "abc")) && (user = "me")',
       );
     });
   });

@@ -202,89 +202,109 @@ export async function proposeExtractedTitles(
     const seenExt = new Set<string>();
     let skippedCount = 0;
 
-    for (const entry of entries) {
-      if (!entry || !MEDIA_TYPES.includes(entry.mediaType)) {
+    // Resolve candidate provider searches concurrently (R2-Q03)
+    const resolvedCandidates = await Promise.all(
+      entries.map(async (entry) => {
+        if (!entry || !MEDIA_TYPES.includes(entry.mediaType)) {
+          return { status: "skipped" as const };
+        }
+
+        const rawTitle = entry.match?.title ?? entry.custom?.title;
+        const title = typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
+        if (!title) {
+          return { status: "skipped" as const };
+        }
+
+        const titleKey = foldTitleKey(entry.mediaType, title);
+        const customTarget = !entry.match;
+
+        let externalSource: string;
+        let externalId: string;
+        let creator: string | null = null;
+        let coverUrl: string | null = null;
+        let metadata: Record<string, unknown> | null = null;
+        let resolvedTitleStr = title;
+
+        if (entry.match) {
+          const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
+          if (!suppliedMatch) {
+            return { status: "skipped" as const };
+          }
+
+          const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
+          let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
+          try {
+            const results = await getProvider(entry.mediaType).search(query);
+            canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
+          } catch (err) {
+            logDiagnostic(err, {
+              action: "proposeExtractedTitles/provider-validation",
+              groupId,
+              mediaType: entry.mediaType,
+            });
+          }
+          if (!canonicalMatch) {
+            return { status: "skipped" as const };
+          }
+
+          externalSource = canonicalMatch.externalSource;
+          externalId = canonicalMatch.externalId;
+          resolvedTitleStr = canonicalMatch.title;
+          creator = canonicalMatch.creator ?? null;
+          coverUrl = canonicalMatch.coverUrl ?? null;
+          metadata = canonicalMatch.metadata ?? null;
+        } else {
+          externalSource = "custom";
+          externalId = `custom_${crypto.randomUUID()}`;
+          creator =
+            typeof entry.custom?.creator === "string"
+              ? entry.custom.creator.trim().slice(0, 300) || null
+              : null;
+        }
+
+        return {
+          status: "valid" as const,
+          entry,
+          titleKey,
+          customTarget,
+          externalSource,
+          externalId,
+          title: resolvedTitleStr,
+          creator,
+          coverUrl,
+          metadata,
+        };
+      }),
+    );
+
+    for (const res of resolvedCandidates) {
+      if (res.status === "skipped") {
         skippedCount++;
         continue;
       }
 
-      const rawTitle = entry.match?.title ?? entry.custom?.title;
-      let title = typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
-      if (!title) {
-        skippedCount++;
-        continue;
-      }
-
-      const titleKey = foldTitleKey(entry.mediaType, title);
-      const customTarget = !entry.match;
-
-      let externalSource: string;
-      let externalId: string;
-      let creator: string | null = null;
-      let coverUrl: string | null = null;
-      let metadata: Record<string, unknown> | null = null;
-
-      if (entry.match) {
-        const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
-        if (!suppliedMatch) {
-          skippedCount++;
-          continue;
-        }
-
-        const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
-        let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
-        try {
-          const results = await getProvider(entry.mediaType).search(query);
-          canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
-        } catch (err) {
-          logDiagnostic(err, {
-            action: "proposeExtractedTitles/provider-validation",
-            groupId,
-            mediaType: entry.mediaType,
-          });
-        }
-        if (!canonicalMatch) {
-          skippedCount++;
-          continue;
-        }
-
-        externalSource = canonicalMatch.externalSource;
-        externalId = canonicalMatch.externalId;
-        title = canonicalMatch.title;
-        creator = canonicalMatch.creator ?? null;
-        coverUrl = canonicalMatch.coverUrl ?? null;
-        metadata = canonicalMatch.metadata ?? null;
-      } else {
-        externalSource = "custom";
-        externalId = `custom_${crypto.randomUUID()}`;
-        creator =
-          typeof entry.custom?.creator === "string"
-            ? entry.custom.creator.trim().slice(0, 300) || null
-            : null;
-      }
-
-      const extKey = `${externalSource}:${externalId}`;
+      const extKey = `${res.externalSource}:${res.externalId}`;
       if (
-        existingTitles.has(titleKey) ||
-        seenTitles.has(titleKey) ||
-        (!customTarget && (existingExt.has(extKey) || seenExt.has(extKey)))
+        existingTitles.has(res.titleKey) ||
+        seenTitles.has(res.titleKey) ||
+        (!res.customTarget && (existingExt.has(extKey) || seenExt.has(extKey)))
       ) {
         skippedCount++;
         continue;
       }
 
-      seenTitles.add(titleKey);
-      if (!customTarget) seenExt.add(extKey);
+      seenTitles.add(res.titleKey);
+      if (!res.customTarget) seenExt.add(extKey);
 
       toInsert.push({
         group: groupId,
-        mediaType: entry.mediaType,
-        externalSource,
-        externalId,
-        title,
-        creator,
-        coverUrl,
-        metadata,
+        mediaType: res.entry.mediaType,
+        externalSource: res.externalSource,
+        externalId: res.externalId,
+        title: res.title,
+        creator: res.creator,
+        coverUrl: res.coverUrl,
+        metadata: res.metadata,
         status: "proposed",
         addedBy: session.id,
       });
