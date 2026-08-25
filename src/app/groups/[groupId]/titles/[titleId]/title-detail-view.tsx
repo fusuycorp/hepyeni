@@ -155,8 +155,21 @@ export function TitleDetailView({
       {/* Hero Media Section */}
       <div className="relative overflow-hidden rounded-sm border border-border/60 bg-card p-5 sm:p-7">
         <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-start">
-          {/* Large Cover Poster */}
-          <div className="shrink-0 mx-auto sm:mx-0">
+          {/* Cover Block with Vote Controls on the Left */}
+          <div className="shrink-0 flex items-start gap-3 sm:gap-4 mx-auto sm:mx-0">
+            {/* Vertical Vote Control (when proposed/up next) */}
+            {!isFinished && (
+              <div className="pt-1 sm:pt-2">
+                <VoteControl
+                  score={title.score}
+                  userVote={title.userVote}
+                  orientation="vertical"
+                  disabled={!canVote}
+                  onVote={canVote ? onVote : undefined}
+                />
+              </div>
+            )}
+
             <MediaCover
               src={title.coverUrl}
               alt={title.title}
@@ -246,18 +259,6 @@ export function TitleDetailView({
 
             {/* Action Bar */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              {/* Vote Control (when proposed/up next) */}
-              {!isFinished && (
-                <div className="p-1 rounded-xs bg-muted/60 border border-border/60">
-                  <VoteControl
-                    score={title.score}
-                    userVote={title.userVote}
-                    disabled={!canVote}
-                    onVote={canVote ? onVote : undefined}
-                  />
-                </div>
-              )}
-
               {/* Status Toggle Button */}
               {!isGuest && (
                 isFinished ? (

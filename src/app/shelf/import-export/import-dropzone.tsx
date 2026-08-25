@@ -67,10 +67,7 @@ export function ImportDropzone({
       // Mirror of the server-side cap in batchImportProgress (P3). Keep the
       // file-size guard and the row cap in the same place so an oversized file
       // fails before a heavy preview render.
-      // ponytail: message is plain English because src/lib/i18n keys must be
-      // added to types.ts + en.ts + tr.ts in tandem (parity invariant) and no
-      // cluster owns the i18n files; a proper importExport.tooManyItems key is
-      // the upgrade path.
+      // ponytail: plain English import limit message <- i18n keys require synchronized updates across types.ts, en.ts, and tr.ts -> add dedicated importExport.tooManyItems translation key
       const MAX_IMPORT_ITEMS = 5000;
       if (result.items.length > MAX_IMPORT_ITEMS) {
         throw new Error(

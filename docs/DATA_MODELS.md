@@ -13,80 +13,37 @@ erDiagram
     users ||--o{ titles : "adds (addedBy)"
     users ||--o{ votes : "casts (user)"
     users ||--o{ reviews : "writes (user)"
+    users ||--o{ comments : "writes (user)"
+    users ||--o{ user_media_progress : "tracks (user)"
+    users ||--o{ group_schedules : "creates (createdBy)"
+    users ||--o{ milestone_checkins : "checks in (user)"
+    users ||--o{ milestone_comments : "comments (user)"
+    users ||--o{ shelf_quotes : "creates (user)"
+    users ||--o{ llm_usage : "reserves (userId)"
 
     groups ||--|{ group_members : "has (group) [CASCADE]"
     groups ||--o{ titles : "contains (group) [CASCADE]"
+    groups ||--o{ comments : "contains (group) [CASCADE]"
+    groups ||--o{ group_schedules : "has (group) [CASCADE]"
 
     titles ||--o{ votes : "receives (title) [CASCADE]"
     titles ||--o{ reviews : "has (title) [CASCADE]"
+    titles ||--o{ comments : "has (title) [CASCADE]"
+    titles ||--o{ group_schedules : "schedules (title) [CASCADE]"
+    titles ||--o{ user_media_progress : "links (groupTitle) [CASCADE]"
 
-    users {
-        string id PK "15-char record ID"
-        string email "Unique user email"
-        string name "Display name (max 200)"
-        string avatarUrl "Avatar image URL"
-        boolean isAdmin "Platform admin flag"
-        datetime bannedAt "Instant ban timestamp"
-        boolean verified "Email verification flag"
-        autodate created "Creation timestamp"
-        autodate updated "Last update timestamp"
-    }
+    group_schedules ||--|{ schedule_milestones : "contains (schedule) [CASCADE]"
+    schedule_milestones ||--o{ milestone_checkins : "has (milestone) [CASCADE]"
+    schedule_milestones ||--o{ milestone_comments : "has (milestone) [CASCADE]"
 
-    groups {
-        string id PK "15-char record ID"
-        string name "Circle name (max 200)"
-        string inviteCode "Unique 8-char invite code"
-        string createdBy FK "Reference to users (no cascade)"
-        autodate createdAt "Creation timestamp"
-    }
-
-    group_members {
-        string id PK "15-char record ID"
-        string group FK "Reference to groups [CASCADE]"
-        string user FK "Reference to users [CASCADE]"
-        string role "owner | member"
-        autodate joinedAt "Join timestamp"
-    }
-
-    titles {
-        string id PK "15-char record ID"
-        string group FK "Reference to groups [CASCADE]"
-        string mediaType "book | movie | tv | music | podcast"
-        string externalSource "google-books | tmdb | spotify | itunes"
-        string externalId "Third-party identifier"
-        string title "Media title (max 300)"
-        string creator "Author / Artist / Director"
-        string coverUrl "Cover art image URL"
-        json metadata "Provider specific JSON"
-        string status "proposed | consumed"
-        string addedBy FK "Reference to users (no cascade)"
-        autodate createdAt "Creation timestamp"
-        date consumedAt "Marked consumed date"
-    }
-
-    votes {
-        string id PK "15-char deterministic SHA-256 hash"
-        string title FK "Reference to titles [CASCADE]"
-        string user FK "Reference to users [CASCADE]"
-        string value "up | down"
-        autodate createdAt "Vote timestamp"
-    }
-
-    reviews {
-        string id PK "15-char record ID"
-        string title FK "Reference to titles [CASCADE]"
-        string user FK "Reference to users [CASCADE]"
-        int rating "Rating 1 to 5"
-        string reviewText "Optional review comment (max 5000)"
-        autodate createdAt "Review timestamp"
-    }
+    user_media_progress ||--o{ shelf_quotes : "links (progressItem)"
 ```
 
 ---
 
 ## 2. PocketBase Collections Specification
 
-All collections enforce `null` API rules (`listRule: null`, `viewRule: null`, `createRule: null`, `updateRule: null`, `deleteRule: null`), preventing direct client-side SDK interactions.
+All collections enforce `null` API rules (`listRule: null`, `viewRule: null`, `createRule: null`, `updateRule: null`, `deleteRule: null`), preventing direct client-side SDK interactions. Access is mediated exclusively through superuser server-side actions with strict multi-tenant authorization guards.
 
 ### 2.1 Collection: `users` (Auth)
 The built-in auth collection extended with application-specific metadata.
@@ -113,6 +70,9 @@ Represents private media circles.
 | `name` | Text | Required, Max: 200 chars | Circle display name |
 | `inviteCode` | Text | Required, Max: 20 chars | Unique 8-char invite code |
 | `createdBy` | Relation | `users.id`, `cascadeDelete: false` | User who created the circle |
+| `isPublic` | Bool | Default: `false` | Public discoverability flag |
+| `isBlindPickEnabled` | Bool | Default: `false` | Redacts proposal author identities during voting |
+| `guestSettings` | JSON | Optional JSON configuration | Fine-grained public invite guest permissions |
 | `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
 
 - **Indexes**:
@@ -133,23 +93,26 @@ Represents circle membership and permissions.
   - `idx_group_members_unique` (Unique composite): `group, user`
 
 ### 2.4 Collection: `titles` (Base)
-Represents proposed or consumed media within a circle.
+Represents media proposed, in progress, or consumed within a circle.
 
 | Field Name | Type | Options / Validation | Purpose |
 |---|---|---|---|
 | `id` | Record ID | 15 alphanumeric characters | Primary Key |
 | `group` | Relation | `groups.id`, `cascadeDelete: true` | Circle reference |
 | `mediaType` | Select | Values: `["book", "movie", "tv", "music", "podcast"]` | Media classification |
-| `externalSource` | Text | Required, Max: 100 chars | Provider identifier (`tmdb`, `google-books`, etc.) |
+| `externalSource` | Text | Required, Max: 100 chars | Provider identifier (`tmdb`, `google-books`, `spotify`, `itunes`, `custom`) |
 | `externalId` | Text | Required, Max: 200 chars | Upstream ID from provider |
 | `title` | Text | Required, Max: 300 chars | Title name |
 | `creator` | Text | Optional, Max: 300 chars | Author / Director / Artist |
 | `coverUrl` | Text | Optional, Max: 2000 chars | Cover artwork URL |
 | `metadata` | JSON | Optional JSON payload | Release date, overview, page count, etc. |
-| `status` | Select | Values: `["proposed", "consumed"]` | Backlog status |
+| `status` | Select | Values: `["proposed", "in_progress", "consumed"]` | 3-section media lifecycle status |
+| `moods` | JSON | Array of strings | Folksonomy mood tags |
+| `pace` | Text | Optional | Pacing tag (`slow_burn`, `gentle`, `fast_paced`) |
 | `addedBy` | Relation | `users.id`, `cascadeDelete: false` | Member who added the item |
 | `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
-| `consumedAt` | Date | Optional ISO date | Date marked as consumed |
+| `startedAt` | Date | Optional ISO date | Date marked in-progress |
+| `consumedAt` | Date | Optional ISO date | Date marked consumed |
 
 - **Indexes**:
   - `idx_titles_group_external` (Unique composite): `group, externalSource, externalId`
@@ -183,6 +146,125 @@ Represents 1–5 star ratings and reviews on consumed titles.
 - **Indexes**:
   - `idx_reviews_unique` (Unique composite): `title, user`
 
+### 2.7 Collection: `comments` (Base)
+Nested (+1 depth) discussions on circle title detail pages.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `title` | Relation | `titles.id`, `cascadeDelete: true` | Target title |
+| `group` | Relation | `groups.id`, `cascadeDelete: true` | Parent circle |
+| `user` | Relation | `users.id`, `cascadeDelete: true` | Author user |
+| `content` | Text | Required, Max: 2000 chars | Comment body text |
+| `parentId` | Relation | `comments.id`, Optional | Root comment reference (+1 depth max) |
+| `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
+
+### 2.8 Collection: `user_media_progress` (Base)
+Personal media consumption tracking on `/shelf` and communal circle progress synchronization.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `user` | Relation | `users.id`, `cascadeDelete: true` | Shelf owner |
+| `groupTitle` | Relation | `titles.id`, Optional, `cascadeDelete: true` | Linked circle proposal |
+| `mediaType` | Select | `["book", "movie", "tv", "music", "podcast"]` | Media type |
+| `title` | Text | Required, Max: 300 chars | Media title |
+| `creator` | Text | Optional, Max: 300 chars | Creator/author |
+| `coverUrl` | Text | Optional, Max: 2000 chars | Cover artwork URL |
+| `status` | Select | `["want_to_consume", "in_progress", "completed", "dropped"]` | Shelf consumption state |
+| `progressCurrent` | Number | Integer, Min: 0 | Current page / episode / percent |
+| `progressTotal` | Number | Integer, Optional | Total pages / episodes / duration |
+| `progressUnit` | Select | `["pages", "percentage", "minutes", "episodes"]` | Progress measurement unit |
+| `currentLabel` | Text | Optional, Max: 100 chars | e.g. "Chapter 4", "Season 2" |
+| `notes` | Text | Optional, Max: 5000 chars | Private user notes |
+| `rating` | Number | Optional, Integer 1–5 | Personal shelf rating |
+| `isSharedWithCircles`| Bool | Default: `true` | Commits progress to circle feeds |
+| `moods` | JSON | Array of strings | Folksonomy mood tags |
+| `pace` | Text | Optional | Pacing tag |
+| `externalSource` | Text | Optional, Max: 100 chars | Upstream provider |
+| `externalId` | Text | Optional, Max: 200 chars | Upstream identifier |
+| `startedAt` | Date | Optional ISO date | Reading started timestamp |
+| `completedAt` | Date | Optional ISO date | Finished timestamp |
+| `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
+| `updatedAt` | Autodate | `onUpdate: true` | Last update timestamp |
+
+### 2.9 Collection: `group_schedules` (Base)
+Communal pacing schedules tied to a circle title.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `group` | Relation | `groups.id`, `cascadeDelete: true` | Circle reference |
+| `title` | Relation | `titles.id`, `cascadeDelete: true` | Circle title |
+| `createdBy` | Relation | `users.id`, `cascadeDelete: false` | Schedule creator |
+| `name` | Text | Required, Max: 200 chars | Schedule label |
+| `startDate` | Date | Required ISO date | Pacing start date |
+| `endDate` | Date | Required ISO date | Target completion date |
+| `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
+
+### 2.10 Collection: `schedule_milestones` (Base)
+Individual check-in checkpoints within a communal schedule.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `schedule` | Relation | `group_schedules.id`, `cascadeDelete: true` | Parent schedule |
+| `title` | Text | Required, Max: 200 chars | Milestone name (e.g. "Chapters 1-5") |
+| `orderIndex` | Number | Integer, Min: 0 | Sequential order |
+| `targetDate` | Date | Optional ISO date | Target completion date |
+| `description` | Text | Optional, Max: 1000 chars | Milestone instructions |
+| `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
+
+### 2.11 Collection: `milestone_checkins` (Base)
+Member completion check-ins for a schedule milestone.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `milestone` | Relation | `schedule_milestones.id`, `cascadeDelete: true` | Target milestone |
+| `user` | Relation | `users.id`, `cascadeDelete: true` | Checked-in member |
+| `checkedInAt` | Autodate | `onCreate: true` | Check-in timestamp |
+
+- **Indexes**:
+  - `idx_milestone_checkin_unique` (Unique composite): `milestone, user`
+
+### 2.12 Collection: `milestone_comments` (Base)
+Milestone campfire discussions with server-side spoiler redaction for non-checked-in members.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `milestone` | Relation | `schedule_milestones.id`, `cascadeDelete: true` | Target milestone |
+| `user` | Relation | `users.id`, `cascadeDelete: true` | Author member |
+| `content` | Text | Required, Max: 2000 chars | Discussion body text |
+| `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
+
+### 2.13 Collection: `shelf_quotes` (Base)
+Digital marginalia and passage excerpts clipped to shelf or shared with specific circles.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Primary Key |
+| `user` | Relation | `users.id`, `cascadeDelete: true` | Quote author |
+| `progressItem` | Relation | `user_media_progress.id`, Optional, `cascadeDelete: null` | Linked shelf item |
+| `titleName` | Text | Required, Max: 200 chars | Media title |
+| `quoteText` | Text | Required, Max: 3000 chars | Clipped quotation |
+| `attribution` | Text | Optional, Max: 200 chars | Author / chapter / timestamp |
+| `mediaType` | Text | Optional | Media type tag |
+| `tags` | JSON | Array of strings | Categorization tags |
+| `isSharedWithCircles`| JSON | Array of circle ID strings | Multi-scope circle sharing list |
+| `createdAt` | Autodate | `onCreate: true` | Creation timestamp |
+
+### 2.14 Collection: `llm_usage` (Base)
+Durable atomic rate-limiting reservations for AI text extraction quotas across server instances.
+
+| Field Name | Type | Options / Validation | Purpose |
+|---|---|---|---|
+| `id` | Record ID | 15 alphanumeric characters | Unique reservation identifier |
+| `userId` | Text | Required | User identifier |
+| `inputChars` | Number | Integer, Min: 0 | Character cost of extraction turn |
+| `createdAt` | Autodate | `onCreate: true` | Reservation timestamp |
+
 ---
 
 ## 3. Cascading Deletion & Referential Integrity
@@ -192,16 +274,18 @@ PocketBase manages referential integrity through native `cascadeDelete` settings
 1. **Circle Deletion (`groups.delete(id)`)**:
    - `group_members.group` (`cascadeDelete: true`) $\to$ Deletes all member associations.
    - `titles.group` (`cascadeDelete: true`) $\to$ Deletes all titles in the circle.
+   - `comments.group` (`cascadeDelete: true`) $\to$ Deletes all title comments.
+   - `group_schedules.group` (`cascadeDelete: true`) $\to$ Deletes all schedules, milestones, check-ins, and campfire comments.
    - `votes.title` and `reviews.title` (`cascadeDelete: true`) $\to$ Automatically deleted when their parent title is removed.
 2. **User Account Deletion (`users.delete(id)`)**:
-   - `group_members.user`, `votes.user`, `reviews.user` have `cascadeDelete: true`.
-   - **Protection Rule**: `groups.createdBy` and `titles.addedBy` specify `cascadeDelete: false`. If a user attempts to delete their account while still owning a circle or active titles, PocketBase returns a `400 ClientResponseError`, requiring them to transfer ownership or remove groups first ([`src/lib/actions/profile.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/lib/actions/profile.ts#L22-L42)).
+   - `group_members.user`, `votes.user`, `reviews.user`, `comments.user`, `user_media_progress.user`, `milestone_checkins.user`, `milestone_comments.user`, `shelf_quotes.user` have `cascadeDelete: true`.
+   - **Protection Rule**: `groups.createdBy` and `titles.addedBy` specify `cascadeDelete: false`. If a user attempts to delete their account while still owning a circle or active titles, PocketBase returns a `400 ClientResponseError`, requiring them to transfer ownership or remove groups first.
 
 ---
 
 ## 4. TypeScript Definitions & Type Generation
 
-Generated TypeScript types are stored in [`src/types/pocketbase-types.ts`](file:///home/devhax/projects/fusuycorp/hepyeni/src/types/pocketbase-types.ts).
+Generated TypeScript types are stored in `src/types/pocketbase-types.ts`.
 
 ### Regenerating Schema Types
 Whenever migrations in `pb_migrations/` are updated, regenerate types using `pocketbase-typegen`:

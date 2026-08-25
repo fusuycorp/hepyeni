@@ -16,7 +16,6 @@ import { useFeatureFlag } from "@/lib/flags/client";
 import type { MoodType, PaceType } from "@/lib/moods";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { addTitle, addCustomTitle } from "@/lib/actions/titles";
-import { isProviderAvailable } from "@/lib/providers";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -161,7 +160,7 @@ export function AddTitleForm({
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {MEDIA_TYPES.map((type) => {
-            const available = isProviderAvailable(type);
+            const available = MEDIA_TYPES.includes(type);
             const active = mediaType === type;
             return (
               <button

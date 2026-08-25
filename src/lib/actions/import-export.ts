@@ -41,11 +41,7 @@ function normalizeTitleKey(title: string): string {
 const MAX_IMPORT_ITEMS = 5000;
 const MAX_EXPORT_ROWS = 10000;
 
-// ponytail: action errors are plain English strings shown verbatim in client
-// toasts (matching auth.ts / admin.ts). Upgrade path: stable error codes
-// mapped through src/lib/i18n client-side so the user's locale is respected.
-// The export/import caps above are the network/write bounds; streaming export
-// via a route handler / signed URL is the deferred replacement (perf M7).
+// ponytail: action error strings and sync memory export <- synchronous memory buffer and English action strings -> map stable error codes to useTranslations and stream large exports via route handler
 
 export async function batchImportProgress(
   items: NormalizedImportItem[],

@@ -10,10 +10,7 @@ import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 import type { VotesResponse } from "@/types/pocketbase-types";
 
-// ponytail: action-layer error strings are hardcoded English (unified from a
-// TR/EN mix). Ceiling: actions should return stable error codes mapped to
-// client-side translations (useTranslations) for full TR/EN parity; until then
-// EN keeps every locale's toasts readable and consistent.
+// ponytail: action-layer error strings <- hardcoded English in action layer -> map stable error codes through useTranslations on client
 
 export async function voteOnTitle(
   titleId: string,

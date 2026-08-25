@@ -13,7 +13,6 @@ import type {
   UsersResponse,
 } from "@/types/pocketbase-types";
 import {
-  parseTags,
   validateQuoteInput,
   canUserDeleteQuote,
   filterQuotesForViewer,
@@ -45,6 +44,21 @@ export async function addQuote(
     }
 
     const pb = await getSuperuserClient();
+
+    let authorizedCircles: string[] = [];
+    if (validation.sanitized.isSharedWithCircles && validation.sanitized.isSharedWithCircles.length > 0) {
+      const memberships = await pb
+        .collection("group_members")
+        .getFullList({
+          filter: pb.filter("user = {:userId}", { userId: session.id }),
+          fields: "group",
+        });
+      const memberGroupIds = new Set(memberships.map((m) => m.group));
+      authorizedCircles = validation.sanitized.isSharedWithCircles.filter((id) =>
+        memberGroupIds.has(id),
+      );
+    }
+
     const payload: Partial<ShelfQuotesRecord> = {
       user: session.id,
       titleName: validation.sanitized.titleName,
@@ -52,11 +66,20 @@ export async function addQuote(
       attribution: validation.sanitized.attribution || "",
       mediaType: validation.sanitized.mediaType || "",
       tags: validation.sanitized.tags,
-      isSharedWithCircles: validation.sanitized.isSharedWithCircles,
+      isSharedWithCircles: authorizedCircles,
     };
 
     if (validation.sanitized.progressItem) {
-      payload.progressItem = validation.sanitized.progressItem;
+      try {
+        const item = await pb
+          .collection("user_media_progress")
+          .getOne(validation.sanitized.progressItem, { fields: "id,user" });
+        if (item.user === session.id) {
+          payload.progressItem = item.id;
+        }
+      } catch {
+        // Omit unverified or foreign progress item record safely
+      }
     }
 
     const record = await pb

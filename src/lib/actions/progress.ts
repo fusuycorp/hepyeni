@@ -71,8 +71,7 @@ export async function getPersonalShelf(
       .getFullList<UserMediaProgressResponse>({
         filter,
         sort: "-updatedAt",
-        // ponytail: project only the fields the shelf UI reads (M6). The real
-        // win is pagination/virtualization of the unbounded shelf (deferred).
+        // ponytail: unbounded shelf query <- unbounded getFullList payload -> add cursor pagination and virtualization to personal shelf
         fields:
           "id,title,creator,coverUrl,status,mediaType,currentLabel,notes,progressCurrent,progressTotal,progressUnit,rating,isSharedWithCircles,moods,pace,externalSource,externalId,groupTitle,startedAt,completedAt,createdAt,updatedAt",
       });
@@ -198,8 +197,7 @@ export async function saveMediaProgress(
 
     return { success: true, data: result };
   } catch (err) {
-    // ponytail: action messages are plain English today; the upgrade path is a
-    // stable error-code + client-side i18n mapping (i18n parity invariant).
+    // ponytail: action messages <- plain English action errors -> map stable error codes to useTranslations on client
     const diag = logDiagnostic(err, {
       action: "saveMediaProgress",
       userId: session.id,
@@ -337,22 +335,26 @@ export async function getTitleCircleProgress(
 
     // L5: custom rows carry no externalSource/externalId — only bind the
     // external clause when both exist so unbound params never reach the filter.
-    const filter =
+    // Scope to circle member IDs and project lean fields (R2-Q02).
+    const userOrClause = memberUserIds.map((_, i) => `user = {:u${i}}`).join(" || ");
+    const userParams = Object.fromEntries(memberUserIds.map((u, i) => [`u${i}`, u]));
+    const baseFilter =
       resolvedTitle.externalSource && resolvedTitle.externalId
-        ? pb.filter(
-            "groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})",
-            {
-              titleId,
-              src: resolvedTitle.externalSource,
-              extId: resolvedTitle.externalId,
-            },
-          )
-        : pb.filter("groupTitle = {:titleId}", { titleId });
+        ? `(groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})) && (${userOrClause})`
+        : `groupTitle = {:titleId} && (${userOrClause})`;
+    const filter = pb.filter(baseFilter, {
+      titleId,
+      src: resolvedTitle.externalSource || "",
+      extId: resolvedTitle.externalId || "",
+      ...userParams,
+    });
 
     const progressRecords = await pb
       .collection("user_media_progress")
       .getFullList<UserMediaProgressResponse>({
         filter,
+        fields:
+          "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,isSharedWithCircles,startedAt,completedAt,updatedAt",
       });
 
     const memberMap = new Map<string, PublicUser>();
