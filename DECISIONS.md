@@ -161,3 +161,18 @@
   - **Session-Hoist Pattern**: Server Component pages resolve `session` and `access` once at the page root and hoist them down to child actions (`getTitleCircleProgress`, `getPersonalShelf`, `getUserQuotes`, `getGroupSchedules`). Actions use the hoisted session when provided and fall back to `getSession()` only when invoked directly from client RPC.
   - **Relation-of-Relation Aggregation**: Avoid deep nested expands on the parent query; execute lean, dedicated per-collection queries (e.g. `pb.collection("reviews").getFullList({ filter: "title.group = {:groupId}", expand: "user" })`) inside `Promise.all` and join in-memory with field projection (`id,name,avatarUrl`).
 - **Consequences**: Minimized auth latency, elimination of redundant database round-trips, and leak-proof projection of user PII.
+
+## ADR-018: Mobile Viewport Architecture, Safe-Area Inset Geometry & Dynamic Viewport Height (dvh) Modal Lifecycle
+- **Status**: Accepted & Implemented (2026-08-26)
+- **Context**: On modern mobile devices (iOS Safari, Android Chrome, PWA standalone webviews), fixed-height modals (`vh`), unmanaged notch/home-indicator safe areas, sub-32px touch targets, and default 14px font inputs caused usability regressions:
+  1. Virtual on-screen keyboards pushed dialog headers/action buttons off screen when using traditional `100vh` units.
+  2. Fixed bottom navigation bars overlapped floating action buttons and content behind the hardware home indicator bar.
+  3. iOS Safari triggered disruptive automatic zoom when inputs with font size $<16\text{px}$ received focus.
+  4. 300ms tap delay and grey highlight flash degraded perceived native feel.
+- **Decision**:
+  1. **Dynamic Viewport Heights (`dvh`)**: Standardized all modal overlays, dialogs, and internal scroll areas to dynamic viewport units (`max-h-[calc(100dvh-2rem)]`, `max-h-[90dvh]`, `max-h-[50dvh]`) with `overscroll-contain` momentum scrolling.
+  2. **Safe-Area Geometry**: Configured Next.js typed `Viewport` with `viewportFit: "cover"` and light/dark `themeColor` tags. Layered CSS safe-area padding helpers (`@utility pb-safe`, `pt-safe`, `bottom-[calc(...+env(safe-area-inset-bottom))]`) across AppShell, BottomNav, and floating FABs.
+  3. **Touch Targets & Tactile Feedback**: Enforced $\ge 44\text{px}$ minimum height for primary mobile navigation, $\ge 36\text{px}$ for voting and review controls, added `touch-action: manipulation`, and eliminated `-webkit-tap-highlight-color`.
+  4. **Input Ergonomics & iOS Zoom Prevention**: Standardized input font sizing to `text-base md:text-sm` (16px on mobile viewports), `h-9 sm:h-8` height, and configured mobile keyboard search hints (`enterKeyHint="search"`, `type="search"`).
+- **Consequences**: Native-feeling mobile web application with zero keyboard clipping, zero safe-area content collisions, zero unwanted auto-zoom, and machine-verified invariant tests (`tests/mobile-viewport.test.ts`).
+
