@@ -33,7 +33,7 @@ export function CreateGroupCard({
         if (typeof res === "object" && res !== null && "success" in res) {
           if (!res.success) {
             toast.error(res.error || t.groups.createError, {
-              description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+              description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
             });
             return;
           }
@@ -111,7 +111,7 @@ export function JoinGroupCard({
         if (typeof res === "object" && res !== null && "success" in res) {
           if (!res.success) {
             toast.error(res.error || t.groups.joinError, {
-              description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+              description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
             });
             return;
           }

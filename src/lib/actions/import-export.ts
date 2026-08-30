@@ -30,6 +30,7 @@ export interface ExportResult {
 
 function normalizeTitleKey(title: string): string {
   return title
+    .normalize("NFD")
     .toLowerCase()
     .trim()
     .replace(/[^\p{L}\p{N}]/gu, "");
@@ -65,12 +66,14 @@ export async function batchImportProgress(
   try {
     const pb = await getSuperuserClient();
 
-    // 1. Fetch existing progress records for the user
-    const existingRecords = await pb
+    // 1. Fetch existing progress records for the user (bounded to avoid memory bloat)
+    const existingResult = await pb
       .collection("user_media_progress")
-      .getFullList<UserMediaProgressResponse>({
+      .getList<UserMediaProgressResponse>(1, MAX_IMPORT_ITEMS, {
         filter: pb.filter("user = {:userId}", { userId: session.id }),
+        fields: "id,externalSource,externalId,title,creator,mediaType",
       });
+    const existingRecords = existingResult.items;
 
     // 2. Build deduplication lookups
     const externalKeySet = new Set<string>();
@@ -232,19 +235,21 @@ export async function exportShelfData(
 
   try {
     const pb = await getSuperuserClient();
-    const items = await pb
+    const listResult = await pb
       .collection("user_media_progress")
-      .getFullList<UserMediaProgressResponse>({
+      .getList<UserMediaProgressResponse>(1, MAX_EXPORT_ROWS + 1, {
         filter: pb.filter("user = {:userId}", { userId: session.id }),
         sort: "-createdAt",
       });
 
-    if (items.length > MAX_EXPORT_ROWS) {
+    if (listResult.totalItems > MAX_EXPORT_ROWS) {
       return {
         success: false,
-        error: `Export limit exceeded: your shelf has ${items.length} items but the maximum export size is ${MAX_EXPORT_ROWS}.`,
+        error: `Export limit exceeded: your shelf has ${listResult.totalItems} items but the maximum export size is ${MAX_EXPORT_ROWS}.`,
       };
     }
+
+    const items = listResult.items;
 
     const dateStr = new Date().toISOString().slice(0, 10);
 

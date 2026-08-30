@@ -36,6 +36,7 @@ export const Collections = {
   MilestoneCheckins: "milestone_checkins",
   MilestoneComments: "milestone_comments",
   ShelfQuotes: "shelf_quotes",
+  LlmUsage: "llm_usage",
 } as const;
 export type Collections = (typeof Collections)[keyof typeof Collections];
 
@@ -283,6 +284,16 @@ export type ShelfQuotesRecord = {
   createdAt: IsoAutoDateString;
 };
 
+export type LlmUsageKindOptions = "request" | "input";
+
+export type LlmUsageRecord = {
+  user: RecordIdString;
+  window: string;
+  kind: LlmUsageKindOptions;
+  requestId: string;
+  createdAt: IsoAutoDateString;
+};
+
 // Response types include system fields and match responses from the PocketBase API
 export type CommentsResponse<Texpand = unknown> =
   Required<CommentsRecord> & BaseSystemFields<Texpand>;
@@ -310,6 +321,8 @@ export type MilestoneCommentsResponse<Texpand = unknown> =
   Required<MilestoneCommentsRecord> & BaseSystemFields<Texpand>;
 export type ShelfQuotesResponse<Texpand = unknown> =
   Required<ShelfQuotesRecord> & BaseSystemFields<Texpand>;
+export type LlmUsageResponse<Texpand = unknown> =
+  Required<LlmUsageRecord> & BaseSystemFields<Texpand>;
 
 // Types containing all Records and Responses, useful for creating typing helper functions
 
@@ -327,6 +340,7 @@ export type CollectionRecords = {
   milestone_checkins: MilestoneCheckinsRecord;
   milestone_comments: MilestoneCommentsRecord;
   shelf_quotes: ShelfQuotesRecord;
+  llm_usage: LlmUsageRecord;
 };
 
 export type CollectionResponses = {
@@ -343,6 +357,7 @@ export type CollectionResponses = {
   milestone_checkins: MilestoneCheckinsResponse;
   milestone_comments: MilestoneCommentsResponse;
   shelf_quotes: ShelfQuotesResponse;
+  llm_usage: LlmUsageResponse;
 };
 
 // Type for usage with a type-asserted PocketBase instance

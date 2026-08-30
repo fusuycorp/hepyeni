@@ -4,14 +4,16 @@ import { BookmarkCheck, ArrowLeft, FileText, CheckCircle2, Users, AlertCircle } 
 import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
+import { getServerTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Kullanım Koşulları (Terms of Service) — HepYeni",
-  description: "HepYeni ve hepyeni.net platformu kullanım şartları ve topluluk kuralları.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerTranslations();
+  return { title: t.terms.title, description: t.terms.description };
+}
 
-export default function TermsOfServicePage() {
-  const lastUpdated = "17 Ağustos 2026";
+export default async function TermsOfServicePage() {
+  const t = await getServerTranslations();
+  const tm = t.terms;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -37,7 +39,7 @@ export default function TermsOfServicePage() {
               })}
             >
               <ArrowLeft className="size-3.5" />
-              <span>Giriş Ekranı</span>
+              <span>{tm.backToLogin}</span>
             </Link>
           </div>
         </div>
@@ -50,13 +52,13 @@ export default function TermsOfServicePage() {
           <div className="space-y-2 pb-6 border-b">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
               <FileText className="size-3.5" />
-              <span>Hizmet Şartları</span>
+              <span>{tm.badge}</span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Kullanım Koşulları (Terms of Service)
+              {tm.heading}
             </h1>
             <p className="text-xs text-muted-foreground">
-              Son Güncelleme: {lastUpdated} &middot; hepyeni.net (HepYeni Platformu)
+              {tm.lastUpdated} &middot; {tm.platformLabel}
             </p>
           </div>
 
@@ -66,10 +68,10 @@ export default function TermsOfServicePage() {
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <CheckCircle2 className="size-4 text-primary" />
-                <span>1. Koşulların Kabulü</span>
+                <span>{tm.s1Heading}</span>
               </h2>
               <p>
-                HepYeni platformuna (<code className="font-mono text-foreground">hepyeni.net</code>) erişerek veya platformu kullanarak, işbu Kullanım Koşulları&apos;nı ve <Link href="/privacy" className="text-primary hover:underline font-medium">Gizlilik Politikası</Link>&apos;nı kabul etmiş sayılırsınız. Bu koşulları kabul etmiyorsanız lütfen platformu kullanmayınız.
+                {tm.s1Text}
               </p>
             </section>
 
@@ -77,10 +79,10 @@ export default function TermsOfServicePage() {
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <Users className="size-4 text-primary" />
-                <span>2. Hizmetin Tanımı ve Kapsamı</span>
+                <span>{tm.s2Heading}</span>
               </h2>
               <p>
-                HepYeni; kitap kulüpleri, arkadaş grupları ve topluluklar için ortak medya listeleri oluşturma, oylama ve değerlendirme yapma olanağı tanıyan iş birlikçi bir medya takip aracıdır. Platform, üçüncü taraf veri sağlayıcıları (TMDB, Spotify, Google Books, Apple Podcasts) aracılığıyla medya meta verilerini görüntüler.
+                {tm.s2Text}
               </p>
             </section>
 
@@ -88,58 +90,58 @@ export default function TermsOfServicePage() {
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
                 <AlertCircle className="size-4 text-primary" />
-                <span>3. Kullanıcı Hesapları ve Davranış Kuralları</span>
+                <span>{tm.s3Heading}</span>
               </h2>
-              <p>Platformu kullanırken aşağıdaki kurallara uymayı taahhüt edersiniz:</p>
+              <p>{tm.s3Intro}</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>Hesabınızın güvenliğini korumak ve yetkisiz erişimleri engellemek sizin sorumluluğunuzdadır.</li>
-                <li>Platform üzerinden hakaret, nefret söylemi, spam veya yasa dışı içerik paylaşmak yasaktır.</li>
-                <li>Sistemin işleyişini bozacak otomatik botlar veya güvenlik zaafiyeti tarayıcıları çalıştırmak yasaktır.</li>
-                <li>Kurallara aykırı davranan kullanıcıların hesapları yöneticiler tarafından uyarılmaksızın askıya alınabilir veya silinebilir.</li>
+                <li>{tm.s3Rule1}</li>
+                <li>{tm.s3Rule2}</li>
+                <li>{tm.s3Rule3}</li>
+                <li>{tm.s3Rule4}</li>
               </ul>
             </section>
 
             {/* Section 4 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground">
-                4. Fikri Mülkiyet ve Üçüncü Taraf Hakları
+                {tm.s4Heading}
               </h2>
               <p>
-                Platformda görüntülenen film, dizi, kitap, müzik ve podcast afişleri, başlıkları ve açıklamaları ilgili hak sahiplerine ve veri sağlayıcılarına (TMDB, Spotify, Google, Apple) aittir. Kullanıcıların platformda yazdığı özgün yorum ve değerlendirmeler ilgili kullanıcının mülkiyetindedir.
+                {tm.s4Text}
               </p>
             </section>
 
             {/* Section 5 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground">
-                5. Sorumluluğun Sınırlandırılması
+                {tm.s5Heading}
               </h2>
               <p>
-                HepYeni hizmeti &quot;olduğu gibi&quot; (as-is) ve &quot;mevcut olduğu şekilde&quot; sağlanmaktadır. hepyeni.net, hizmetin kesintisiz veya hatasız olacağını garanti etmez; veri kaybı veya hizmet kesintilerinden doğabilecek dolaylı zararlardan sorumlu tutulamaz.
+                {tm.s5Text}
               </p>
             </section>
 
             {/* Section 6 */}
             <section className="space-y-3">
               <h2 className="text-base sm:text-lg font-bold text-foreground">
-                6. Hesap Kapatma ve Hizmet Değişiklikleri
+                {tm.s6Heading}
               </h2>
               <p>
-                Kullanıcılar diledikleri zaman profil sayfalarından hesaplarını kalıcı olarak silebilirler. hepyeni.net, önceden bildirimde bulunarak veya bulunmaksızın hizmet şartlarını güncelleme veya hizmeti sonlandırma hakkını saklı tutar.
+                {tm.s6Text}
               </p>
             </section>
 
             {/* Section 7 */}
             <section className="space-y-3 pt-4 border-t">
               <h2 className="text-base sm:text-lg font-bold text-foreground">
-                7. İletişim
+                {tm.s7Heading}
               </h2>
               <p>
-                Kullanım koşulları ile ilgili sorularınız için lütfen bizimle iletişime geçin:
+                {tm.s7Intro}
               </p>
               <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1 font-mono">
-                <p><span className="text-foreground font-semibold">Web Sitesi:</span> https://hepyeni.net</p>
-                <p><span className="text-foreground font-semibold">E-posta:</span> contact@hepyeni.net</p>
+                <p><span className="text-foreground font-semibold">{tm.websiteLabel}</span> https://hepyeni.net</p>
+                <p><span className="text-foreground font-semibold">{tm.emailLabel}</span> contact@hepyeni.net</p>
               </div>
             </section>
           </div>
@@ -149,10 +151,10 @@ export default function TermsOfServicePage() {
       {/* Footer */}
       <footer className="border-t bg-card/60 py-6 px-4 text-center text-xs text-muted-foreground">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>&copy; {new Date().getFullYear()} HepYeni &middot; hepyeni.net. Tüm hakları saklıdır.</p>
+          <p>&copy; {new Date().getFullYear()} HepYeni &middot; hepyeni.net. {tm.footerCopyright}</p>
           <div className="flex items-center gap-4">
-            <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">Gizlilik Politikası</Link>
-            <Link href="/terms" className="hover:text-foreground underline underline-offset-4">Kullanım Koşulları</Link>
+            <Link href="/privacy" className="hover:text-foreground underline underline-offset-4">{tm.privacyLink}</Link>
+            <Link href="/terms" className="hover:text-foreground underline underline-offset-4">{tm.termsLink}</Link>
           </div>
         </div>
       </footer>

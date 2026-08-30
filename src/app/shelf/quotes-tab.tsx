@@ -70,7 +70,7 @@ export function QuotesTab({
       const res = await deleteQuote(quoteId);
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
         });
         return;
       }

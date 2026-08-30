@@ -133,7 +133,7 @@ export function MilestoneCampfireDialog({
       const res = await addMilestoneComment(milestone.id, groupId, formData);
       if (!res.success) {
         toast.error(res.error || t.campfires.messageAddFailed, {
-          description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
         });
         return;
       }
@@ -152,7 +152,7 @@ export function MilestoneCampfireDialog({
       setDeletingId(null);
       if (!res.success) {
         toast.error(res.error || t.campfires.messageDeleteFailed, {
-          description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
         });
         return;
       }
@@ -162,10 +162,14 @@ export function MilestoneCampfireDialog({
     });
   };
 
+  const handleSubmit = () => {
+    formRef.current?.requestSubmit();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      formRef.current?.requestSubmit();
+      handleSubmit();
     }
   };
 
@@ -177,7 +181,7 @@ export function MilestoneCampfireDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-lg max-h-[85dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-3 border-b">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
@@ -204,7 +208,7 @@ export function MilestoneCampfireDialog({
         </DialogHeader>
 
         {/* Campfire Discussion Content */}
-        <div className="flex-1 overflow-y-auto min-h-[160px] max-h-[50vh] pr-1 space-y-3 py-2">
+        <div className="flex-1 overflow-y-auto min-h-[160px] max-h-[50dvh] pr-1 space-y-3 py-2">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground space-y-2">
               <Loader2 className="size-5 animate-spin text-amber-500" />

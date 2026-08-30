@@ -62,7 +62,8 @@ describe("Invite System & Translations", () => {
 
 const sessionModule = await import("@/lib/pocketbase/session");
 const superuserModule = await import("@/lib/pocketbase/superuser");
-const { getGroupByInviteCode } = await import("@/lib/actions/groups");
+const { getGroupByInviteCode, joinGroupByCode } = await import("@/lib/actions/groups");
+const { resetRateLimits } = await import("@/lib/rate-limit");
 
 type InviteDb = {
   session: { id: string } | null;
@@ -130,6 +131,7 @@ function makeInvitePbClient() {
       }
       if (name === "group_members") {
         return {
+          create: async () => ({ id: "new-member-1" }),
           getList: async () => ({
             items: [],
             totalItems: inviteDb.memberCount,
@@ -177,6 +179,7 @@ function makeInvitePbClient() {
 describe("getGroupByInviteCode (F-5 — bounded invite preview)", () => {
   beforeEach(() => {
     resetInviteDb();
+    resetRateLimits();
     spyOn(sessionModule, "getSession").mockImplementation(
       async () => inviteDb.session as never,
     );
@@ -229,4 +232,34 @@ describe("getGroupByInviteCode (F-5 — bounded invite preview)", () => {
     expect(overview?.proposedTitles).toHaveLength(1);
     expect(overview?.isMember).toBe(false);
   });
+
+  it("enforces rate limits on invite code preview lookups", async () => {
+    inviteDb.group = { id: "group-3", name: "Rate Limit Circle", inviteCode: "RL100" };
+    inviteDb.proposed = [];
+
+    // Exhaust preview rate limit (limit 60)
+    for (let i = 0; i < 60; i++) {
+      const res = await getGroupByInviteCode("RL100");
+      expect(res).not.toBeNull();
+    }
+
+    // 61st call should be rejected by rate limiter
+    const blocked = await getGroupByInviteCode("RL100");
+    expect(blocked).toBeNull();
+  });
+
+  it("enforces rate limits on joining circles by invite code", async () => {
+    inviteDb.group = { id: "group-4", name: "Join Circle", inviteCode: "JOIN1" };
+
+    // Exhaust join rate limit (limit 20 for the user/IP)
+    for (let i = 0; i < 20; i++) {
+      const res = await joinGroupByCode("user-target", "JOIN1");
+      expect(res).toBe("group-4");
+    }
+
+    // 21st call from same rate limit key gets rate limited
+    const blocked = await joinGroupByCode("user-target", "JOIN1");
+    expect(blocked).toBeNull();
+  });
 });
+

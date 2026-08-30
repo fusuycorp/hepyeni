@@ -56,6 +56,38 @@ export interface Translations {
     privacyLink: string;
     termsLink: string;
   };
+  terms: {
+    title: string;
+    description: string;
+    backToLogin: string;
+    badge: string;
+    heading: string;
+    lastUpdated: string;
+    platformLabel: string;
+    s1Heading: string;
+    s1Text: string;
+    s2Heading: string;
+    s2Text: string;
+    s3Heading: string;
+    s3Intro: string;
+    s3Rule1: string;
+    s3Rule2: string;
+    s3Rule3: string;
+    s3Rule4: string;
+    s4Heading: string;
+    s4Text: string;
+    s5Heading: string;
+    s5Text: string;
+    s6Heading: string;
+    s6Text: string;
+    s7Heading: string;
+    s7Intro: string;
+    websiteLabel: string;
+    emailLabel: string;
+    footerCopyright: string;
+    privacyLink: string;
+    termsLink: string;
+  };
   comments: {
     title: string;
     subtitle: string;

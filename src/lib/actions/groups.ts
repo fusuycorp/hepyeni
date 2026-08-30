@@ -7,6 +7,7 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { generateInviteCode } from "@/lib/invite-code";
 import { requireMembership, requireOwner } from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import type { ActionResult } from "@/types/actions";
 import type {
   GroupGuestSettings,
@@ -65,6 +66,10 @@ export async function joinGroupByCode(
 ): Promise<string | null> {
   const cleanCode = code.trim().toUpperCase();
   if (!cleanCode) return null;
+
+  const ip = await getClientIp();
+  const rl = checkRateLimit(`join-invite:${userId || ip}`, { limit: 20, windowMs: 60_000 });
+  if (!rl.allowed) return null;
 
   const pb = await getSuperuserClient();
   let group: GroupsResponse;
@@ -159,6 +164,10 @@ export async function getGroupByInviteCode(
 ): Promise<PublicGroupOverview | null> {
   const cleanCode = code.trim().toUpperCase();
   if (!cleanCode) return null;
+
+  const ip = await getClientIp();
+  const rl = checkRateLimit(`preview-invite:${ip}`, { limit: 60, windowMs: 60_000 });
+  if (!rl.allowed) return null;
 
   const pb = await getSuperuserClient();
   let group: GroupsResponse;

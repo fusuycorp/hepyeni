@@ -96,7 +96,7 @@ export function AddQuoteDialog({
       const res = await addQuote(input);
       if (!res.success) {
         toast.error(res.error, {
-          description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
         });
         return;
       }
@@ -126,7 +126,7 @@ export function AddQuoteDialog({
         />
       )}
 
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-3 border-b border-border/50">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-md bg-primary/10 text-primary">

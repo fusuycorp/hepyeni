@@ -79,7 +79,7 @@ export function DiagnosticModal({
           )
         }
       />
-      <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-xl max-h-[85dvh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-5 pb-3 border-b border-border/60">
           <div className="flex items-center justify-between pr-6">
             <div className="flex items-center gap-2">

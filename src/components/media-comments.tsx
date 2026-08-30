@@ -79,7 +79,7 @@ export function MediaComments({
         }
       />
 
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-lg max-h-[85dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-3 border-b">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -96,7 +96,7 @@ export function MediaComments({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-[140px] max-h-[50vh] pr-1">
+        <div className="flex-1 overflow-y-auto min-h-[140px] max-h-[50dvh] pr-1">
           {open && (
             <CommentThread
               titleId={titleId}
