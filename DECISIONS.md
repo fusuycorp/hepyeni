@@ -170,7 +170,7 @@
   3. iOS Safari triggered disruptive automatic zoom when inputs with font size $<16\text{px}$ received focus.
   4. 300ms tap delay and grey highlight flash degraded perceived native feel.
 - **Decision**:
-  1. **Dynamic Viewport Heights (`dvh`)**: Standardized all modal overlays, dialogs, and internal scroll areas to dynamic viewport units (`max-h-[calc(100dvh-2rem)]`, `max-h-[90dvh]`, `max-h-[50dvh]`) with `overscroll-contain` momentum scrolling.
+  1. **Dynamic Viewport Heights (`dvh`)**: Standardized all modal overlays, dialogs, and internal scroll areas to dynamic viewport units (`max-h-[calc(100dvh-2rem)]`, `max-h-[90dvh]`, `max-h-[50dvh]`) with `overscroll-contain` scroll chaining containment.
   2. **Safe-Area Geometry**: Configured Next.js typed `Viewport` with `viewportFit: "cover"` and light/dark `themeColor` tags. Layered CSS safe-area padding helpers (`@utility pb-safe`, `pt-safe`, `bottom-[calc(...+env(safe-area-inset-bottom))]`) across AppShell, BottomNav, and floating FABs.
   3. **Touch Targets & Tactile Feedback**: Enforced $\ge 44\text{px}$ minimum height for primary mobile navigation, $\ge 36\text{px}$ for voting and review controls, added `touch-action: manipulation`, and eliminated `-webkit-tap-highlight-color`.
   4. **Input Ergonomics & iOS Zoom Prevention**: Standardized input font sizing to `text-base md:text-sm` (16px on mobile viewports), `h-9 sm:h-8` height, and configured mobile keyboard search hints (`enterKeyHint="search"`, `type="search"`).

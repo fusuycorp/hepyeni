@@ -5,6 +5,9 @@ const cssSource = await Bun.file(new URL("../src/app/globals.css", import.meta.u
 const appShellSource = await Bun.file(new URL("../src/components/layout/app-shell.tsx", import.meta.url)).text();
 const bottomNavSource = await Bun.file(new URL("../src/components/bottom-nav.tsx", import.meta.url)).text();
 
+const groupPageSource = await Bun.file(new URL("../src/app/groups/[groupId]/page.tsx", import.meta.url)).text();
+const alertDialogSource = await Bun.file(new URL("../src/components/ui/alert-dialog.tsx", import.meta.url)).text();
+
 describe("Mobile Experience & Viewport Invariants", () => {
   it("defines Next.js Viewport export with viewportFit cover and themeColor", () => {
     expect(layoutSource).toContain("export const viewport: Viewport =");
@@ -31,5 +34,14 @@ describe("Mobile Experience & Viewport Invariants", () => {
     expect(appShellSource).toContain("env(safe-area-inset-bottom");
     expect(bottomNavSource).toContain("env(safe-area-inset-bottom");
     expect(bottomNavSource).toContain("min-h-[44px]");
+  });
+
+  it("positions group page FAB above BottomNav until md breakpoint", () => {
+    expect(groupPageSource).toContain("bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-8");
+  });
+
+  it("ensures AlertDialogContent respects mobile max-width margins", () => {
+    expect(alertDialogSource).toContain("max-w-[calc(100%-2rem)]");
+    expect(alertDialogSource).toContain("max-h-[calc(100dvh-2rem)]");
   });
 });

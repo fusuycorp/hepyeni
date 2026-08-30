@@ -444,7 +444,7 @@ export default async function GroupPage({
 
         {/* Floating Action Button (Bottom Right FAB - Propose Media) */}
         {access.canPropose && (
-          <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-8 right-4 sm:right-8 z-40">
+          <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-8 right-4 sm:right-8 z-40">
             <AddTitleDialog
               groupId={groupId}
               groupName={group.name}

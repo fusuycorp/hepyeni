@@ -271,10 +271,7 @@ export function AddTitleForm({
                   </div>
 
                   {moodFeatureEnabled && (
-                    <div className="space-y-1 pt-1">
-                      <label className="text-xs font-semibold text-foreground">
-                        {t.moods.moodsLabel}
-                      </label>
+                    <div className="pt-1">
                       <MoodSelector
                         selectedMoods={selectedMoods}
                         selectedPace={selectedPace}
