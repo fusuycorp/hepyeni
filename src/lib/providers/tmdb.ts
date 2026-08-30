@@ -48,7 +48,13 @@ async function searchItunesVideo(
   const data = (await res.json()) as { results?: ItunesVideoResult[] };
 
   return (data.results ?? []).map((item) => ({
-    externalId: String(item.trackId || item.collectionId || Math.random()),
+    externalId: String(
+      item.trackId ||
+        item.collectionId ||
+        `itunes-${(item.trackName || item.collectionName || "untitled")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "")}-${(item.releaseDate || "undated").slice(0, 10)}`,
+    ),
     externalSource: "itunes",
     title: item.trackName || item.collectionName || "Untitled",
     creator: item.artistName,

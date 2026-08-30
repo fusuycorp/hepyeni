@@ -51,7 +51,7 @@ export function MarkConsumedButton({
             const res = await onMark();
             if (res && typeof res === "object" && "success" in res && !res.success) {
               toast.error(res.error || errorMessage, {
-                description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+                description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
               });
             }
           } catch {

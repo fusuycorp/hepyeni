@@ -157,6 +157,12 @@ describe("Adversarial Fuzzing: Importers, Parsers & Data Portability", () => {
       expect(parseSafeDate("2024")).toBe("2024-01-01T00:00:00.000Z");
     });
 
+    it("parses date ranges extracting the completion/latest date", () => {
+      expect(parseSafeDate("2023/10/01-2023/10/10")).toBe("2023-10-10T00:00:00.000Z");
+      expect(parseSafeDate("2023/10/01 - 2023/10/15")).toBe("2023-10-15T00:00:00.000Z");
+      expect(parseSafeDate("2023-01-01 to 2023-01-20")).toBe("2023-01-20T00:00:00.000Z");
+    });
+
     it("rejects corrupt dates, impossible dates, SQLi, and non-date strings", () => {
       expect(parseSafeDate("0000-00-00")).toBeUndefined();
       expect(parseSafeDate("9999-99-99")).toBeUndefined();

@@ -30,7 +30,7 @@ export function LabsCard() {
       if (!res.success) {
         setLocalFlags((prev) => ({ ...prev, [key]: previous }));
         toast.error(res.error || t.labs.toggleFailed, {
-          description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+          description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
         });
       } else {
         toast.success(t.labs.toggleSuccess);

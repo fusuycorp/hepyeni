@@ -89,7 +89,7 @@ export function AddTitleForm({
         const res = await addTitle(groupId, mediaType, result);
         if (!res.success) {
           toast.error(res.error, {
-            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
           });
           setAddingId(null);
           return;
@@ -124,7 +124,7 @@ export function AddTitleForm({
         });
         if (!res.success) {
           toast.error(res.error, {
-            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
           });
           return;
         }
@@ -399,7 +399,7 @@ export function AddTitleForm({
           </form>
 
           {/* Results Section */}
-          <div className={cn(isModal && "max-h-[50vh] sm:max-h-[55vh] overflow-y-auto pr-1 -mr-1")}>
+          <div className={cn(isModal && "max-h-[50dvh] sm:max-h-[55dvh] overflow-y-auto pr-1 -mr-1")}>
             {results.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">

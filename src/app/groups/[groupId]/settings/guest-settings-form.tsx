@@ -79,7 +79,7 @@ export function GuestSettingsForm({
         });
         if (res && typeof res === "object" && "success" in res && !res.success) {
           toast.error(res.error || t.guestManagement.settingsSaveFailed, {
-            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
           });
           return;
         }

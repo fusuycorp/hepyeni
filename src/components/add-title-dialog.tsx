@@ -54,7 +54,7 @@ export function AddTitleDialog({
         />
       )}
 
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-2xl max-h-[90dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-2 border-b">
           <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight">
             {t.groups.proposeMedia}

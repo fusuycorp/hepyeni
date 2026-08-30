@@ -155,7 +155,7 @@ export function AddToShelfDialog() {
           </Button>
         }
       />
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">
             {t.shelf.addToShelf}

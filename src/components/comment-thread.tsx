@@ -157,7 +157,7 @@ export function CommentThread({
             setComments((prev) => prev.filter((c) => c.id !== tempId));
             setCommentText(text);
             toast.error(res.error || t.comments.addFailed, {
-              description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+              description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
             });
             return;
           }
@@ -191,7 +191,7 @@ export function CommentThread({
           : await deleteComment(commentId, groupId);
         if (res && typeof res === "object" && "success" in res && !res.success) {
           toast.error(res.error || t.comments.deleteFailed, {
-            description: res.traceId ? `Ref: ${res.traceId}` : undefined,
+            description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
           });
           return;
         }
