@@ -36,6 +36,14 @@ describe("Mobile Experience & Viewport Invariants", () => {
     expect(bottomNavSource).toContain("min-h-[44px]");
   });
 
+  it("verifies modals constrain max-h dvh bounds (DecisionWheelDialog)", async () => {
+    const wheelDialogContent = await Bun.file(
+      new URL("../src/components/decision-wheel-dialog.tsx", import.meta.url)
+    ).text();
+    const hasDvhInWheel = wheelDialogContent.includes("dvh");
+    expect(hasDvhInWheel).toBe(true);
+  });
+
   it("positions group page FAB above BottomNav until md breakpoint", () => {
     expect(groupPageSource).toContain("bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-8");
   });

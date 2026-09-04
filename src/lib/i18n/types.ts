@@ -532,6 +532,12 @@ export interface Translations {
     reviewsCountLabel: string;
     noTitlesYet: string;
     groupMembersTitle: string;
+    banConfirmTitle: string;
+    banConfirmDesc: string;
+    deleteTitleConfirmTitle: string;
+    deleteTitleConfirmDesc: string;
+    deleteReviewConfirmTitle: string;
+    deleteReviewConfirmDesc: string;
   };
   invite: {
     pageTitle: string;

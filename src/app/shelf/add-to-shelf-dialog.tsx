@@ -197,7 +197,7 @@ export function AddToShelfDialog() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={`${t.common.search} ${t.media[activeType]}...`}
-                  className="pl-9 h-10 text-xs"
+                  className="pl-9 h-10 text-base md:text-sm"
                   autoFocus
                 />
               </div>
@@ -284,7 +284,7 @@ export function AddToShelfDialog() {
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
                     placeholder={t.shelf.bookTitlePlaceholder}
-                    className="h-9 text-xs"
+                    className="h-9 text-base md:text-sm"
                   />
                 </div>
                 <div className="space-y-1">
@@ -293,7 +293,7 @@ export function AddToShelfDialog() {
                     value={customCreator}
                     onChange={(e) => setCustomCreator(e.target.value)}
                     placeholder={t.shelf.creatorPlaceholder}
-                    className="h-9 text-xs"
+                    className="h-9 text-base md:text-sm"
                   />
                 </div>
               </div>
@@ -334,7 +334,7 @@ export function AddToShelfDialog() {
                     type="number"
                     value={progressCurrent}
                     onChange={(e) => setProgressCurrent(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="h-8 text-base md:text-sm font-mono"
                     min={0}
                   />
                 </div>
@@ -345,7 +345,7 @@ export function AddToShelfDialog() {
                     value={progressTotal}
                     onChange={(e) => setProgressTotal(e.target.value)}
                     placeholder={t.shelf.targetUnitsPlaceholder}
-                    className="h-8 text-xs font-mono"
+                    className="h-8 text-base md:text-sm font-mono"
                     min={1}
                   />
                 </div>
@@ -354,7 +354,7 @@ export function AddToShelfDialog() {
                   <select
                     value={progressUnit}
                     onChange={(e) => setProgressUnit(e.target.value as UserMediaProgressUnitOptions)}
-                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-base md:text-sm"
                   >
                     <option value="pages">{t.shelf.pages}</option>
                     <option value="chapters">{t.shelf.chapters}</option>

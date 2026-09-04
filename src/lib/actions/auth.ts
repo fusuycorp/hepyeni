@@ -14,7 +14,7 @@ import {
   setSessionCookie,
 } from "@/lib/pocketbase/session";
 
-import { autoJoinPendingInvite } from "@/lib/actions/groups";
+import { autoJoinPendingInvite } from "@/lib/queries/groups";
 import { logDiagnostic } from "@/lib/errors";
 import type { UsersResponse } from "@/types/pocketbase-types";
 

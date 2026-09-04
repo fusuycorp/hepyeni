@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Users, Sparkles, Trash2, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { adminDeleteGroup } from "@/lib/actions/admin";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
@@ -118,22 +118,19 @@ export default async function AdminGroupsPage({
                       <ArrowRight className="size-3" />
                     </Link>
 
-                    <form
-                      action={async () => {
-                        "use server";
-                        await adminDeleteGroup(group.id);
-                      }}
-                    >
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon-xs"
-                        className="text-destructive hover:bg-destructive/10 size-7"
-                        title={t.groups.deleteCircleTitle}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </form>
+                    <ConfirmActionButton
+                      triggerLabel={<Trash2 className="size-3.5" />}
+                      triggerTitle={t.groups.deleteCircleTitle}
+                      triggerVariant="ghost"
+                      variant="destructive"
+                      size="icon-xs"
+                      className="text-destructive hover:bg-destructive/10 size-7"
+                      title={t.groups.deleteConfirmTitle.replace("{name}", group.name)}
+                      description={t.groups.deleteCircleDesc}
+                      confirmLabel={t.common.deletePermanently}
+                      pendingLabel={t.common.deleting}
+                      onConfirm={adminDeleteGroup.bind(null, group.id)}
+                    />
                   </div>
                 </div>
               </CardContent>

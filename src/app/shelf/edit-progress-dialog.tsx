@@ -221,7 +221,7 @@ export function EditProgressDialog({
                   value={progressCurrent}
                   onChange={(e) => setProgressCurrent(e.target.value)}
                   placeholder="0"
-                  className="h-8 text-xs"
+                  className="h-8 text-base md:text-sm"
                 />
               </div>
               <div className="space-y-1">
@@ -232,7 +232,7 @@ export function EditProgressDialog({
                   value={progressTotal}
                   onChange={(e) => setProgressTotal(e.target.value)}
                   placeholder={t.shelf.targetUnitsPlaceholder}
-                  className="h-8 text-xs"
+                  className="h-8 text-base md:text-sm"
                 />
               </div>
               <div className="space-y-1">
@@ -242,7 +242,7 @@ export function EditProgressDialog({
                   onChange={(e) =>
                     setProgressUnit(e.target.value as UserMediaProgressUnitOptions)
                   }
-                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-base md:text-sm"
                 >
                   <option value="pages">{t.shelf.pages}</option>
                   <option value="chapters">{t.shelf.chapters}</option>
@@ -260,7 +260,7 @@ export function EditProgressDialog({
                 value={currentLabel}
                 onChange={(e) => setCurrentLabel(e.target.value)}
                 placeholder={t.shelf.currentLabelPlaceholder}
-                className="h-8 text-xs"
+                className="h-8 text-base md:text-sm"
               />
             </div>
 
@@ -307,7 +307,7 @@ export function EditProgressDialog({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t.shelf.notesPlaceholder}
-                className="text-xs min-h-[60px] resize-none"
+                className="text-base md:text-sm min-h-[60px] resize-none"
               />
             </div>
 

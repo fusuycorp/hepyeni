@@ -5,7 +5,7 @@ import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
-import { getTitleCircleProgress } from "@/lib/actions/progress";
+import { getTitleCircleProgress } from "@/lib/queries/progress";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
@@ -65,15 +65,12 @@ export default async function TitleDetailPage({
   // nested reviews_via_title.user expand (see src/lib/group-titles.ts).
   const titleQuery = groupTitleQuery(access.canViewReviews);
 
-  const [titleRecord, userRecord, leanReviewRows, ownReviewRows, comments, memberProgress] =
+  const [titleRecord, leanReviewRows, ownReviewRows, comments, memberProgress] =
     await Promise.all([
       pb.collection("titles").getOne<TitlesResponse<GroupTitleExpand>>(titleId, {
         expand: titleQuery.expand,
         fields: titleQuery.fields,
       }),
-      session?.id
-        ? pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null)
-        : Promise.resolve(null),
       access.canViewReviews
         ? pb
             .collection("reviews")
@@ -157,30 +154,30 @@ export default async function TitleDetailPage({
     ? {
         id: session.id,
         email: session.email,
-        name: userRecord?.name,
-        avatarUrl: userRecord?.avatarUrl,
+        name: session.name,
+        avatarUrl: session.avatarUrl,
         isAdmin: session.isAdmin,
       }
     : null;
 
   async function handleVote(value: "up" | "down") {
     "use server";
-    await voteOnTitle(titleId, groupId, value);
+    return await voteOnTitle(titleId, groupId, value);
   }
 
   async function handleMarkConsumed() {
     "use server";
-    await markConsumed(titleId, groupId);
+    return await markConsumed(titleId, groupId);
   }
 
   async function handleUnmarkConsumed() {
     "use server";
-    await unmarkConsumed(titleId, groupId);
+    return await unmarkConsumed(titleId, groupId);
   }
 
   async function handleSubmitReview(formData: FormData) {
     "use server";
-    await submitReview(titleId, groupId, formData);
+    return await submitReview(titleId, groupId, formData);
   }
 
   async function handleAddComment(targetTitleId: string, formData: FormData) {
@@ -190,7 +187,7 @@ export default async function TitleDetailPage({
 
   async function handleDeleteComment(commentId: string) {
     "use server";
-    await deleteComment(commentId, groupId);
+    return await deleteComment(commentId, groupId);
   }
 
   async function handleGetComments(targetTitleId: string) {

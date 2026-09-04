@@ -63,12 +63,19 @@ export async function getClientIp(): Promise<string> {
   try {
     const { headers } = await import("next/headers");
     const h = await headers();
-    const forwarded = h.get("x-forwarded-for");
-    if (forwarded) {
-      return forwarded.split(",")[0].trim();
+    const trustForwarded =
+      process.env.TRUST_FORWARDED_HEADERS === "1" ||
+      process.env.TRUST_FORWARDED_HEADERS === "true" ||
+      process.env.TRUST_FORWARDED_HEADERS === "on";
+
+    if (trustForwarded) {
+      const forwarded = h.get("x-forwarded-for");
+      if (forwarded) {
+        return forwarded.split(",")[0].trim();
+      }
+      const realIp = h.get("x-real-ip");
+      if (realIp) return realIp.trim();
     }
-    const realIp = h.get("x-real-ip");
-    if (realIp) return realIp.trim();
   } catch {
     // outside request context or in unit tests
   }

@@ -19,17 +19,24 @@ export type LlmUsageResult =
   | { allowed: true }
   | { allowed: false; reason: "requests" | "input" };
 
-function positiveEnvInt(name: string, fallback: number): number {
-  const parsed = Number.parseInt(process.env[name] ?? "", 10);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+function positiveEnvInt(names: string | string[], fallback: number): number {
+  const nameList = Array.isArray(names) ? names : [names];
+  for (const name of nameList) {
+    const parsed = Number.parseInt(process.env[name] ?? "", 10);
+    if (Number.isSafeInteger(parsed) && parsed > 0) return parsed;
+  }
+  return fallback;
 }
 
 export function getLlmUsageLimits(): LlmUsageLimits {
   return {
     windowMs: positiveEnvInt("LLM_RATE_WINDOW_MS", LLM_USAGE_WINDOW_MS),
-    maxRequests: positiveEnvInt("LLM_MAX_REQUESTS_PER_WINDOW", LLM_MAX_REQUESTS_PER_WINDOW),
+    maxRequests: positiveEnvInt(
+      ["LLM_HOURLY_REQUEST_LIMIT", "LLM_MAX_REQUESTS_PER_WINDOW"],
+      LLM_MAX_REQUESTS_PER_WINDOW,
+    ),
     maxInputChars: positiveEnvInt(
-      "LLM_MAX_INPUT_CHARS_PER_WINDOW",
+      ["LLM_HOURLY_COST_LIMIT", "LLM_MAX_INPUT_CHARS_PER_WINDOW"],
       LLM_MAX_INPUT_CHARS_PER_WINDOW,
     ),
     costUnitChars: positiveEnvInt("LLM_INPUT_COST_UNIT_CHARS", LLM_INPUT_COST_UNIT_CHARS),
@@ -67,6 +74,34 @@ async function deleteReservations(pb: PocketBase, ids: string[]): Promise<void> 
 }
 
 /**
+ * Lazy pruning of expired reservation records (ADR-014).
+ * Deletes records where window < currentWindow - 1.
+ */
+export async function pruneExpiredLlmUsage(
+  pb: PocketBase,
+  currentWindow: number,
+): Promise<void> {
+  try {
+    const col = pb.collection(LLM_USAGE_COLLECTION);
+    if (typeof col.getFullList !== "function") return;
+
+    const expiredThreshold = currentWindow - 1;
+    const expired = await col.getFullList<{ id: string; window: string }>({
+      filter: `window < "${expiredThreshold}"`,
+    });
+    const toDelete = expired.filter((record) => {
+      const w = Number.parseInt(record.window, 10);
+      return Number.isFinite(w) ? w < expiredThreshold : true;
+    });
+    await Promise.all(
+      toDelete.map((record) => col.delete(record.id).catch(() => {})),
+    );
+  } catch {
+    // Pruning is lazy and best-effort.
+  }
+}
+
+/**
  * Reserve unique PocketBase records rather than incrementing a shared counter.
  * PocketBase is the single serialization point shared by all Next replicas.
  */
@@ -81,7 +116,10 @@ export async function reserveLlmUsage(
   const maxCostUnits = Math.ceil(limits.maxInputChars / limits.costUnitChars);
   if (costUnits > maxCostUnits) return { allowed: false, reason: "input" };
 
-  const window = String(Math.floor(now / limits.windowMs));
+  const currentWindow = Math.floor(now / limits.windowMs);
+  const window = String(currentWindow);
+
+  await pruneExpiredLlmUsage(pb, currentWindow);
   const requestIds: string[] = [];
   let requestId: string | undefined;
 

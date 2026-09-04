@@ -54,12 +54,11 @@ export default async function ActivityPage() {
   const t = await getServerTranslations();
   const locale = await getLocale();
 
-  const [memberships, userRecord] = await Promise.all([
-    pb.collection("group_members").getFullList<GroupMembersResponse>({
+  const memberships = await pb
+    .collection("group_members")
+    .getFullList<GroupMembersResponse>({
       filter: pb.filter("user = {:userId}", { userId: session.id }),
-    }),
-    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
-  ]);
+    });
 
   const groupIds = memberships.map((m) => m.group);
   let items: ActivityItem[] = [];
@@ -135,8 +134,8 @@ export default async function ActivityPage() {
   const currentUser = {
     id: session.id,
     email: session.email,
-    name: userRecord?.name,
-    avatarUrl: userRecord?.avatarUrl,
+    name: session.name,
+    avatarUrl: session.avatarUrl,
     isAdmin: session.isAdmin,
   };
 

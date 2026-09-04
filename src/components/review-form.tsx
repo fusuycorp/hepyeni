@@ -79,7 +79,7 @@ export function ReviewForm({
         defaultValue={defaultText}
         placeholder={t.reviews.notesPlaceholder}
         rows={2}
-        className="text-xs resize-y min-h-[60px]"
+        className="text-base md:text-sm resize-y min-h-[60px]"
       />
       <Button
         type="submit"

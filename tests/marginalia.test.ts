@@ -458,8 +458,9 @@ function makePbClient() {
   };
 }
 
-const { getUserQuotes, getCircleQuotes, addQuote, deleteQuote, toggleShareQuoteWithCircle } =
+const { addQuote, deleteQuote, toggleShareQuoteWithCircle } =
   await import("@/lib/actions/marginalia");
+const { getUserQuotes, getCircleQuotes } = await import("@/lib/queries/marginalia");
 const { getDiagnosticsAction } = await import("@/lib/actions/diagnostics");
 
 const sessionModule = await import("@/lib/pocketbase/session");

@@ -167,6 +167,7 @@ export function MilestoneCampfireDialog({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -390,7 +391,7 @@ export function MilestoneCampfireDialog({
               rows={2}
               maxLength={2000}
               disabled={isPending}
-              className="text-xs resize-none min-h-[60px] bg-background"
+              className="text-base md:text-sm resize-none min-h-[60px] bg-background"
             />
 
             <div className="flex items-center justify-between gap-2">

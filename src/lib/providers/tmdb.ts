@@ -51,9 +51,13 @@ async function searchItunesVideo(
     externalId: String(
       item.trackId ||
         item.collectionId ||
-        `itunes-${(item.trackName || item.collectionName || "untitled")
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, "")}-${(item.releaseDate || "undated").slice(0, 10)}`,
+        `itunes-${
+          (item.trackName || item.collectionName || "untitled")
+            .toLowerCase()
+            .trim()
+            .replace(/[^\p{L}\p{N}]+/gu, "-")
+            .replace(/^-+|-+$/g, "") || "untitled"
+        }-${(item.releaseDate || "undated").slice(0, 10)}`,
     ),
     externalSource: "itunes",
     title: item.trackName || item.collectionName || "Untitled",

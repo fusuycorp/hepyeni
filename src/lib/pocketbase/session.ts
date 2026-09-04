@@ -11,6 +11,7 @@ export type Session = {
   isAdmin: boolean;
   name: string;
   email: string;
+  avatarUrl?: string;
 };
 
 export function getPbUrl(): string {
@@ -40,13 +41,26 @@ export async function getSessionFromToken(
   try {
     const { record } = await pb
       .collection("users")
-      .authRefresh<UsersResponse>();
+      .authRefresh<UsersResponse & { avatar?: string }>();
     if (record.bannedAt) return null;
+
+    let avatarUrl: string | undefined = undefined;
+    if (typeof record.avatarUrl === "string" && record.avatarUrl.trim()) {
+      avatarUrl = record.avatarUrl;
+    } else if (typeof record.avatar === "string" && record.avatar.trim()) {
+      if (typeof pb.files?.getURL === "function") {
+        avatarUrl = pb.files.getURL(record as never, record.avatar);
+      } else if (typeof pb.getFileUrl === "function") {
+        avatarUrl = pb.getFileUrl(record as never, record.avatar);
+      }
+    }
+
     return {
       id: record.id,
       isAdmin: Boolean(record.isAdmin),
       name: record.name,
       email: record.email,
+      avatarUrl,
     };
   } catch {
     return null;
@@ -213,8 +227,8 @@ export async function setOAuth2StateCookie(data: OAuth2State): Promise<void> {
   const store = await cookies();
   store.set(OAUTH_STATE_COOKIE, JSON.stringify(data), {
     httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: 60 * 10,
   });

@@ -528,6 +528,12 @@ export const tr: Translations = {
     reviewsCountLabel: "Değerlendirmeler ({n})",
     noTitlesYet: "Bu gruba henüz bir medya eklenmemiş.",
     groupMembersTitle: "Grup Üyeleri",
+    banConfirmTitle: '"{name}" kullanıcısını yasaklamak istediğinizden emin misiniz?',
+    banConfirmDesc: "Bu kullanıcının tüm aktif oturumları sonlandırılacak ve platforma erişimi engellenecektir.",
+    deleteTitleConfirmTitle: '"{name}" başlığını silmek istiyor musunuz?',
+    deleteTitleConfirmDesc: "Bu başlık ve ilişkili tüm oylar ve incelemeler kalıcı olarak silinecektir.",
+    deleteReviewConfirmTitle: "İncelemeyi silmek istiyor musunuz?",
+    deleteReviewConfirmDesc: "Bu inceleme kalıcı olarak silinecektir.",
   },
   invite: {
     pageTitle: "Grup Daveti",
