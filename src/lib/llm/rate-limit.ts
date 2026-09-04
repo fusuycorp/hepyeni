@@ -19,17 +19,24 @@ export type LlmUsageResult =
   | { allowed: true }
   | { allowed: false; reason: "requests" | "input" };
 
-function positiveEnvInt(name: string, fallback: number): number {
-  const parsed = Number.parseInt(process.env[name] ?? "", 10);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+function positiveEnvInt(names: string | string[], fallback: number): number {
+  const nameList = Array.isArray(names) ? names : [names];
+  for (const name of nameList) {
+    const parsed = Number.parseInt(process.env[name] ?? "", 10);
+    if (Number.isSafeInteger(parsed) && parsed > 0) return parsed;
+  }
+  return fallback;
 }
 
 export function getLlmUsageLimits(): LlmUsageLimits {
   return {
     windowMs: positiveEnvInt("LLM_RATE_WINDOW_MS", LLM_USAGE_WINDOW_MS),
-    maxRequests: positiveEnvInt("LLM_MAX_REQUESTS_PER_WINDOW", LLM_MAX_REQUESTS_PER_WINDOW),
+    maxRequests: positiveEnvInt(
+      ["LLM_HOURLY_REQUEST_LIMIT", "LLM_MAX_REQUESTS_PER_WINDOW"],
+      LLM_MAX_REQUESTS_PER_WINDOW,
+    ),
     maxInputChars: positiveEnvInt(
-      "LLM_MAX_INPUT_CHARS_PER_WINDOW",
+      ["LLM_HOURLY_COST_LIMIT", "LLM_MAX_INPUT_CHARS_PER_WINDOW"],
       LLM_MAX_INPUT_CHARS_PER_WINDOW,
     ),
     costUnitChars: positiveEnvInt("LLM_INPUT_COST_UNIT_CHARS", LLM_INPUT_COST_UNIT_CHARS),

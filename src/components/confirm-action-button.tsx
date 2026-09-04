@@ -20,6 +20,7 @@ import type { ActionResult } from "@/types/actions";
 
 export function ConfirmActionButton({
   triggerLabel,
+  triggerTitle,
   title,
   description,
   confirmLabel,
@@ -27,17 +28,20 @@ export function ConfirmActionButton({
   variant = "destructive",
   triggerVariant = variant,
   size = "sm",
+  className,
   redirectTo,
   onConfirm,
 }: {
-  triggerLabel: string;
+  triggerLabel: React.ReactNode;
+  triggerTitle?: string;
   title: string;
   description: string;
   confirmLabel?: string;
   pendingLabel?: string;
   variant?: "destructive" | "default";
-  triggerVariant?: "destructive" | "default" | "outline" | "ghost";
-  size?: "sm" | "default" | "xs";
+  triggerVariant?: "destructive" | "default" | "outline" | "ghost" | "secondary" | "link";
+  size?: "sm" | "default" | "xs" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
+  className?: string;
   // Where to navigate after onConfirm succeeds. The server actions this
   // wraps don't redirect() themselves when they're meant to be called this
   // way — see the comment in src/lib/actions/groups.ts — so navigation is
@@ -56,7 +60,12 @@ export function ConfirmActionButton({
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger
         render={
-          <Button variant={triggerVariant} size={size}>
+          <Button
+            variant={triggerVariant}
+            size={size}
+            className={className}
+            title={triggerTitle}
+          >
             {triggerLabel}
           </Button>
         }
@@ -84,6 +93,7 @@ export function ConfirmActionButton({
                   if (redirectTo) {
                     router.push(redirectTo);
                   } else {
+                    router.refresh();
                     setOpen(false);
                   }
                 } catch (err) {

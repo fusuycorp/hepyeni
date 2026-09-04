@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { banUser, setUserAdmin, unbanUser } from "@/lib/actions/admin";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
@@ -118,25 +119,36 @@ export default async function AdminUsersPage({
                       </Button>
                     </form>
 
-                    <form
-                      action={async () => {
-                        "use server";
-                        if (user.bannedAt) {
+                    {user.bannedAt ? (
+                      <form
+                        action={async () => {
+                          "use server";
                           await unbanUser(user.id);
-                        } else {
-                          await banUser(user.id);
-                        }
-                      }}
-                    >
-                      <Button
-                        type="submit"
-                        variant={user.bannedAt ? "secondary" : "destructive"}
+                        }}
+                      >
+                        <Button
+                          type="submit"
+                          variant="secondary"
+                          size="xs"
+                          className="text-xs h-7"
+                        >
+                          {t.admin.unban}
+                        </Button>
+                      </form>
+                    ) : (
+                      <ConfirmActionButton
+                        triggerLabel={t.admin.ban}
+                        triggerVariant="destructive"
+                        variant="destructive"
                         size="xs"
                         className="text-xs h-7"
-                      >
-                        {user.bannedAt ? t.admin.unban : t.admin.ban}
-                      </Button>
-                    </form>
+                        title={t.admin.banConfirmTitle.replace("{name}", userName)}
+                        description={t.admin.banConfirmDesc}
+                        confirmLabel={t.admin.ban}
+                        pendingLabel={t.common.working}
+                        onConfirm={banUser.bind(null, user.id)}
+                      />
+                    )}
                   </div>
                 )}
               </CardContent>

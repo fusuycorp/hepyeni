@@ -137,13 +137,17 @@
 - **Status**: Accepted & Implemented (2026-08-23)
 - **Context**: Previously, circle media existed in a binary state: `proposed` (backlog) or `consumed` (finished). Circles had no communal visibility into what media members were *currently* reading, watching, or listening to together.
 - **Decision**:
-  - **Schema Update**: Added `status = "in_progress"` and `startedAt` (ISO date) to `titles` collection.
+  - **Relational Lifecycle Architecture**: `titles` in PocketBase holds either `proposed` or `consumed` status, while active consumption state is tracked per-user in `user_media_progress`.
+  - **Dynamic 3-Section Partitioning (`categorizeCircleTitles`)**: The circle UI computes the 3-section lifecycle partition dynamically via `categorizeCircleTitles`:
+    - **Up Next (Proposed)**: Titles with `status === "proposed"` where no active circle members currently have reading/watching sessions in progress.
+    - **In Progress**: Titles where one or more active circle members have an active session in `user_media_progress` (`status = "in_progress"` or partial milestone progress) and not all members have finished.
+    - **Finished (Consumed)**: Titles with `status === "consumed"` or where all active circle members have marked the title completed in `user_media_progress`.
   - **Bidirectional Lifecycle Actions (`src/lib/actions/titles.ts`)**:
-    - `startConsuming(titleId, groupId)`: Transitions `proposed` $\to$ `in_progress`, setting `startedAt`.
-    - `completeConsuming(titleId, groupId)`: Transitions `in_progress` $\to$ `consumed`, setting `consumedAt`.
-    - `moveToUpNext(titleId, groupId)`: Reverts `in_progress` or `consumed` back to `proposed`.
-  - **UI Architecture (`GroupContentView`)**: 3-section tabbed layout (`Up Next`, `In Progress`, `Finished`) with member progress tracking badges and live progress previews.
-- **Consequences**: Real-time communal consumption pacing, seamless transitions between backlog curation, active reading, and post-consumption discussions.
+    - `startConsuming(titleId, groupId)`: Ensures the user has an active `user_media_progress` record linked to `groupTitle` with status `in_progress`, moving the title into the circle's communal "In Progress" section.
+    - `completeConsuming(titleId, groupId)`: Transitions the user's shelf item to `completed` and updates `titles.status` to `consumed` when finished.
+    - `moveToUpNext(titleId, groupId)`: Reverts `titles.status` back to `proposed` and clears/resets active reading sessions.
+  - **UI Architecture (`GroupContentView`)**: 3-section tabbed layout (`Up Next`, `In Progress`, `Finished`) with member progress tracking badges, reading avatars, and live progress previews.
+- **Consequences**: Real-time communal consumption pacing without fragile multi-tenant state divergence, zero duplicate status columns, seamless transitions between backlog curation, active reading, and post-consumption discussions.
 
 ## ADR-016: Frontend Hybrid Architectural Design Tokens & Dual Typography
 - **Status**: Accepted & Implemented (2026-08-23)

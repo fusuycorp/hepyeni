@@ -530,6 +530,12 @@ export const en: Translations = {
     reviewsCountLabel: "Reviews ({n})",
     noTitlesYet: "No media added to this circle yet.",
     groupMembersTitle: "Circle Members",
+    banConfirmTitle: 'Are you sure you want to ban "{name}"?',
+    banConfirmDesc: "This user's active sessions will be invalidated and platform access will be blocked.",
+    deleteTitleConfirmTitle: 'Delete "{name}"?',
+    deleteTitleConfirmDesc: "This title and all associated votes and reviews will be permanently deleted.",
+    deleteReviewConfirmTitle: "Delete this review?",
+    deleteReviewConfirmDesc: "This review will be permanently deleted.",
   },
   invite: {
     pageTitle: "Circle Invitation",

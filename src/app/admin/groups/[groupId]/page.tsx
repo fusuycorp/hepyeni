@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Trash2, UserMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { MediaBadge } from "@/components/media-badge";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { SpoilerText } from "@/components/spoiler-text";
@@ -159,22 +159,23 @@ export default async function AdminGroupDetailPage({
                         </p>
                       </div>
 
-                      <form
-                        action={async () => {
-                          "use server";
-                          await adminDeleteTitle(title.id, groupId);
-                        }}
-                      >
-                        <Button
-                          type="submit"
-                          variant="ghost"
-                          size="xs"
-                          className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
-                        >
-                          <Trash2 className="size-3" />
-                          <span>{t.common.delete}</span>
-                        </Button>
-                      </form>
+                      <ConfirmActionButton
+                        triggerLabel={
+                          <>
+                            <Trash2 className="size-3" />
+                            <span>{t.common.delete}</span>
+                          </>
+                        }
+                        triggerVariant="ghost"
+                        variant="destructive"
+                        size="xs"
+                        className="text-destructive hover:bg-destructive/10 text-xs h-7 gap-1"
+                        title={t.admin.deleteTitleConfirmTitle.replace("{name}", title.title)}
+                        description={t.admin.deleteTitleConfirmDesc}
+                        confirmLabel={t.common.deletePermanently}
+                        pendingLabel={t.common.deleting}
+                        onConfirm={adminDeleteTitle.bind(null, title.id, groupId)}
+                      />
                     </div>
 
                     {reviews.length > 0 && (
@@ -200,21 +201,18 @@ export default async function AdminGroupDetailPage({
                                 )}
                               </div>
 
-                              <form
-                                action={async () => {
-                                  "use server";
-                                  await adminDeleteReview(review.id, groupId);
-                                }}
-                              >
-                                <Button
-                                  type="submit"
-                                  variant="ghost"
-                                  size="xs"
-                                  className="text-destructive hover:bg-destructive/10 h-6 px-1.5 text-[11px]"
-                                >
-                                  {t.common.delete}
-                                </Button>
-                              </form>
+                              <ConfirmActionButton
+                                triggerLabel={t.common.delete}
+                                triggerVariant="ghost"
+                                variant="destructive"
+                                size="xs"
+                                className="text-destructive hover:bg-destructive/10 h-6 px-1.5 text-[11px]"
+                                title={t.admin.deleteReviewConfirmTitle}
+                                description={t.admin.deleteReviewConfirmDesc}
+                                confirmLabel={t.common.deletePermanently}
+                                pendingLabel={t.common.deleting}
+                                onConfirm={adminDeleteReview.bind(null, review.id, groupId)}
+                              />
                             </div>
                           ))}
                         </div>
@@ -256,22 +254,23 @@ export default async function AdminGroupDetailPage({
                     </span>
                   </div>
 
-                  <form
-                    action={async () => {
-                      "use server";
-                      await adminRemoveGroupMember(groupId, m.user);
-                    }}
-                  >
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="xs"
-                      className="text-destructive hover:bg-destructive/10 h-7 text-xs"
-                    >
-                      <UserMinus className="size-3 mr-1" />
-                      <span>{t.groups.removeButton}</span>
-                    </Button>
-                  </form>
+                  <ConfirmActionButton
+                    triggerLabel={
+                      <>
+                        <UserMinus className="size-3 mr-1" />
+                        <span>{t.groups.removeButton}</span>
+                      </>
+                    }
+                    triggerVariant="ghost"
+                    variant="destructive"
+                    size="xs"
+                    className="text-destructive hover:bg-destructive/10 h-7 text-xs"
+                    title={t.groups.removeMemberConfirmTitle.replace("{name}", m.expand?.user?.name ?? m.expand?.user?.email ?? t.common.unknown)}
+                    description={t.groups.removeMemberDesc}
+                    confirmLabel={t.groups.removeButton}
+                    pendingLabel={t.groups.removing}
+                    onConfirm={adminRemoveGroupMember.bind(null, groupId, m.user)}
+                  />
                 </div>
               ))}
             </CardContent>

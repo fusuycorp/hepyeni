@@ -30,7 +30,7 @@ erDiagram
     titles ||--o{ reviews : "has (title) [CASCADE]"
     titles ||--o{ comments : "has (title) [CASCADE]"
     titles ||--o{ group_schedules : "schedules (title) [CASCADE]"
-    titles ||--o{ user_media_progress : "links (groupTitle) [CASCADE]"
+    titles ||--o{ user_media_progress : "links (groupTitle)"
 
     group_schedules ||--|{ schedule_milestones : "contains (schedule) [CASCADE]"
     schedule_milestones ||--o{ milestone_checkins : "has (milestone) [CASCADE]"
@@ -106,7 +106,7 @@ Represents media proposed, in progress, or consumed within a circle.
 | `creator` | Text | Optional, Max: 300 chars | Author / Director / Artist |
 | `coverUrl` | Text | Optional, Max: 2000 chars | Cover artwork URL |
 | `metadata` | JSON | Optional JSON payload | Release date, overview, page count, etc. |
-| `status` | Select | Values: `["proposed", "in_progress", "consumed"]` | 3-section media lifecycle status |
+| `status` | Select | Values: `["proposed", "consumed"]` | Stored title status in PocketBase (`proposed` or `consumed`). The communal "In Progress" section in the circle UI is derived relationally from `user_media_progress` where members have active reading/watching sessions. |
 | `moods` | JSON | Array of strings | Folksonomy mood tags |
 | `pace` | Text | Optional | Pacing tag (`slow_burn`, `gentle`, `fast_paced`) |
 | `addedBy` | Relation | `users.id`, `cascadeDelete: false` | Member who added the item |
@@ -166,7 +166,7 @@ Personal media consumption tracking on `/shelf` and communal circle progress syn
 |---|---|---|---|
 | `id` | Record ID | 15 alphanumeric characters | Primary Key |
 | `user` | Relation | `users.id`, `cascadeDelete: true` | Shelf owner |
-| `groupTitle` | Relation | `titles.id`, Optional, `cascadeDelete: true` | Linked circle proposal |
+| `groupTitle` | Relation | `titles.id`, Optional, `cascadeDelete: false` | Linked circle proposal (relation cascade is handled by PocketBase or application logic to preserve personal shelf history) |
 | `mediaType` | Select | `["book", "movie", "tv", "music", "podcast"]` | Media type |
 | `title` | Text | Required, Max: 300 chars | Media title |
 | `creator` | Text | Optional, Max: 300 chars | Creator/author |
@@ -277,9 +277,21 @@ PocketBase manages referential integrity through native `cascadeDelete` settings
    - `comments.group` (`cascadeDelete: true`) $\to$ Deletes all title comments.
    - `group_schedules.group` (`cascadeDelete: true`) $\to$ Deletes all schedules, milestones, check-ins, and campfire comments.
    - `votes.title` and `reviews.title` (`cascadeDelete: true`) $\to$ Automatically deleted when their parent title is removed.
-2. **User Account Deletion (`users.delete(id)`)**:
+2. **Circle Title Deletion (`titles.delete(id)`)**:
+   - `votes.title` and `reviews.title` (`cascadeDelete: true`) $\to$ Automatically deleted when their parent title is removed.
+   - `comments.title` (`cascadeDelete: true`) $\to$ Automatically deleted.
+   - `group_schedules.title` (`cascadeDelete: true`) $\to$ Automatically deleted.
+   - `user_media_progress.groupTitle` (`cascadeDelete: false`) $\to$ Relation cascade is handled by PocketBase or application logic: user shelf entries are preserved rather than deleted, safely unlinking the relation so user consumption records remain intact.
+3. **User Account Deletion (`users.delete(id)`)**:
    - `group_members.user`, `votes.user`, `reviews.user`, `comments.user`, `user_media_progress.user`, `milestone_checkins.user`, `milestone_comments.user`, `shelf_quotes.user` have `cascadeDelete: true`.
    - **Protection Rule**: `groups.createdBy` and `titles.addedBy` specify `cascadeDelete: false`. If a user attempts to delete their account while still owning a circle or active titles, PocketBase returns a `400 ClientResponseError`, requiring them to transfer ownership or remove groups first.
+4. **Relational Progress Lifecycle (ADR-015)**:
+   - In PocketBase, `titles.status` stores strictly `proposed` or `consumed`.
+   - The communal "In Progress" section in the circle UI is derived relationally from `user_media_progress` where members have active reading/watching sessions.
+   - The helper `categorizeCircleTitles` partitions circle titles into a 3-section lifecycle:
+     - **Up Next (Proposed)**: `status === "proposed"` and no active member reading sessions.
+     - **In Progress**: At least one active circle member has an active reading/watching session in `user_media_progress`.
+     - **Finished (Consumed)**: `status === "consumed"` or all circle members have completed the title.
 
 ---
 
