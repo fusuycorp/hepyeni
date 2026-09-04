@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X, Calendar, Clock, Play } from "lucide-react";
+import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X, Calendar, Clock, Play, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
@@ -23,8 +23,7 @@ import { useTranslations, useLocale } from "@/lib/i18n/client";
 import { useFeatureFlag } from "@/lib/flags/client";
 import { DecisionWheelDialog } from "@/components/decision-wheel-dialog";
 import { MOODS, MOOD_DETAILS, type MoodType } from "@/lib/moods";
-import { Smile } from "lucide-react";
-import type { TitlePayload, TitleWithProgress } from "@/lib/group-titles";
+import type { PublicUser, TitlePayload, TitleWithProgress } from "@/lib/group-titles";
 import type { ActionResult } from "@/types/actions";
 import type { PublicComment } from "@/lib/comments";
 import type { GroupScheduleWithMilestones } from "@/lib/actions/schedules";
@@ -42,7 +41,7 @@ type TitleWithScore = (TitlePayload | TitleWithProgress) & {
 
 interface GroupContentViewProps {
   group: GroupsResponse;
-  members: GroupMembersResponse<{ user?: UsersResponse }>[];
+  members: GroupMembersResponse<{ user?: PublicUser | UsersResponse }>[];
   proposed: TitleWithScore[];
   inProgress?: TitleWithScore[];
   consumed: TitleWithScore[];
@@ -1098,9 +1097,10 @@ export function GroupContentView({
 
               <div className="space-y-2 pt-1">
                 {members.map((m) => {
-                  const userName = getDisplayName(m.expand?.user, t.common.unnamedUser);
-                  const userEmail = m.expand?.user?.email;
-                  const initials = getInitials(m.expand?.user?.name, m.expand?.user?.email);
+                  const user = m.expand?.user;
+                  const userName = getDisplayName(user, t.common.unnamedUser);
+                  const userEmail = user && "email" in user ? (user.email as string | undefined) : undefined;
+                  const initials = getInitials(user?.name, userEmail);
                   const isOwner = m.role === "owner";
 
                   return (

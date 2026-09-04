@@ -54,7 +54,7 @@ async function handleCallback(
     if (record.bannedAt) return deny();
 
     await setSessionCookie(token);
-    const { autoJoinPendingInvite } = await import("@/lib/queries/groups");
+    const { autoJoinPendingInvite } = await import("@/lib/invites");
     const pendingGroupId = await autoJoinPendingInvite(record.id);
     return NextResponse.redirect(
       new URL(

@@ -1,4 +1,4 @@
-import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
+import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -19,52 +19,6 @@ export type PublicGroupOverview = {
     createdAt: string;
   }>;
 };
-
-export async function joinGroupByCode(
-  userId: string,
-  code: string,
-): Promise<string | null> {
-  const cleanCode = code.trim().toUpperCase();
-  if (!cleanCode) return null;
-
-  const ip = await getClientIp();
-  const rl = checkRateLimit(`join-invite:${userId || ip}`, { limit: 20, windowMs: 60_000 });
-  if (!rl.allowed) return null;
-
-  const pb = await getSuperuserClient();
-  let group: GroupsResponse;
-  try {
-    group = await pb
-      .collection("groups")
-      .getFirstListItem<GroupsResponse>(
-        pb.filter("inviteCode = {:code}", { code: cleanCode }),
-      );
-  } catch (err) {
-    if (isNotFound(err)) return null;
-    throw err;
-  }
-
-  try {
-    await pb.collection("group_members").create({
-      group: group.id,
-      user: userId,
-      role: "member",
-    });
-  } catch (err) {
-    if (!isValidationNotUnique(err)) throw err;
-  }
-
-  return group.id;
-}
-
-export async function autoJoinPendingInvite(
-  userId: string,
-): Promise<string | null> {
-  const { consumePendingInviteCookie } = await import("@/lib/pocketbase/session");
-  const pendingCode = await consumePendingInviteCookie();
-  if (!pendingCode) return null;
-  return joinGroupByCode(userId, pendingCode);
-}
 
 export async function getGroupByInviteCode(
   code: string,

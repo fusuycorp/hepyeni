@@ -49,11 +49,15 @@ describe("Batch 1 Remediation Verifications", () => {
       expect((groupsActions as Record<string, unknown>).autoJoinPendingInvite).toBeUndefined();
     });
 
-    it("exports joinGroupByCode and autoJoinPendingInvite from queries/groups", async () => {
+    it("exports joinGroupByCode and autoJoinPendingInvite from invites, keeping queries/groups strictly read-only", async () => {
+      const invites = await import("@/lib/invites");
+      expect(typeof invites.joinGroupByCode).toBe("function");
+      expect(typeof invites.autoJoinPendingInvite).toBe("function");
+
       const groupsQueries = await import("@/lib/queries/groups");
-      expect(typeof groupsQueries.joinGroupByCode).toBe("function");
-      expect(typeof groupsQueries.autoJoinPendingInvite).toBe("function");
       expect(typeof groupsQueries.getGroupByInviteCode).toBe("function");
+      expect((groupsQueries as Record<string, unknown>).joinGroupByCode).toBeUndefined();
+      expect((groupsQueries as Record<string, unknown>).autoJoinPendingInvite).toBeUndefined();
     });
   });
 

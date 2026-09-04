@@ -50,6 +50,8 @@ next-env.d.ts
 /.pi/
 /.pi-glla/
 /.agents/
+/.claude/
+/skills-lock.json
 /PROJECT.md
 /reviews/
 /.reviews/

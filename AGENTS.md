@@ -43,3 +43,13 @@ docs/<docs-only>
 ## PR template
 
 Fill the required summary, changes, and verification checklist (`bun test`, `tsc`, `next build`, `lint`) from `.github/PULL_REQUEST_TEMPLATE.md`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context repository (`CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.

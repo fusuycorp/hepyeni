@@ -62,7 +62,8 @@ describe("Invite System & Translations", () => {
 
 const sessionModule = await import("@/lib/pocketbase/session");
 const superuserModule = await import("@/lib/pocketbase/superuser");
-const { getGroupByInviteCode, joinGroupByCode } = await import("@/lib/queries/groups");
+const { getGroupByInviteCode } = await import("@/lib/queries/groups");
+const { joinGroupByCode } = await import("@/lib/invites");
 const { resetRateLimits } = await import("@/lib/rate-limit");
 
 type InviteDb = {
