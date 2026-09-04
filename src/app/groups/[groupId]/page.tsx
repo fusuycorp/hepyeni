@@ -31,7 +31,10 @@ export default async function GroupPage({
       if (!session) redirect("/login");
       notFound();
     }
-    notFound();
+    if (err instanceof Error && err.message === "Circle not found") {
+      notFound();
+    }
+    throw err;
   }
 
   const {

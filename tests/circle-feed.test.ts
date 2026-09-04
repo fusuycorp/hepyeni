@@ -1,5 +1,9 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { ClientResponseError } from "pocketbase";
 import { fetchCircleFeed, fetchCircleTitleDetail } from "@/lib/queries/circle-feed";
+import * as superuserModule from "@/lib/pocketbase/superuser";
+import * as schedulesModule from "@/lib/queries/schedules";
+import * as progressModule from "@/lib/queries/progress";
 
 // Mock pocketbase superuser and session modules
 const mockPb = {
@@ -106,19 +110,17 @@ const mockPb = {
   }),
 };
 
-mock.module("@/lib/pocketbase/superuser", () => ({
-  getSuperuserClient: () => Promise.resolve(mockPb),
-}));
-
-mock.module("@/lib/queries/schedules", () => ({
-  getGroupSchedules: () => Promise.resolve([]),
-}));
-
-mock.module("@/lib/queries/progress", () => ({
-  getTitleCircleProgress: () => Promise.resolve([]),
-}));
-
 describe("Circle Feed Deep Query Module", () => {
+  beforeEach(() => {
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(mockPb as never);
+    spyOn(schedulesModule, "getGroupSchedules").mockResolvedValue([] as never);
+    spyOn(progressModule, "getTitleCircleProgress").mockResolvedValue([] as never);
+  });
+
+  afterAll(() => {
+    mock.restore();
+  });
+
   it("fetches and partitions the complete circle feed", async () => {
     const session = { id: "u1", email: "alice@secret.com", name: "Alice", isAdmin: false };
     const feed = await fetchCircleFeed("grp_1", session);
@@ -189,21 +191,22 @@ describe("Circle Feed Deep Query Module", () => {
     expect(commentUser?.name).toBe("Alice");
   });
 
-  it("throws ACCESS_DENIED when private circle has no member session", async () => {
+  it("throws ACCESS_DENIED when private circle has no member session or non-member session", async () => {
     // Override group getOne to return private group
     const privateMockPb = {
       ...mockPb,
       collection: (name: string) => ({
         ...mockPb.collection(name),
         getOne: mock(() => Promise.resolve({ id: "grp_private", isPublic: false })),
-        getFirstListItem: mock(() => Promise.reject(new Error("not found"))),
+        getFirstListItem: mock(() => Promise.reject(new ClientResponseError({ status: 404 }))),
       }),
     };
 
-    mock.module("@/lib/pocketbase/superuser", () => ({
-      getSuperuserClient: () => Promise.resolve(privateMockPb),
-    }));
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(privateMockPb as never);
 
     await expect(fetchCircleFeed("grp_private", null)).rejects.toThrow("ACCESS_DENIED");
+
+    const nonMemberSession = { id: "u2", email: "bob@test.com", name: "Bob", isAdmin: false };
+    await expect(fetchCircleFeed("grp_private", nonMemberSession)).rejects.toThrow("ACCESS_DENIED");
   });
 });

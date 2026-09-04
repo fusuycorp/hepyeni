@@ -10,7 +10,7 @@ Refactor shallow modules, misplaced seams, and leaky database orchestration acro
 
 ## Deepening Strategy
 1. **Comment Threading**: Extract pure functional decision `resolveReplyParentId` into `src/lib/comments.ts` so production actions and unit tests share the exact same interface.
-2. **Command-Query Separation**: Relocate group invite mutations to `src/lib/actions/groups.ts`. Keep `src/lib/queries/` strictly read-only.
+2. **Command-Query Separation**: Relocate group invite mutations to `src/lib/invites.ts`, outside the `"use server"` public RPC boundary. Keep `src/lib/queries/` strictly read-only.
 3. **Deep Circle Feed Query**: Encapsulate multi-collection queries, in-memory relation-of-relation joins, user PII projection, blind pick author redaction, and 3-section lifecycle partitioning behind a single deep query function `fetchCircleFeed(groupId, session)`.
 4. **Lean Page Presentation**: Refactor App Router pages to consume the deep feed interface, shedding >300 lines of query plumbing.
 

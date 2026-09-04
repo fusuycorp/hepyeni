@@ -24,7 +24,15 @@ export default async function TitleDetailPage({
       if (!session) redirect("/login");
       notFound();
     }
-    notFound();
+    if (
+      err instanceof Error &&
+      (err.message === "Circle not found" ||
+        err.message === "Title not found in this group" ||
+        err.message === "TITLE_NOT_IN_GROUP")
+    ) {
+      notFound();
+    }
+    throw err;
   }
 
   const { access, group, title, comments, memberProgress } = detail;
