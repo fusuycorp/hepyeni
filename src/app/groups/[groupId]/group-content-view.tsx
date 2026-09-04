@@ -205,7 +205,7 @@ export function GroupContentView({
             <div
               role="tablist"
               aria-label={t.groups.contentViewAria}
-              className="flex items-center gap-1 bg-muted/60 p-1 rounded-sm border border-border/60 w-fit"
+              className="flex items-center gap-1 bg-muted/60 p-1 rounded-sm border border-border/60 w-fit overflow-x-auto scrollbar-none overscroll-x-contain touch-pan-x max-w-full"
             >
               {canViewBacklog && (
                 <button
@@ -216,7 +216,7 @@ export function GroupContentView({
                   aria-controls="proposed-panel"
                   onClick={() => setActiveTab("proposed")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
+                    "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xs text-xs font-medium transition-all min-h-[32px] sm:min-h-0 shrink-0",
                     activeTab === "proposed"
                       ? "bg-background text-foreground shadow-2xs font-semibold"
                       : "text-muted-foreground hover:text-foreground"
@@ -246,7 +246,7 @@ export function GroupContentView({
                   aria-controls="in-progress-panel"
                   onClick={() => setActiveTab("in_progress")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
+                    "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xs text-xs font-medium transition-all min-h-[32px] sm:min-h-0 shrink-0",
                     activeTab === "in_progress"
                       ? "bg-background text-foreground shadow-2xs font-semibold"
                       : "text-muted-foreground hover:text-foreground"
@@ -276,7 +276,7 @@ export function GroupContentView({
                   aria-controls="consumed-panel"
                   onClick={() => setActiveTab("consumed")}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
+                    "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xs text-xs font-medium transition-all min-h-[32px] sm:min-h-0 shrink-0",
                     activeTab === "consumed"
                       ? "bg-background text-foreground shadow-2xs font-semibold"
                       : "text-muted-foreground hover:text-foreground"
@@ -305,7 +305,7 @@ export function GroupContentView({
                 aria-controls="schedules-panel"
                 onClick={() => setActiveTab("schedules")}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-xs text-xs font-medium transition-all",
+                  "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xs text-xs font-medium transition-all min-h-[32px] sm:min-h-0 shrink-0",
                   activeTab === "schedules"
                     ? "bg-background text-foreground shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
@@ -330,13 +330,13 @@ export function GroupContentView({
           )}
 
           {/* Media Type Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none overscroll-x-contain touch-pan-x flex-nowrap">
             <button
               type="button"
               aria-pressed={selectedMediaType === "all"}
               onClick={() => setSelectedMediaType("all")}
               className={cn(
-                "px-2.5 py-1 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
+                "px-2.5 py-1 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap min-h-[30px] sm:min-h-0",
                 selectedMediaType === "all"
                   ? "bg-foreground text-background border-foreground font-semibold"
                   : "bg-background text-muted-foreground hover:bg-muted"
@@ -351,7 +351,7 @@ export function GroupContentView({
                 aria-pressed={selectedMediaType === type}
                 onClick={() => setSelectedMediaType(type)}
                 className={cn(
-                  "px-2.5 py-1 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap flex items-center gap-1",
+                  "px-2.5 py-1 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap flex items-center gap-1 min-h-[30px] sm:min-h-0",
                   selectedMediaType === type
                     ? "bg-foreground text-background border-foreground font-semibold"
                     : "bg-background text-muted-foreground hover:bg-muted"
@@ -379,7 +379,7 @@ export function GroupContentView({
         </div>
 
         {/* Secondary Filter: Recommender / Member Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs pt-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none overscroll-x-contain touch-pan-x flex-nowrap text-xs pt-1">
           <div className="flex items-center gap-1 text-muted-foreground font-medium shrink-0 pr-1">
             <User className="size-3.5" />
             <span className="hidden sm:inline">{t.groups.recommenderLabel}:</span>
@@ -390,7 +390,7 @@ export function GroupContentView({
             aria-pressed={selectedRecommender === "all"}
             onClick={() => setSelectedRecommender("all")}
             className={cn(
-              "px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
+              "px-2.5 py-1 sm:py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap min-h-[28px] sm:min-h-0",
               selectedRecommender === "all"
                 ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
                 : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -413,7 +413,7 @@ export function GroupContentView({
                   setSelectedRecommender(isSelected ? "all" : rec.id)
                 }
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 sm:py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap min-h-[28px] sm:min-h-0",
                   isSelected
                     ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
                     : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -444,7 +444,7 @@ export function GroupContentView({
                 setSelectedRecommender("all");
                 setSelectedMood("all");
               }}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap ml-auto"
+              className="inline-flex items-center gap-1 px-2 py-1 sm:py-0.5 rounded-xs text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap ml-auto min-h-[28px] sm:min-h-0"
             >
               <X className="size-3" />
               <span>{t.groups.clearFilters}</span>
@@ -454,7 +454,7 @@ export function GroupContentView({
 
         {/* Tertiary Filter: Mood & Tone Pills (if flag enabled) */}
         {moodFeatureEnabled && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs pt-1 border-t border-border/60">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none overscroll-x-contain touch-pan-x flex-nowrap text-xs pt-1 border-t border-border/60">
             <div className="flex items-center gap-1 text-muted-foreground font-medium shrink-0 pr-1">
               <Smile className="size-3.5" />
               <span className="hidden sm:inline">{t.moods.filterByMood}:</span>
@@ -465,7 +465,7 @@ export function GroupContentView({
               aria-pressed={selectedMood === "all"}
               onClick={() => setSelectedMood("all")}
               className={cn(
-                "px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
+                "px-2.5 py-1 sm:py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap min-h-[28px] sm:min-h-0",
                 selectedMood === "all"
                   ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
                   : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -484,7 +484,7 @@ export function GroupContentView({
                   aria-pressed={isSelected}
                   onClick={() => setSelectedMood(isSelected ? "all" : mood)}
                   className={cn(
-                    "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap",
+                    "inline-flex items-center gap-1 px-2.5 py-1 sm:py-0.5 rounded-xs text-xs font-medium border border-border/60 transition-colors whitespace-nowrap min-h-[28px] sm:min-h-0",
                     isSelected
                       ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
                       : cn(

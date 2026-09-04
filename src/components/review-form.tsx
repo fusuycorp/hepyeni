@@ -61,7 +61,7 @@ export function ReviewForm({
             aria-pressed={rating === n}
             onMouseEnter={() => setHovered(n)}
             onClick={() => setRating(n)}
-            className="p-1 rounded-md transition-transform hover:scale-110 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+            className="p-2 sm:p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md transition-transform hover:scale-110 active:scale-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Star
               className={cn(
@@ -84,8 +84,8 @@ export function ReviewForm({
       <Button
         type="submit"
         variant="secondary"
-        size="xs"
-        className="self-start font-medium"
+        size="sm"
+        className="self-start font-medium h-8 text-xs"
         disabled={isPending}
       >
         {isPending ? t.common.saving : hasExisting ? t.reviews.updateReview : t.reviews.saveReview}

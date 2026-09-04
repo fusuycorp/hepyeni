@@ -71,7 +71,7 @@ export function VoteControl({
           disabled={effectiveDisabled}
           onClick={() => vote("up")}
           className={cn(
-            "size-8 rounded-xs transition-all active:scale-90",
+            "size-9 sm:size-8 rounded-xs transition-all active:scale-90",
             isUp
               ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-600"
               : "text-muted-foreground hover:text-foreground"
@@ -101,7 +101,7 @@ export function VoteControl({
           disabled={effectiveDisabled}
           onClick={() => vote("down")}
           className={cn(
-            "size-8 rounded-xs transition-all active:scale-90",
+            "size-9 sm:size-8 rounded-xs transition-all active:scale-90",
             isDown
               ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 hover:text-rose-600"
               : "text-muted-foreground hover:text-foreground"
@@ -124,7 +124,7 @@ export function VoteControl({
         disabled={effectiveDisabled}
         onClick={() => vote("up")}
         className={cn(
-          "size-8 rounded-xs transition-all active:scale-90",
+          "size-9 sm:size-8 rounded-xs transition-all active:scale-90",
           isUp
             ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-600"
             : "text-muted-foreground hover:text-foreground"
@@ -156,7 +156,7 @@ export function VoteControl({
         disabled={effectiveDisabled}
         onClick={() => vote("down")}
         className={cn(
-          "size-8 rounded-xs transition-all active:scale-90",
+          "size-9 sm:size-8 rounded-xs transition-all active:scale-90",
           isDown
             ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 hover:text-rose-600"
             : "text-muted-foreground hover:text-foreground"

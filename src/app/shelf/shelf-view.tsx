@@ -15,7 +15,6 @@ import {
   EyeOff,
   Sparkles,
   ArrowUpDown,
-  Quote,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,6 @@ import { cn } from "@/lib/utils";
 import type {
   ShelfQuotesResponse,
   UserMediaProgressResponse,
-  UsersResponse,
 } from "@/types/pocketbase-types";
 import type { QuoteExpand } from "@/lib/marginalia";
 
@@ -146,7 +144,7 @@ export function ShelfView({
       </div>
 
       {/* Tabs */}
-      <div className="w-full overflow-x-auto scrollbar-none pb-1">
+      <div className="w-full overflow-x-auto scrollbar-none overscroll-x-contain touch-pan-x pb-1">
         <div
           role="tablist"
           className="inline-flex items-center gap-1 bg-muted/60 p-1 rounded-sm border border-border/60 min-w-full sm:min-w-fit"
@@ -159,7 +157,7 @@ export function ShelfView({
               aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex-1 sm:flex-initial px-3 py-1.5 rounded-xs text-xs font-medium transition-all whitespace-nowrap shrink-0 text-center",
+                "flex-1 sm:flex-initial px-3 py-1.5 rounded-xs text-xs font-medium transition-all whitespace-nowrap shrink-0 text-center min-h-[32px] sm:min-h-0",
                 activeTab === tab.id
                   ? "bg-background text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground",
@@ -320,17 +318,17 @@ export function ShelfView({
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
                     {/* Quick Step Buttons for Active items */}
                     {item.status === "in_progress" ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <Button
                           type="button"
                           variant="outline"
                           size="xs"
                           disabled={isPending || !item.progressCurrent}
                           onClick={() => handleQuickStep(item, -1)}
-                          className="size-7 p-0 shrink-0"
+                          className="size-8 sm:size-7 p-0 shrink-0"
                           title="-1"
                         >
-                          <Minus className="size-3" />
+                          <Minus className="size-3.5 sm:size-3" />
                         </Button>
                         <Button
                           type="button"
@@ -338,10 +336,10 @@ export function ShelfView({
                           size="xs"
                           disabled={isPending}
                           onClick={() => handleQuickStep(item, 1)}
-                          className="h-7 px-2 text-xs font-mono gap-1 shrink-0"
+                          className="h-8 sm:h-7 px-2.5 sm:px-2 text-xs font-mono gap-1 shrink-0"
                           title="+1"
                         >
-                          <Plus className="size-3" />
+                          <Plus className="size-3.5 sm:size-3" />
                           <span>1 {unitLabel}</span>
                         </Button>
                       </div>
@@ -354,7 +352,7 @@ export function ShelfView({
                       variant="ghost"
                       size="xs"
                       onClick={() => setEditingItem(item)}
-                      className="gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto shrink-0"
+                      className="gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto shrink-0 h-8 sm:h-7 px-2"
                     >
                       <Settings2 className="size-3.5" />
                       <span>{t.shelf.editProgress}</span>

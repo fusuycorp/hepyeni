@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CommentThread, type DisplayComment } from "@/components/comment-thread";
+import { CommentThread } from "@/components/comment-thread";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 import type { ActionResult } from "@/types/actions";
@@ -79,7 +79,7 @@ export function MediaComments({
         }
       />
 
-      <DialogContent className="sm:max-w-lg max-h-[85dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
+      <DialogContent className="sm:max-w-lg max-h-[88dvh] flex flex-col p-3.5 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-3 border-b">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
@@ -96,7 +96,7 @@ export function MediaComments({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-[140px] max-h-[50dvh] pr-1">
+        <div className="flex-1 overflow-y-auto overscroll-contain min-h-[140px] max-h-[58dvh] pr-1">
           {open && (
             <CommentThread
               titleId={titleId}

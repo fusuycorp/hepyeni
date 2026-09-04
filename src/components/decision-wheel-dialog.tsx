@@ -145,7 +145,7 @@ export function DecisionWheelDialog({
         />
       )}
 
-      <DialogContent className="max-w-md sm:max-w-lg overflow-hidden flex flex-col items-center p-6 text-center">
+      <DialogContent className="max-w-md sm:max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain flex flex-col items-center p-4 sm:p-6 text-center">
         <DialogHeader className="w-full space-y-1">
           <DialogTitle className="text-lg font-bold flex items-center justify-center gap-2 text-foreground">
             <Sparkles className="size-5 text-primary animate-pulse" />
@@ -166,9 +166,9 @@ export function DecisionWheelDialog({
             </Button>
           </div>
         ) : (
-          <div className="w-full flex flex-col items-center space-y-6 pt-2">
+          <div className="w-full flex flex-col items-center space-y-5 sm:space-y-6 pt-2">
             {/* Wheel Container with Top Pointer */}
-            <div className="relative size-64 sm:size-72 flex items-center justify-center">
+            <div className="relative size-56 sm:size-72 flex items-center justify-center">
               {/* Pointer Indicator at Top Center */}
               <div className="absolute -top-3 z-30 flex flex-col items-center">
                 <div className="size-0 border-x-10 border-x-transparent border-t-16 border-t-primary drop-shadow-md" />

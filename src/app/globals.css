@@ -123,11 +123,32 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior-y: contain;
   }
   html {
     @apply font-sans;
   }
+  button, a, input, textarea, select, [role="button"], [role="tab"] {
+    touch-action: manipulation;
+  }
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility bottom-safe {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility top-safe {
+  top: env(safe-area-inset-top, 0px);
 }

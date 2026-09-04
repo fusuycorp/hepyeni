@@ -158,7 +158,7 @@ export function AddTitleForm({
     <div className={cn("flex flex-col gap-5", isModal && "gap-4")}>
       {/* Media Type Selector Chips & Custom Mode Switch */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none overscroll-x-contain touch-pan-x flex-nowrap">
           {MEDIA_TYPES.map((type) => {
             const available = MEDIA_TYPES.includes(type);
             const active = mediaType === type;
@@ -173,7 +173,7 @@ export function AddTitleForm({
                   setHasSearched(false);
                 }}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap",
+                  "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap min-h-[32px] sm:min-h-0",
                   active
                     ? "bg-primary text-primary-foreground border-primary shadow-xs"
                     : available
@@ -196,7 +196,7 @@ export function AddTitleForm({
           type="button"
           variant={isCustomMode ? "secondary" : "outline"}
           size="xs"
-          className="text-xs gap-1.5 shrink-0"
+          className="text-xs gap-1.5 shrink-0 min-h-[32px] sm:min-h-0"
           onClick={() => {
             setIsCustomMode(!isCustomMode);
             if (!isCustomMode) {
@@ -270,7 +270,35 @@ export function AddTitleForm({
                     />
                   </div>
 
+                  {moodFeatureEnabled && (
+                    <div className="pt-1">
+                      <MoodSelector
+                        selectedMoods={selectedMoods}
+                        selectedPace={selectedPace}
+                        onChangeMoods={setSelectedMoods}
+                        onChangePace={setSelectedPace}
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground">
+                      {t.titles.descriptionLabel}
+                    </label>
+                    <textarea
+                      value={customDescription}
+                      onChange={(e) => setCustomDescription(e.target.value)}
+                      placeholder={t.titles.descriptionPlaceholder}
+                      maxLength={2000}
+                      rows={3}
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs sm:text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </div>
+                </div>
+
+                {/* Cover Preview & Cover URL (1 col) */}
+                <div className="space-y-3 flex flex-col items-center sm:items-start">
+                  <div className="space-y-1 w-full">
                     <label className="text-xs font-semibold text-foreground">
                       {t.titles.coverUrlLabel}
                     </label>
@@ -283,39 +311,8 @@ export function AddTitleForm({
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-foreground">
-                      {t.titles.descriptionLabel}
-                    </label>
-                    <textarea
-                      value={customDescription}
-                      onChange={(e) => setCustomDescription(e.target.value)}
-                      placeholder={t.titles.descriptionPlaceholder}
-                      maxLength={1000}
-                      rows={2}
-                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-2xs outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-                    />
-                  </div>
-
-                  {moodFeatureEnabled && (
-                    <div className="pt-2">
-                      <MoodSelector
-                        selectedMoods={selectedMoods}
-                        onChangeMoods={setSelectedMoods}
-                        selectedPace={selectedPace}
-                        onChangePace={setSelectedPace}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Cover Live Preview (1 col) */}
-                <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-muted/30 border border-dashed border-border/70 text-center gap-2">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {t.titles.previewCover}
-                  </span>
-                  <div className="w-24 aspect-[2/3] rounded-lg overflow-hidden ring-1 ring-border shadow-xs bg-muted/60 flex items-center justify-center">
-                    {customCoverUrl && /^https?:\/\//i.test(customCoverUrl.trim()) ? (
+                  <div className="w-24 h-36 rounded-md border border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/20 relative shrink-0">
+                    {customCoverUrl.trim() ? (
                       <MediaCover
                         src={customCoverUrl.trim()}
                         alt={customTitle || "Custom cover"}
@@ -329,9 +326,6 @@ export function AddTitleForm({
                       </div>
                     )}
                   </div>
-                  <p className="text-[11px] font-medium text-foreground line-clamp-1 max-w-full px-1">
-                    {customTitle || t.titles.customTitleName}
-                  </p>
                 </div>
               </div>
 
@@ -373,6 +367,10 @@ export function AddTitleForm({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
+                type="search"
+                enterKeyHint="search"
+                autoCorrect="off"
+                autoCapitalize="none"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t.titles.searchPlaceholder}
@@ -399,7 +397,7 @@ export function AddTitleForm({
           </form>
 
           {/* Results Section */}
-          <div className={cn(isModal && "max-h-[50dvh] sm:max-h-[55dvh] overflow-y-auto pr-1 -mr-1")}>
+          <div className={cn(isModal && "max-h-[50dvh] sm:max-h-[55dvh] overflow-y-auto overscroll-contain pr-1 -mr-1")}>
             {results.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
