@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { canDeleteComment, projectCommentRow, validateCommentContent, type PublicComment } from "@/lib/comments";
+import { canDeleteComment, projectCommentRow, resolveReplyParentId, validateCommentContent, type PublicComment } from "@/lib/comments";
 import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
@@ -49,7 +49,7 @@ export async function addComment(
           return { success: false, error: "Invalid parent comment." };
         }
         // Enforce +1 depth max: If parent is already a reply, attach to its root parent
-        parentId = parent.parentId || parent.id;
+        parentId = resolveReplyParentId(parent);
       } catch (err) {
         if (isNotFound(err)) return { success: false, error: "Parent comment not found." };
         throw err;

@@ -3,6 +3,7 @@ import { afterAll, beforeEach, mock, spyOn } from "bun:test";
 import {
   canDeleteComment,
   organizeCommentsTree,
+  resolveReplyParentId,
   validateCommentContent,
 } from "@/lib/comments";
 
@@ -178,20 +179,18 @@ describe("Comments - +1 Depth Replies Hierarchy & Tree Organization", () => {
   });
 
   it("enforces depth limit: when reply targets another reply, backend resolution attaches to root", () => {
-    // Simulating parentId resolution in addComment: parent.parentId || parent.id
-    const existingComments = [
-      { id: "root_1", parentId: null },
-      { id: "reply_1", parentId: "root_1" },
-    ];
+    // Exercising production resolveReplyParentId from @/lib/comments directly
+    const rootCommentNull = { id: "root_1", parentId: null };
+    const rootCommentUndefined = { id: "root_2", parentId: undefined };
+    const rootCommentEmpty = { id: "root_3", parentId: "" };
+    const replyComment = { id: "reply_1", parentId: "root_1" };
+    const replyToReply = { id: "reply_2", parentId: "reply_1" };
 
-    function resolveParentId(targetId: string): string {
-      const target = existingComments.find((c) => c.id === targetId);
-      if (!target) throw new Error("Not found");
-      return target.parentId || target.id;
-    }
-
-    expect(resolveParentId("root_1")).toBe("root_1");
-    expect(resolveParentId("reply_1")).toBe("root_1"); // Collapses to root (+1 depth max!)
+    expect(resolveReplyParentId(rootCommentNull)).toBe("root_1");
+    expect(resolveReplyParentId(rootCommentUndefined)).toBe("root_2");
+    expect(resolveReplyParentId(rootCommentEmpty)).toBe("root_3");
+    expect(resolveReplyParentId(replyComment)).toBe("root_1"); // Collapses to root (+1 depth max!)
+    expect(resolveReplyParentId(replyToReply)).toBe("reply_1");
   });
 });
 

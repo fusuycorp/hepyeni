@@ -13,8 +13,8 @@ import type {
   GroupMembersResponse,
   GroupsResponse,
 } from "@/types/pocketbase-types";
+import { joinGroupByCode } from "@/lib/invites";
 import {
-  joinGroupByCode,
   getGroupByInviteCode as getGroupByInviteCodeQuery,
   type PublicGroupOverview,
 } from "@/lib/queries/groups";

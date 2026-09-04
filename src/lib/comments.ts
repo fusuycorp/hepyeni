@@ -93,3 +93,11 @@ export function organizeCommentsTree<
   return rootComments;
 }
 
+/**
+ * Enforce +1 depth max for comment threads.
+ * If the target parent comment is itself a reply, attach to its root parent.
+ */
+export function resolveReplyParentId(parent: { id: string; parentId?: string | null }): string {
+  return parent.parentId || parent.id;
+}
+
