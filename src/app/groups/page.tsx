@@ -15,7 +15,6 @@ import type {
   GroupMembersResponse,
   GroupsResponse,
   TitlesResponse,
-  UsersResponse,
 } from "@/types/pocketbase-types";
 
 export default async function GroupsPage() {
@@ -25,20 +24,14 @@ export default async function GroupsPage() {
   const t = await getServerTranslations();
   const pb = await getSuperuserClient();
   let memberships: GroupMembersResponse<{ group?: GroupsResponse }>[] = [];
-  let userRecord: UsersResponse | null = null;
 
   try {
-    const [fetchedMemberships, fetchedUser] = await Promise.all([
-      pb
-        .collection("group_members")
-        .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
-          filter: pb.filter("user = {:userId}", { userId: session.id }),
-          expand: "group",
-        }),
-      pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
-    ]);
-    memberships = fetchedMemberships;
-    userRecord = fetchedUser;
+    memberships = await pb
+      .collection("group_members")
+      .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
+        filter: pb.filter("user = {:userId}", { userId: session.id }),
+        expand: "group",
+      });
   } catch (err) {
     console.error("[GroupsPage] Failed to fetch memberships:", err);
   }
@@ -72,8 +65,8 @@ export default async function GroupsPage() {
   const currentUser = {
     id: session.id,
     email: session.email,
-    name: userRecord?.name,
-    avatarUrl: userRecord?.avatarUrl,
+    name: session.name,
+    avatarUrl: session.avatarUrl,
     isAdmin: session.isAdmin,
   };
 

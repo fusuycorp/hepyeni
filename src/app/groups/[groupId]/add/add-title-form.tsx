@@ -253,7 +253,7 @@ export function AddTitleForm({
                       onChange={(e) => setCustomTitle(e.target.value)}
                       placeholder={t.titles.customTitlePlaceholder}
                       maxLength={300}
-                      className="text-xs sm:text-sm h-10"
+                      className="text-base md:text-sm h-10"
                     />
                   </div>
 
@@ -266,7 +266,7 @@ export function AddTitleForm({
                       onChange={(e) => setCustomCreator(e.target.value)}
                       placeholder={`${getCreatorLabel()}...`}
                       maxLength={300}
-                      className="text-xs sm:text-sm h-10"
+                      className="text-base md:text-sm h-10"
                     />
                   </div>
 
@@ -291,7 +291,7 @@ export function AddTitleForm({
                       placeholder={t.titles.descriptionPlaceholder}
                       maxLength={2000}
                       rows={3}
-                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs sm:text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                     />
                   </div>
                 </div>
@@ -307,7 +307,7 @@ export function AddTitleForm({
                       value={customCoverUrl}
                       onChange={(e) => setCustomCoverUrl(e.target.value)}
                       placeholder={t.titles.coverUrlPlaceholder}
-                      className="text-xs sm:text-sm h-10"
+                      className="text-base md:text-sm h-10"
                     />
                   </div>
 
@@ -374,7 +374,7 @@ export function AddTitleForm({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t.titles.searchPlaceholder}
-                className="pl-9 text-xs sm:text-sm h-10"
+                className="pl-9 text-base md:text-sm h-10"
               />
             </div>
             <Button

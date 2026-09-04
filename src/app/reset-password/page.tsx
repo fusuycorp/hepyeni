@@ -73,7 +73,7 @@ export default async function ResetPasswordPage({
                     required
                     minLength={8}
                     placeholder={t.auth.newPasswordPlaceholder}
-                    className="h-10 text-xs"
+                    className="h-10 text-base md:text-sm"
                   />
                   <Input
                     type="password"
@@ -81,7 +81,7 @@ export default async function ResetPasswordPage({
                     required
                     minLength={8}
                     placeholder={t.auth.confirmPasswordPlaceholder}
-                    className="h-10 text-xs"
+                    className="h-10 text-base md:text-sm"
                   />
                   <Button type="submit" className="w-full font-semibold h-10 mt-1">
                     {t.auth.updatePasswordButton}

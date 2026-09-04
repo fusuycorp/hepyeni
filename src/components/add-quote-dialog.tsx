@@ -178,7 +178,7 @@ export function AddQuoteDialog({
                 placeholder={t.marginalia.titlePlaceholder}
                 maxLength={200}
                 required
-                className="text-xs h-9"
+                className="text-base md:text-sm h-9"
               />
             </div>
             <div className="space-y-1.5">
@@ -188,7 +188,7 @@ export function AddQuoteDialog({
               <select
                 value={mediaType}
                 onChange={(e) => setMediaType(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-base md:text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">{t.marginalia.allMedia}</option>
                 <option value="book">{t.media.book}</option>
@@ -219,7 +219,7 @@ export function AddQuoteDialog({
               maxLength={3000}
               rows={4}
               required
-              className="text-xs resize-y font-serif leading-relaxed"
+              className="text-base md:text-sm resize-y font-serif leading-relaxed"
             />
           </div>
 
@@ -233,7 +233,7 @@ export function AddQuoteDialog({
               onChange={(e) => setAttribution(e.target.value)}
               placeholder={t.marginalia.attributionPlaceholder}
               maxLength={200}
-              className="text-xs h-9"
+              className="text-base md:text-sm h-9"
             />
           </div>
 
@@ -246,7 +246,7 @@ export function AddQuoteDialog({
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder={t.marginalia.tagsPlaceholder}
-              className="text-xs h-9"
+              className="text-base md:text-sm h-9"
             />
           </div>
 

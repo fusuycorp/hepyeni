@@ -58,22 +58,19 @@ export default async function GroupSettingsPage({
 
   const isOwner = membership.role === "owner";
 
-  const [members, userRecord] = await Promise.all([
-    pb
-      .collection("group_members")
-      .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
-        filter: pb.filter("group = {:groupId}", { groupId }),
-        expand: "user",
-        sort: "joinedAt",
-      }),
-    pb.collection("users").getOne<UsersResponse>(session.id).catch(() => null),
-  ]);
+  const members = await pb
+    .collection("group_members")
+    .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
+      filter: pb.filter("group = {:groupId}", { groupId }),
+      expand: "user",
+      sort: "joinedAt",
+    });
 
   const currentUser = {
     id: session.id,
     email: session.email,
-    name: userRecord?.name,
-    avatarUrl: userRecord?.avatarUrl,
+    name: session.name,
+    avatarUrl: session.avatarUrl,
     isAdmin: session.isAdmin,
   };
 

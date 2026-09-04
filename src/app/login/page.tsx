@@ -200,7 +200,7 @@ export default async function LoginPage({
                         name="email"
                         required
                         placeholder={t.auth.emailPlaceholder}
-                        className="text-xs h-10"
+                        className="text-base md:text-sm h-10"
                       />
                       <Button type="submit" className="w-full text-xs font-semibold h-10">
                         {t.auth.sendOtpButton}
@@ -215,7 +215,7 @@ export default async function LoginPage({
                         name="email"
                         required
                         placeholder={t.auth.emailPlaceholder}
-                        className="text-xs h-10"
+                        className="text-base md:text-sm h-10"
                       />
                       <Input
                         type="password"
@@ -223,7 +223,7 @@ export default async function LoginPage({
                         required
                         minLength={8}
                         placeholder={t.auth.passwordPlaceholder}
-                        className="text-xs h-10"
+                        className="text-base md:text-sm h-10"
                       />
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <Button
@@ -258,7 +258,7 @@ export default async function LoginPage({
                             </Button>
                           }
                         />
-                        <DialogContent>
+                        <DialogContent className="max-h-[85dvh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>{t.auth.forgotPasswordDialogTitle}</DialogTitle>
                             <DialogDescription className="text-xs">
