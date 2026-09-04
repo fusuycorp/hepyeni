@@ -14,7 +14,7 @@ import { MediaBadge } from "@/components/media-badge";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { getGroupByInviteCode } from "@/lib/actions/groups";
+import { getGroupByInviteCode } from "@/lib/queries/groups";
 import { getSession } from "@/lib/pocketbase/session";
 import { getLocale, getServerTranslations } from "@/lib/i18n/server";
 import { formatRelativeTime } from "@/lib/i18n";

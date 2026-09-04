@@ -5,7 +5,7 @@ import { markConsumed, unmarkConsumed } from "@/lib/actions/titles";
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
-import { getTitleCircleProgress } from "@/lib/actions/progress";
+import { getTitleCircleProgress } from "@/lib/queries/progress";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";

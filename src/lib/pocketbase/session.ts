@@ -213,8 +213,8 @@ export async function setOAuth2StateCookie(data: OAuth2State): Promise<void> {
   const store = await cookies();
   store.set(OAUTH_STATE_COOKIE, JSON.stringify(data), {
     httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: 60 * 10,
   });

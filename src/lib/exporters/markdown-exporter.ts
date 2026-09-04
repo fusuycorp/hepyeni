@@ -40,7 +40,7 @@ export function generateItemMarkdown(item: UserMediaProgressResponse): {
   if (item.currentLabel) yamlLines.push(`current_label: ${escapeYamlString(item.currentLabel)}`);
   if (item.startedAt) yamlLines.push(`started_at: "${item.startedAt}"`);
   if (item.completedAt) yamlLines.push(`completed_at: "${item.completedAt}"`);
-  if (item.externalSource) yamlLines.push(`external_source: "${item.externalSource}"`);
+  if (item.externalSource) yamlLines.push(`external_source: ${escapeYamlString(item.externalSource)}`);
   if (item.externalId) yamlLines.push(`external_id: ${escapeYamlString(item.externalId)}`);
   yamlLines.push(`created_at: "${item.createdAt}"`);
   yamlLines.push(`updated_at: "${item.updatedAt}"`);

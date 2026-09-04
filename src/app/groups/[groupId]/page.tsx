@@ -10,7 +10,7 @@ import { markConsumed, unmarkConsumed, startConsuming } from "@/lib/actions/titl
 import { submitReview } from "@/lib/actions/reviews";
 import { voteOnTitle } from "@/lib/actions/votes";
 import { addComment, deleteComment, getComments } from "@/lib/actions/comments";
-import { getGroupSchedules } from "@/lib/actions/schedules";
+import { getGroupSchedules } from "@/lib/queries/schedules";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { resolveCircleAccess } from "@/lib/membership";

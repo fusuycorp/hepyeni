@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { ShelfView } from "./shelf-view";
-import { getPersonalShelf } from "@/lib/actions/progress";
-import { getUserQuotes } from "@/lib/actions/marginalia";
+import { getPersonalShelf } from "@/lib/queries/progress";
+import { getUserQuotes } from "@/lib/queries/marginalia";
 import { isFeatureEnabled } from "@/lib/flags/server";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
