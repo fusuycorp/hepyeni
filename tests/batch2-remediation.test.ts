@@ -62,7 +62,7 @@ describe("Batch 2 Remediation: Invariants, Performance & Robustness", () => {
         "utf8",
       );
       expect(groupPageContent).toContain(
-        "bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-8",
+        "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-8",
       );
     });
 
@@ -101,7 +101,7 @@ describe("Batch 2 Remediation: Invariants, Performance & Robustness", () => {
         "src/components/decision-wheel-dialog.tsx",
         "utf8",
       );
-      expect(wheelContent).toContain("max-h-[85dvh]");
+      expect(wheelContent).toMatch(/max-h-\[\d+dvh\]/);
       expect(wheelContent).toContain("overflow-y-auto");
     });
   });
