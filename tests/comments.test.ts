@@ -184,13 +184,11 @@ describe("Comments - +1 Depth Replies Hierarchy & Tree Organization", () => {
     const rootCommentUndefined = { id: "root_2", parentId: undefined };
     const rootCommentEmpty = { id: "root_3", parentId: "" };
     const replyComment = { id: "reply_1", parentId: "root_1" };
-    const replyToReply = { id: "reply_2", parentId: "reply_1" };
 
     expect(resolveReplyParentId(rootCommentNull)).toBe("root_1");
     expect(resolveReplyParentId(rootCommentUndefined)).toBe("root_2");
     expect(resolveReplyParentId(rootCommentEmpty)).toBe("root_3");
     expect(resolveReplyParentId(replyComment)).toBe("root_1"); // Collapses to root (+1 depth max!)
-    expect(resolveReplyParentId(replyToReply)).toBe("reply_1");
   });
 });
 

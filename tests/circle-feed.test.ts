@@ -46,7 +46,7 @@ const mockPb = {
       }
       return Promise.resolve({ id: "rec_1" });
     }),
-    getFullList: mock((_opts?: any) => {
+    getFullList: mock(() => {
       if (name === "group_members") {
         return Promise.resolve([
           {
@@ -130,10 +130,13 @@ describe("Circle Feed Deep Query Module", () => {
     expect(feed.proposed[0].score).toBe(1);
     expect(feed.proposed[0].userVote).toBe("up");
 
-    // Invariant check: email must never be projected in addedBy or review users
+    // Invariant check: email must never be projected in addedBy, review users, or members (R2 invariant)
     const addedBy = feed.proposed[0].expand?.addedBy as any;
     expect(addedBy?.email).toBeUndefined();
     expect(addedBy?.name).toBe("Alice");
+
+    expect((feed.members[0].expand?.user as any)?.email).toBeUndefined();
+    expect(feed.members[0].expand?.user?.name).toBe("Alice");
 
     // Domain lifecycle aliases per ADR-015
     expect(feed.upNext).toBe(feed.proposed);

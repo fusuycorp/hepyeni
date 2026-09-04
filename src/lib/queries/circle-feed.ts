@@ -11,10 +11,12 @@ import {
   computeScoreAndUserVote,
   groupTitleQuery,
   mapGroupReviewRow,
+  pickReviewerUser,
   type GroupReviewRow,
   type GroupTitleExpand,
   type LeanVoteRow,
   type MemberTitleProgress,
+  type PublicUser,
   type TitlePayload,
   type TitleWithProgress,
 } from "@/lib/group-titles";
@@ -38,7 +40,7 @@ type TitleExpand = {
 export interface CircleFeedData {
   access: CircleAccess;
   group: GroupsResponse;
-  members: GroupMembersResponse<{ user?: UsersResponse }>[];
+  members: GroupMembersResponse<{ user?: PublicUser }>[];
   proposed: TitleWithProgress[];
   inProgress: TitleWithProgress[];
   consumed: TitleWithProgress[];
@@ -48,7 +50,7 @@ export interface CircleFeedData {
   finished: TitleWithProgress[];
   commentCounts: Record<string, number>;
   schedules: Awaited<ReturnType<typeof getGroupSchedules>>;
-  currentMember?: GroupMembersResponse<{ user?: UsersResponse }>;
+  currentMember?: GroupMembersResponse<{ user?: PublicUser }>;
   currentUserRole?: string;
   isOwnerOrAdmin: boolean;
 }
@@ -93,7 +95,7 @@ export async function fetchCircleFeed(
   const titleQuery = groupTitleQuery(canViewReviews);
 
   const [
-    members,
+    rawMembers,
     groupTitles,
     commentRows,
     schedules,
@@ -107,6 +109,9 @@ export async function fetchCircleFeed(
       .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
         filter: pb.filter("group = {:groupId}", { groupId }),
         expand: "user",
+        fields:
+          "id,group,user,role,createdAt,updatedAt," +
+          "expand.user.id,expand.user.name,expand.user.avatarUrl",
       }),
     needsTitles
       ? pb.collection("titles").getFullList<TitlesResponse<TitleExpand>>({
@@ -162,6 +167,14 @@ export async function fetchCircleFeed(
           .catch(() => [])
       : Promise.resolve([]),
   ]);
+
+  // R2 invariant: members expand.user is projected to id/name/avatarUrl only — email never leaves the server
+  const members: GroupMembersResponse<{ user?: PublicUser }>[] = rawMembers.map((m) => ({
+    ...m,
+    expand: {
+      user: pickReviewerUser(m.expand?.user),
+    },
+  }));
 
   const memberIds = members.map((m) => m.user);
   const memberProgressByTitle = new Map<string, MemberTitleProgress[]>();
