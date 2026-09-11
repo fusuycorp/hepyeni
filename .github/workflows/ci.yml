@@ -9,8 +9,13 @@ on:
 jobs:
   test:
     name: test
-    # OCocuk dedicated builder (see selfhosted/docs/selfhosted-build.md).
-    runs-on: [self-hosted, builder]
+    # GitHub-hosted on purpose, and this must not change while the repo is
+    # public: `pull_request` fires for forks, and untrusted PR code must never
+    # execute on the self-hosted builder (OCocuk) — that host holds the
+    # registry credentials production pulls images with, so a fork PR running
+    # there could push a poisoned `latest`. Hosted minutes are free for public
+    # repos; the builder is reserved for deploy.yml (push to main / dispatch).
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
@@ -39,8 +44,8 @@ jobs:
 
   lint:
     name: lint
-    # OCocuk dedicated builder (see selfhosted/docs/selfhosted-build.md).
-    runs-on: [self-hosted, builder]
+    # GitHub-hosted for the same fork-safety reason as `test` above.
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
