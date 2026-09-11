@@ -252,6 +252,7 @@ export interface Translations {
     errors: {
       default: string;
       invalid_credentials: string;
+      too_many_attempts: string;
       email_exists: string;
       weak_password: string;
       passwords_dont_match: string;

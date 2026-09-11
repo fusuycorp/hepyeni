@@ -9,6 +9,7 @@ import {
   clearSessionCookie,
   consumeOtpCookie,
   getPbUrl,
+  getSession,
   setOAuth2StateCookie,
   setOtpCookie,
   setSessionCookie,
@@ -16,6 +17,7 @@ import {
 
 import { autoJoinPendingInvite } from "@/lib/invites";
 import { logDiagnostic } from "@/lib/errors";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
 export type UserAuthMethods = {
@@ -24,9 +26,18 @@ export type UserAuthMethods = {
   oauthProviders: string[];
 };
 
-export async function getUserAuthMethods(
-  userId: string,
-): Promise<UserAuthMethods> {
+// This action is published as a public RPC endpoint ("use server"), so a
+// caller-supplied userId let ANY caller read another account's linked OAuth
+// providers through the superuser client. Member record ids are obtainable
+// unauthenticated from public circle pages, so the id was not a secret.
+// Identity is now derived from the authenticated session, and an
+// unauthenticated caller gets the fail-closed shape.
+export async function getUserAuthMethods(): Promise<UserAuthMethods> {
+  const session = await getSession();
+  if (!session) {
+    return { hasPassword: false, hasOtp: false, oauthProviders: [] };
+  }
+
   try {
     const pb = await getSuperuserClient();
     // OAuth providers are genuinely per-user; password/OTP are NOT. PocketBase's
@@ -37,7 +48,7 @@ export async function getUserAuthMethods(
     // these as app-level capabilities, never as a claim about a specific user's
     // credentials.
     const [externalAuths, methods] = await Promise.all([
-      pb.collection("users").listExternalAuths(userId),
+      pb.collection("users").listExternalAuths(session.id),
       pb.collection("users").listAuthMethods(),
     ]);
     const oauthProviders = externalAuths
@@ -52,7 +63,7 @@ export async function getUserAuthMethods(
       oauthProviders,
     };
   } catch (err) {
-    logDiagnostic(err, { action: "getUserAuthMethods", userId });
+    logDiagnostic(err, { action: "getUserAuthMethods", userId: session.id });
     // Failing closed (false, not true) avoids asserting a method is available
     // when we could not verify it.
     return {
@@ -130,10 +141,44 @@ export async function signInWithApple() {
 }
 
 
+// Credential, OTP and email entry points are unauthenticated, so they are
+// limited on two independent dimensions: the client IP and the submitted
+// identifier. Neither alone is sufficient — an attacker with many IPs can still
+// flood one inbox, while one inbox cannot be flooded from many IPs without
+// tripping the identifier bucket. The identifier bucket also does not depend on
+// proxy trust, so account pre-registration squatting and victim OTP mail
+// bombing stay bounded even when TRUST_FORWARDED_HEADERS is unset.
+//
+// redirect() throws NEXT_REDIRECT, so this MUST be called outside any try/catch
+// that would swallow it — otherwise the redirect becomes a generic failure.
+async function enforceAuthRateLimit(
+  scope: string,
+  identifier?: string,
+): Promise<void> {
+  const ip = await getClientIp();
+  const perIp = checkRateLimit(`auth:${scope}:ip:${ip}`, {
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (!perIp.allowed) redirect("/login?error=TooManyAttempts");
+
+  if (identifier) {
+    const perIdentifier = checkRateLimit(`auth:${scope}:id:${identifier}`, {
+      limit: 5,
+      windowMs: 60_000,
+    });
+    if (!perIdentifier.allowed) redirect("/login?error=TooManyAttempts");
+  }
+}
+
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
+  // Limited before the account lookup/create below, which is the expensive and
+  // abusable part: it creates the account through the superuser client and
+  // sends a real OTP mail.
+  await enforceAuthRateLimit("signInWithEmail", email);
   if (!email) throw new Error("Email is required");
 
   // PocketBase's requestOTP is a no-op (anti-enumeration) for unknown
@@ -165,6 +210,10 @@ export async function signInWithEmail(formData: FormData) {
 
 export async function verifyEmailCode(formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
+  // Must run BEFORE consumeOtpCookie(), which deletes the cookie: a limited
+  // request would otherwise destroy the user's pending OTP state and force a
+  // fresh code. IP-only, because the otpId is not readable without consuming.
+  await enforceAuthRateLimit("verifyEmailCode");
   if (!code) throw new Error("Code is required");
 
   const stored = await consumeOtpCookie();
@@ -196,6 +245,7 @@ export async function signInWithPassword(formData: FormData) {
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
+  await enforceAuthRateLimit("signInWithPassword", email);
   if (!email || !password) redirect("/login?error=InvalidCredentials");
 
   const pb = new PocketBase(getPbUrl());
@@ -221,6 +271,7 @@ export async function signUpWithPassword(formData: FormData) {
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
+  await enforceAuthRateLimit("signUpWithPassword", email);
   if (!email || !password) redirect("/login?error=InvalidCredentials");
   if (password.length < 8) redirect("/login?error=WeakPassword");
   if (password.length > 128) redirect("/login?error=InvalidPassword");
@@ -261,6 +312,7 @@ export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
+  await enforceAuthRateLimit("requestPasswordReset", email);
   if (!email) return;
 
   const pb = new PocketBase(getPbUrl());
@@ -275,6 +327,7 @@ export async function requestPasswordReset(formData: FormData) {
 }
 
 export async function confirmPasswordReset(formData: FormData) {
+  await enforceAuthRateLimit("confirmPasswordReset");
   const token = String(formData.get("token") ?? "");
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");

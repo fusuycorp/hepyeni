@@ -235,18 +235,35 @@ describe("getGroupByInviteCode (F-5 — bounded invite preview)", () => {
   });
 
   it("enforces rate limits on invite code preview lookups", async () => {
-    inviteDb.group = { id: "group-3", name: "Rate Limit Circle", inviteCode: "RL100" };
-    inviteDb.proposed = [];
+    // The preview limiter keys on the client IP, which is only trustworthy
+    // behind a trusted proxy. With TRUST_FORWARDED_HEADERS unset there is no
+    // per-client identity to key on, so the limiter is deliberately inert
+    // rather than collapsing every caller into one shared bucket (one client
+    // could then exhaust the limit for the whole internet — see
+    // tests/rate-limit-identity.test.ts). This assertion is therefore only
+    // meaningful on the configured path, which is what a proxied production
+    // deployment must use, so set that up explicitly.
+    process.env.TRUST_FORWARDED_HEADERS = "1";
+    mock.module("next/headers", () => ({
+      headers: async () => new Headers({ "x-forwarded-for": "203.0.113.9" }),
+    }));
 
-    // Exhaust preview rate limit (limit 60)
-    for (let i = 0; i < 60; i++) {
-      const res = await getGroupByInviteCode("RL100");
-      expect(res).not.toBeNull();
+    try {
+      inviteDb.group = { id: "group-3", name: "Rate Limit Circle", inviteCode: "RL100" };
+      inviteDb.proposed = [];
+
+      // Exhaust preview rate limit (limit 60)
+      for (let i = 0; i < 60; i++) {
+        const res = await getGroupByInviteCode("RL100");
+        expect(res).not.toBeNull();
+      }
+
+      // 61st call should be rejected by rate limiter
+      const blocked = await getGroupByInviteCode("RL100");
+      expect(blocked).toBeNull();
+    } finally {
+      delete process.env.TRUST_FORWARDED_HEADERS;
     }
-
-    // 61st call should be rejected by rate limiter
-    const blocked = await getGroupByInviteCode("RL100");
-    expect(blocked).toBeNull();
   });
 
   it("enforces rate limits on joining circles by invite code", async () => {

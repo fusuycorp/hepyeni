@@ -14,6 +14,8 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { formatRelativeTime } from "@/lib/i18n";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { getServerTranslations, getLocale } from "@/lib/i18n/server";
+import { pickReviewerUser, type PublicUser } from "@/lib/group-titles";
+import { projectActivityTitle, type ActivityTitle } from "@/lib/activity";
 import type {
   CommentsResponse,
   GroupMembersResponse,
@@ -27,14 +29,14 @@ type ActivityItem =
   | {
       kind: "proposed";
       at: string;
-      title: TitlesResponse<{ group?: GroupsResponse; addedBy?: UsersResponse }>;
+      title: ActivityTitle;
     }
   | {
       kind: "reviewed";
       at: string;
       review: ReviewsResponse<{
         title?: TitlesResponse<{ group?: GroupsResponse }>;
-        user?: UsersResponse;
+        user?: PublicUser;
       }>;
     }
   | {
@@ -42,7 +44,7 @@ type ActivityItem =
       at: string;
       comment: CommentsResponse<{
         title?: TitlesResponse<{ group?: GroupsResponse }>;
-        user?: UsersResponse;
+        user?: PublicUser;
       }>;
     };
 
@@ -61,6 +63,13 @@ export default async function ActivityPage() {
     });
 
   const groupIds = memberships.map((m) => m.group);
+
+  // Blind-pick redaction (ADR-012) is viewer-dependent — owners and admins may
+  // see proposer identity, everyone else may not. This mirrors the rule the
+  // circle page applies, so the two surfaces cannot disagree.
+  const ownerGroupIds = new Set(
+    memberships.filter((m) => m.role === "owner").map((m) => m.group),
+  );
   let items: ActivityItem[] = [];
 
   if (groupIds.length > 0) {
@@ -113,20 +122,38 @@ export default async function ActivityPage() {
     ]);
 
     const unsorted: ActivityItem[] = [
+      // Proposer identity is redacted for non-owner/admin viewers in blind-pick
+      // circles, and every author expand is narrowed so email never leaves the
+      // server (R2).
       ...titles.items.map((title): ActivityItem => ({
         kind: "proposed",
         at: title.createdAt,
-        title,
+        title: projectActivityTitle(title, {
+          isOwnerOrAdmin:
+            Boolean(session.isAdmin) || ownerGroupIds.has(title.group),
+        }),
       })),
       ...reviews.items.map((review): ActivityItem => ({
         kind: "reviewed",
         at: review.createdAt,
-        review,
+        review: {
+          ...review,
+          expand: {
+            ...review.expand,
+            user: pickReviewerUser(review.expand?.user),
+          },
+        },
       })),
       ...comments.items.map((comment): ActivityItem => ({
         kind: "commented",
         at: comment.createdAt,
-        comment,
+        comment: {
+          ...comment,
+          expand: {
+            ...comment.expand,
+            user: pickReviewerUser(comment.expand?.user),
+          },
+        },
       })),
     ];
     // Precompute timestamps once — parsing inside the comparator repeats
@@ -168,7 +195,7 @@ export default async function ActivityPage() {
                 const group = title.expand?.group;
                 const author = title.expand?.addedBy;
                 const authorName = getDisplayName(author, t.common.unnamedUser);
-                const initials = getInitials(author?.name, author?.email);
+                const initials = getInitials(author?.name);
 
                 return (
                   <Link
@@ -234,7 +261,7 @@ export default async function ActivityPage() {
                 const group = title?.expand?.group;
                 const reviewer = review.expand?.user;
                 const reviewerName = getDisplayName(reviewer, t.common.unnamedUser);
-                const initials = getInitials(reviewer?.name, reviewer?.email);
+                const initials = getInitials(reviewer?.name);
 
                 return (
                   <Link
@@ -284,7 +311,13 @@ export default async function ActivityPage() {
                               </span>
                             </div>
 
-                            {review.reviewText && (
+                            {/** Only the viewer's OWN review body is shown. Every
+                                other surface strips other members' bodies
+                                (mapGroupReviewRow), and rendering them here
+                                leaked private review text — including in
+                                blind-pick circles, where the group page
+                                deliberately hides it. */}
+                            {review.reviewText && review.user === session.id && (
                               <div className="font-serif text-sm text-foreground/90 leading-relaxed italic">
                                 &ldquo;<SpoilerText text={review.reviewText} />&rdquo;
                               </div>
@@ -301,7 +334,7 @@ export default async function ActivityPage() {
                 const group = title?.expand?.group;
                 const author = comment.expand?.user;
                 const authorName = getDisplayName(author, t.common.unnamedUser);
-                const initials = getInitials(author?.name, author?.email);
+                const initials = getInitials(author?.name);
 
                 return (
                   <Link

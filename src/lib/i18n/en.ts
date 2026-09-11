@@ -250,6 +250,7 @@ export const en: Translations = {
     errors: {
       default: "An error occurred. Please try again.",
       invalid_credentials: "Invalid email or password.",
+      too_many_attempts: "Too many attempts. Please wait a minute and try again.",
       email_exists: "An account with this email already exists.",
       weak_password: "Password must be at least 8 characters.",
       passwords_dont_match: "Passwords do not match.",

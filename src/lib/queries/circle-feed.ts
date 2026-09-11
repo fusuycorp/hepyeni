@@ -2,7 +2,10 @@ import { getSession, type Session } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireTitleInGroup, resolveCircleAccess, type CircleAccess } from "@/lib/membership";
 import { getGroupSchedules } from "@/lib/queries/schedules";
-import { getTitleCircleProgress } from "@/lib/queries/progress";
+import {
+  getTitleCircleProgress,
+  isProgressVisibleToViewer,
+} from "@/lib/queries/progress";
 import { redactProposedTitles } from "@/lib/moods";
 import { projectCommentRow, type PublicComment } from "@/lib/comments";
 import {
@@ -162,7 +165,8 @@ export async function fetchCircleFeed(
               "groupTitle.group = {:groupId} && (status = 'in_progress' || status = 'completed')",
               { groupId },
             ),
-            fields: "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,updatedAt",
+            fields:
+              "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,isSharedWithCircles,updatedAt",
           })
           .catch(() => [])
       : Promise.resolve([]),
@@ -180,6 +184,13 @@ export async function fetchCircleFeed(
   const memberProgressByTitle = new Map<string, MemberTitleProgress[]>();
   for (const p of memberProgressRows) {
     if (!p.groupTitle) continue;
+    // Privacy seam: `isSharedWithCircles` is an opt-out ("Share Live Progress
+    // with Circles"). These rows feed categorizeCircleTitles, which decides the
+    // In Progress / Finished sections and their counts, so an opted-out member
+    // would otherwise still be visible — and could still move a title out of Up
+    // Next. The title-detail consumer already honored this flag; the feed did
+    // not. The viewer's own row stays visible to themselves.
+    if (!isProgressVisibleToViewer(p, resolvedSession?.id)) continue;
     const list = memberProgressByTitle.get(p.groupTitle) ?? [];
     list.push({
       userId: p.user,

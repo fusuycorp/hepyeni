@@ -1,3 +1,5 @@
+import { trustForwardedHeaders } from "@/lib/pocketbase/session";
+
 type RateLimitRecord = {
   timestamps: number[];
 };
@@ -63,21 +65,45 @@ export async function getClientIp(): Promise<string> {
   try {
     const { headers } = await import("next/headers");
     const h = await headers();
-    const trustForwarded =
-      process.env.TRUST_FORWARDED_HEADERS === "1" ||
-      process.env.TRUST_FORWARDED_HEADERS === "true" ||
-      process.env.TRUST_FORWARDED_HEADERS === "on";
-
-    if (trustForwarded) {
+    if (trustForwardedHeaders()) {
       const forwarded = h.get("x-forwarded-for");
       if (forwarded) {
-        return forwarded.split(",")[0].trim();
+        const first = forwarded.split(",")[0]?.trim();
+        if (first) return first;
       }
       const realIp = h.get("x-real-ip");
-      if (realIp) return realIp.trim();
+      if (realIp?.trim()) return realIp.trim();
     }
   } catch {
     // outside request context or in unit tests
   }
-  return "127.0.0.1";
+
+  // No trustworthy client identity is available. Returning one shared constant
+  // (previously "127.0.0.1") collapsed every anonymous caller into a SINGLE
+  // bucket, so 60 requests/min from one client exhausted the limit for the
+  // entire public internet — an attacker could blank the public invite page
+  // for everyone. A non-colliding key per call is deliberately inert rather
+  // than harmful: it cannot exhaust another caller's budget, it fails closed
+  // for shared-bucket abuse, and it makes the misconfiguration loud.
+  //
+  // Limiting is only meaningful behind a proxy that overwrites
+  // x-forwarded-for and is explicitly trusted via TRUST_FORWARDED_HEADERS=1
+  // (see .env.example) — without it, no per-client identity exists to key on.
+  warnMissingTrustedIdentityOnce();
+  return `unknown:${crypto.randomUUID()}`;
+}
+
+let warnedMissingTrustedIdentity = false;
+
+function warnMissingTrustedIdentityOnce(): void {
+  if (warnedMissingTrustedIdentity) return;
+  warnedMissingTrustedIdentity = true;
+  // Logged once per process: this runs on public request paths, so repeating
+  // it per request would itself be a log-volume amplification vector.
+  console.warn(
+    "[rate-limit] TRUST_FORWARDED_HEADERS is not enabled, so no trustworthy " +
+      "client identity is available and per-client rate limiting is INACTIVE. " +
+      "Set TRUST_FORWARDED_HEADERS=1 behind a reverse proxy that overwrites " +
+      "x-forwarded-for to enable it.",
+  );
 }

@@ -20,6 +20,23 @@ export interface TitleMemberProgressItem {
   percentage?: number;
 }
 
+/**
+ * Whether a member's progress row may be shown to `viewerId`.
+ *
+ * `isSharedWithCircles` is the user-facing "Share Live Progress with Circles"
+ * privacy opt-out. It was honored by the title-detail consumer but ignored by
+ * the circle feed, so an opted-out member still appeared in In Progress counts
+ * and avatars and could still move a title out of Up Next. Both consumers share
+ * this single predicate so the two sides of that seam cannot drift again.
+ * The member's own row is always visible to themselves.
+ */
+export function isProgressVisibleToViewer(
+  progress: { user: string; isSharedWithCircles?: boolean },
+  viewerId?: string,
+): boolean {
+  return progress.isSharedWithCircles !== false || progress.user === viewerId;
+}
+
 export async function getPersonalShelf(
   statusFilter?: UserMediaProgressStatusOptions,
   session?: Session | null,
@@ -131,7 +148,7 @@ export async function getTitleCircleProgress(
     for (const p of progressRecords) {
       const user = memberMap.get(p.user);
       if (user) {
-        if (p.isSharedWithCircles !== false || p.user === resolvedSession?.id) {
+        if (isProgressVisibleToViewer(p, resolvedSession?.id)) {
           let percentage: number | undefined;
           if (p.status === "completed") {
             percentage = 100;
