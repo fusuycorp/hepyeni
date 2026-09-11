@@ -28,7 +28,7 @@ export default async function ProfilePage() {
   const pb = await getSuperuserClient();
   const [user, authMethods, t] = await Promise.all([
     pb.collection("users").getOne<UsersResponse>(session.id),
-    getUserAuthMethods(session.id),
+    getUserAuthMethods(),
     getServerTranslations(),
   ]);
 

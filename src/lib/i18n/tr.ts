@@ -250,6 +250,7 @@ export const tr: Translations = {
     errors: {
       default: "Bir hata oluştu. Lütfen tekrar deneyin.",
       invalid_credentials: "E-posta veya şifre hatalı.",
+      too_many_attempts: "Çok fazla deneme yapıldı. Lütfen bir dakika bekleyip tekrar deneyin.",
       email_exists: "Bu e-posta adresi zaten kullanımda.",
       weak_password: "Şifre en az 8 karakter olmalıdır.",
       passwords_dont_match: "Şifreler eşleşmiyor.",

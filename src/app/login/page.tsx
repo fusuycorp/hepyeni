@@ -48,6 +48,7 @@ export default async function LoginPage({
     AccessDenied: t.auth.errors.banned,
     InvalidCode: t.auth.errors.invalid_otp,
     InvalidCredentials: t.auth.errors.invalid_credentials,
+    TooManyAttempts: t.auth.errors.too_many_attempts,
     InvalidPassword: t.auth.errors.invalid_password_length,
     WeakPassword: t.auth.errors.weak_password,
     EmailInUse: t.auth.errors.email_exists,

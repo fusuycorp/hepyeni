@@ -1008,8 +1008,11 @@ export function GroupContentView({
                                       </div>
                                     </div>
                                     {/* H1: other users' reviewText never ships on
-                                        this page — the full body lives on the
-                                        title-detail page, linked here. */}
+                                        this page. Note the body on the linked
+                                        title-detail page is also own-body-only
+                                        (mapGroupReviewRow strips everyone
+                                        else's), so no surface exposes another
+                                        member's full review body. */}
                                     <Link
                                       href={`/groups/${group.id}/titles/${title.id}`}
                                       className="inline-flex items-center text-[11px] text-muted-foreground hover:text-primary transition-colors"

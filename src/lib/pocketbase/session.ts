@@ -117,7 +117,11 @@ export type OAuth2State = {
 // emitted as a public origin.
 // Env is read at call time (like APP_URL below) so tests and config changes take
 // effect per call rather than being frozen at module load.
-function trustForwardedHeaders(): boolean {
+// Exported so the rate limiter resolves client identity from the SAME parse of
+// TRUST_FORWARDED_HEADERS. Two divergent parsers previously disagreed on
+// casing ("True" was trusted here but not there), which silently changed
+// limiter keys depending on how the variable was spelled.
+export function trustForwardedHeaders(): boolean {
   return ["1", "true", "on"].includes(
     (process.env.TRUST_FORWARDED_HEADERS ?? "").toLowerCase(),
   );
