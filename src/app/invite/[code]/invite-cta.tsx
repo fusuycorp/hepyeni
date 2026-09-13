@@ -28,12 +28,19 @@ export function InviteCTA({
   const t = useTranslations();
 
   async function handleDirectJoin() {
+    setLoading(true);
     try {
-      setLoading(true);
-      const joinedId = await joinGroupByCodeAction(code);
+      const res = await joinGroupByCodeAction(code);
+      if (!res.success) {
+        toast.error(t.groups.joinError);
+        setLoading(false);
+        return;
+      }
       toast.success(t.groups.joinSuccess);
-      router.push(`/groups/${joinedId}`);
+      router.push(`/groups/${res.data.groupId}`);
     } catch {
+      // The action returns ActionResult rather than throwing, but a transport
+      // or framework-level rejection must still release the pending button.
       toast.error(t.groups.joinError);
       setLoading(false);
     }

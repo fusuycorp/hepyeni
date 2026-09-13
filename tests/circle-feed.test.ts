@@ -176,6 +176,162 @@ describe("Circle Feed Deep Query Module", () => {
     expect(addedBy).toBeUndefined(); // Blind pick strips author identity for non-owner
   });
 
+  it("redacts proposer identity on the inProgress list too, not only the backlog", async () => {
+    // A proposal being actively consumed is categorised into `inProgress` while
+    // its title status is still "proposed". Before this was fixed, redaction was
+    // applied only to `proposed`, so a blind-pick circle withheld the proposer
+    // on Up Next and disclosed it the moment consumption started (ADR-012).
+    const consumedProposalPb = {
+      ...mockPb,
+      collection: (name: string) => ({
+        ...mockPb.collection(name),
+        getOne: mock((id: string) => {
+          if (name === "groups") {
+            return Promise.resolve({
+              id,
+              name: "Blind Pick Circle",
+              isPublic: true,
+              isBlindPickEnabled: true,
+            });
+          }
+          return mockPb.collection(name).getOne(id);
+        }),
+        getFullList: mock((...args: unknown[]) => {
+          if (name === "titles") {
+            return Promise.resolve([
+              {
+                id: "t2",
+                group: "grp_1",
+                title: "Dune Messiah",
+                status: "proposed",
+                createdAt: "2026-08-02T00:00:00Z",
+                expand: {
+                  addedBy: { id: "u1", name: "Alice", email: "alice@secret.com" },
+                  votes_via_title: [],
+                },
+              },
+            ]);
+          }
+          // Any member has in-progress rows, which is what moves the still-
+          // "proposed" title into the inProgress bucket.
+          if (name === "user_media_progress") {
+            return Promise.resolve([
+              {
+                id: "p1",
+                user: "u1",
+                // Rows are keyed by the `groupTitle` relation, not `title`.
+                groupTitle: "t2",
+                status: "in_progress",
+                progressCurrent: 10,
+                progressTotal: 100,
+                progressUnit: "pages",
+                isSharedWithCircles: true,
+                updatedAt: "2026-08-02T01:00:00Z",
+              },
+            ]);
+          }
+          return (mockPb.collection(name).getFullList as (a?: unknown) => unknown)(...args);
+        }),
+      }),
+    };
+
+    mock.module("@/lib/pocketbase/superuser", () => ({
+      getSuperuserClient: () => Promise.resolve(consumedProposalPb),
+    }));
+
+    const session = { id: "u2", email: "bob@example.com", name: "Bob", isAdmin: false };
+    const feed = await fetchCircleFeed("grp_1", session);
+
+    // The title left the backlog and is now in progress.
+    expect(feed.proposed.length).toBe(0);
+    expect(feed.inProgress.length).toBe(1);
+    expect(feed.inProgress[0].title).toBe("Dune Messiah");
+
+    // ...and its proposer identity must be redacted there too.
+    expect(feed.inProgress[0].expand?.addedBy).toBeUndefined();
+    expect(JSON.stringify(feed.inProgress)).not.toContain("alice@secret.com");
+    expect(JSON.stringify(feed.inProgress)).not.toContain("Alice");
+  });
+
+  it("redacts proposer identity on the consumed (finished) list too", async () => {
+    // The mirror case: once every member has finished, the title moves to
+    // `consumed`. `consumed` is redacted defensively for exactly this reason,
+    // so pin it — an untested defensive redaction is indistinguishable from
+    // no redaction the next time this code is refactored.
+    const finishedProposalPb = {
+      ...mockPb,
+      collection: (name: string) => ({
+        ...mockPb.collection(name),
+        getOne: mock((id: string) => {
+          if (name === "groups") {
+            return Promise.resolve({
+              id,
+              name: "Blind Pick Circle",
+              isPublic: true,
+              isBlindPickEnabled: true,
+            });
+          }
+          return mockPb.collection(name).getOne(id);
+        }),
+        getFullList: mock((...args: unknown[]) => {
+          if (name === "titles") {
+            return Promise.resolve([
+              {
+                id: "t2",
+                group: "grp_1",
+                title: "Dune Messiah",
+                status: "proposed",
+                consumedAt: "2026-08-05T00:00:00Z",
+                createdAt: "2026-08-02T00:00:00Z",
+                expand: {
+                  addedBy: {
+                    id: "u1",
+                    name: "Alice",
+                    email: "alice@secret.com",
+                  },
+                  votes_via_title: [],
+                },
+              },
+            ]);
+          }
+          // The single member has completed, so every member is finished and
+          // the title is categorised as `consumed`.
+          if (name === "user_media_progress") {
+            return Promise.resolve([
+              {
+                id: "p1",
+                user: "u1",
+                groupTitle: "t2",
+                status: "completed",
+                progressCurrent: 100,
+                progressTotal: 100,
+                progressUnit: "pages",
+                isSharedWithCircles: true,
+                updatedAt: "2026-08-05T01:00:00Z",
+              },
+            ]);
+          }
+          return (
+            mockPb.collection(name).getFullList as (a?: unknown) => unknown
+          )(...args);
+        }),
+      }),
+    };
+
+    mock.module("@/lib/pocketbase/superuser", () => ({
+      getSuperuserClient: () => Promise.resolve(finishedProposalPb),
+    }));
+
+    const session = { id: "u2", email: "bob@example.com", name: "Bob", isAdmin: false };
+    const feed = await fetchCircleFeed("grp_1", session);
+
+    expect(feed.consumed.length).toBe(1);
+    expect(feed.consumed[0].title).toBe("Dune Messiah");
+    expect(feed.consumed[0].expand?.addedBy).toBeUndefined();
+    expect(JSON.stringify(feed.consumed)).not.toContain("alice@secret.com");
+    expect(JSON.stringify(feed.consumed)).not.toContain("Alice");
+  });
+
   it("fetches title details with comment and review PII stripped", async () => {
     const session = { id: "u1", email: "alice@secret.com", name: "Alice", isAdmin: false };
     const detail = await fetchCircleTitleDetail("grp_1", "t1", session);

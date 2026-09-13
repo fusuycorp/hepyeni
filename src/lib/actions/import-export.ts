@@ -5,6 +5,7 @@ import { toIsoDate } from "@/lib/date";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { logDiagnostic } from "@/lib/errors";
+import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import type { ActionResult } from "@/types/actions";
 import { normalizeImportItemPayload, type NormalizedImportItem } from "@/lib/importers/types";
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
@@ -91,6 +92,7 @@ export async function batchImportProgress(
 
     let importedCount = 0;
     let skippedCount = 0;
+    let writeErrors = 0;
 
     // Filter out invalid items and duplicates in the incoming payload
     const toInsert: Array<Record<string, unknown>> = [];
@@ -190,20 +192,45 @@ export async function batchImportProgress(
     const CHUNK_SIZE = 25;
     for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
       const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-      await Promise.all(
-        chunk.map(async (record) => {
-          try {
-            await pb.collection("user_media_progress").create(record);
-            importedCount++;
-          } catch {
-            skippedCount++;
-          }
-        }),
+      const outcomes = await Promise.all(
+        chunk.map(
+          async (record): Promise<"imported" | "skipped" | "failed"> => {
+            try {
+              await pb.collection("user_media_progress").create(record);
+              return "imported";
+            } catch (err) {
+              // Only a genuine uniqueness conflict is a legitimate "skip". Any
+              // other datastore failure (busy/locked, schema mismatch,
+              // connection drop, over-long notes) must not be reported to the
+              // user as a successful duplicate — it is a failed import row.
+              if (isValidationNotUnique(err)) return "skipped";
+              logDiagnostic(err, { action: "batchImportProgress/create" });
+              return "failed";
+            }
+          },
+        ),
       );
+      for (const outcome of outcomes) {
+        if (outcome === "imported") importedCount++;
+        else if (outcome === "skipped") skippedCount++;
+        else writeErrors++;
+      }
     }
 
     revalidatePath("/shelf");
     revalidatePath("/activity");
+
+    if (writeErrors > 0) {
+      const diag = logDiagnostic(
+        new Error(`${writeErrors} import row(s) failed to write`),
+        { action: "batchImportProgress", writeErrors },
+      );
+      return {
+        success: false,
+        error: `Imported ${importedCount}, skipped ${skippedCount}, but ${writeErrors} failed to save. Please retry.`,
+        traceId: diag.traceId,
+      };
+    }
 
     return {
       success: true,

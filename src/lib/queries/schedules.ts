@@ -24,7 +24,7 @@ export interface MilestoneWithCheckins extends ScheduleMilestonesResponse {
 
 export interface GroupScheduleWithMilestones extends GroupSchedulesResponse {
   titleRecord?: TitlesResponse;
-  creator?: UsersResponse;
+  creator?: PublicUser;
   milestones: MilestoneWithCheckins[];
 }
 
@@ -132,11 +132,18 @@ export async function getGroupSchedules(
       milestonesBySchedule.set(m.schedule, list);
     }
 
-    return schedules.map((s) => ({
-      ...s,
-      titleRecord: s.expand?.title,
-      creator: s.expand?.createdBy,
-      milestones: milestonesBySchedule.get(s.id) || [],
+    // R2 invariant: `creator` is projected, but the raw `expand` block must not
+    // ride along on the returned object. Spreading the record (`...s`) would
+    // re-introduce the full UsersResponse — email, emailVisibility, verified,
+    // isAdmin — and this array is handed to the "use client"
+    // GroupSchedulesCard, so anything left on it is serialised into the RSC
+    // payload for every viewer of the circle, including public-circle guests.
+    // Same shape as the checkin handling above.
+    return schedules.map(({ expand, ...schedule }) => ({
+      ...schedule,
+      titleRecord: expand?.title,
+      creator: pickReviewerUser(expand?.createdBy),
+      milestones: milestonesBySchedule.get(schedule.id) || [],
     }));
   } catch (err) {
     logDiagnostic(err, { action: "getGroupSchedules", groupId });
