@@ -28,15 +28,15 @@ export function InviteCTA({
   const t = useTranslations();
 
   async function handleDirectJoin() {
-    try {
-      setLoading(true);
-      const joinedId = await joinGroupByCodeAction(code);
-      toast.success(t.groups.joinSuccess);
-      router.push(`/groups/${joinedId}`);
-    } catch {
+    setLoading(true);
+    const res = await joinGroupByCodeAction(code);
+    if (!res.success) {
       toast.error(t.groups.joinError);
       setLoading(false);
+      return;
     }
+    toast.success(t.groups.joinSuccess);
+    router.push(`/groups/${res.data.groupId}`);
   }
 
   async function handleAuthRedirect() {

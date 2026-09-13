@@ -24,7 +24,7 @@ export interface MilestoneWithCheckins extends ScheduleMilestonesResponse {
 
 export interface GroupScheduleWithMilestones extends GroupSchedulesResponse {
   titleRecord?: TitlesResponse;
-  creator?: UsersResponse;
+  creator?: PublicUser;
   milestones: MilestoneWithCheckins[];
 }
 
@@ -135,7 +135,7 @@ export async function getGroupSchedules(
     return schedules.map((s) => ({
       ...s,
       titleRecord: s.expand?.title,
-      creator: s.expand?.createdBy,
+      creator: pickReviewerUser(s.expand?.createdBy),
       milestones: milestonesBySchedule.get(s.id) || [],
     }));
   } catch (err) {

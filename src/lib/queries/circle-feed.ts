@@ -268,19 +268,32 @@ export async function fetchCircleFeed(
     isOwnerOrAdmin,
   ) as TitleWithProgress[];
 
+  // ADR-012: redaction must cover every list a non-owner can read, not just the
+  // backlog. A proposal being actively consumed is categorised into `inProgress`
+  // while its status is still "proposed", so without this pass the proposer's
+  // identity would be withheld on Up Next and disclosed the moment consumption
+  // starts. `consumed` is redacted defensively for the same reason.
   const inProgress = access.canViewBacklog || access.canViewFinished
-    ? (categorized.inProgress.sort(
-        (a, b) =>
-          b.score - a.score ||
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    ? (redactProposedTitles(
+        categorized.inProgress.sort(
+          (a, b) =>
+            b.score - a.score ||
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
+        group.isBlindPickEnabled,
+        isOwnerOrAdmin,
       ) as TitleWithProgress[])
     : [];
 
   const consumed = access.canViewFinished
-    ? (categorized.consumed.sort(
-        (a, b) =>
-          new Date(b.consumedAt || b.createdAt).getTime() -
-          new Date(a.consumedAt || a.createdAt).getTime(),
+    ? (redactProposedTitles(
+        categorized.consumed.sort(
+          (a, b) =>
+            new Date(b.consumedAt || b.createdAt).getTime() -
+            new Date(a.consumedAt || a.createdAt).getTime(),
+        ),
+        group.isBlindPickEnabled,
+        isOwnerOrAdmin,
       ) as TitleWithProgress[])
     : [];
 
