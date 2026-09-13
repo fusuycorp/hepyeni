@@ -192,25 +192,29 @@ export async function batchImportProgress(
     const CHUNK_SIZE = 25;
     for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
       const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-      await Promise.all(
-        chunk.map(async (record) => {
-          try {
-            await pb.collection("user_media_progress").create(record);
-            importedCount++;
-          } catch (err) {
-            // Only a genuine uniqueness conflict is a legitimate "skip". Any
-            // other datastore failure (busy/locked, schema mismatch, connection
-            // drop, over-long notes) must not be reported to the user as a
-            // successful duplicate — it is a failed import row.
-            if (!isValidationNotUnique(err)) {
-              writeErrors++;
+      const outcomes = await Promise.all(
+        chunk.map(
+          async (record): Promise<"imported" | "skipped" | "failed"> => {
+            try {
+              await pb.collection("user_media_progress").create(record);
+              return "imported";
+            } catch (err) {
+              // Only a genuine uniqueness conflict is a legitimate "skip". Any
+              // other datastore failure (busy/locked, schema mismatch,
+              // connection drop, over-long notes) must not be reported to the
+              // user as a successful duplicate — it is a failed import row.
+              if (isValidationNotUnique(err)) return "skipped";
               logDiagnostic(err, { action: "batchImportProgress/create" });
-            } else {
-              skippedCount++;
+              return "failed";
             }
-          }
-        }),
+          },
+        ),
       );
+      for (const outcome of outcomes) {
+        if (outcome === "imported") importedCount++;
+        else if (outcome === "skipped") skippedCount++;
+        else writeErrors++;
+      }
     }
 
     revalidatePath("/shelf");
