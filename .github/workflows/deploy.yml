@@ -12,8 +12,8 @@ on:
 jobs:
   changes:
     name: Detect Changed Paths
-    # OCocuk dedicated builder (see selfhosted/docs/selfhosted-build.md).
-    runs-on: [self-hosted, builder]
+    # GitHub-hosted runner for change detection
+    runs-on: ubuntu-latest
     outputs:
       pocketbase: ${{ steps.filter.outputs.pocketbase }}
     steps:
@@ -40,8 +40,9 @@ jobs:
 
   build-app:
     name: Build & Push App Image
-    # OCocuk dedicated builder (see selfhosted/docs/selfhosted-build.md).
-    runs-on: [self-hosted, builder]
+    # GitHub-hosted native ARM64 runner (4 vCPU, 16 GB RAM) - free for public repos.
+    # Compiles Bun / Next.js standalone natively without QEMU user emulation.
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
@@ -70,24 +71,26 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
-          # No type=gha cache: OCocuk's local BuildKit layer cache persists
-          # on NVMe across runs. No forced gzip compression either: pushes
-          # route over the Hetzner LAN (10.34.0.4) via /etc/hosts, bypassing
-          # Cloudflare's 100MB request-body limit entirely.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   build-pocketbase:
     name: Build & Push PocketBase Image
     needs: changes
     if: needs.changes.outputs.pocketbase == 'true'
-    # OCocuk dedicated builder (see selfhosted/docs/selfhosted-build.md).
-    runs-on: [self-hosted, builder]
+    # GitHub-hosted runner with multi-arch Buildx
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -113,12 +116,13 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.pocketbase
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
-          # Same as build-app: local BuildKit cache, LAN push, no Cloudflare
-          # ceiling — so no gha cache and no forced compression.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     name: Trigger Dokploy Redeployment
@@ -132,8 +136,7 @@ jobs:
       always() &&
       needs.build-app.result == 'success' &&
       (needs.build-pocketbase.result == 'success' || needs.build-pocketbase.result == 'skipped')
-    # OCocuk dedicated builder (see selfhosted/docs/selfhosted-build.md).
-    runs-on: [self-hosted, builder]
+    runs-on: ubuntu-latest
     steps:
       - name: Trigger Dokploy Stack Redeployment
         env:

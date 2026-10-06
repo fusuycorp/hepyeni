@@ -36,11 +36,16 @@ describe("CI runner isolation", () => {
     }
   });
 
-  // The builder is legitimately used by deploy.yml, which is only triggerable
-  // by a push to main or a manual dispatch — never by a pull request. If that
-  // trigger ever widens, the check above would not catch it, so pin it here.
-  it("keeps the self-hosted builder reachable only from non-PR triggers", () => {
-    expect(runnerTargets(deploy).some((target) => target.includes("self-hosted"))).toBe(true);
+  // Following ADR-011 fleet consolidation, self-hosted builder OCocuk is
+  // retired. All workflows (CI and deploy) execute strictly on ephemeral
+  // GitHub-hosted runners (ubuntu-latest or ubuntu-24.04-arm). Deploy remains
+  // strictly isolated from pull_request triggers to prevent untrusted execution of deployment steps.
+  it("enforces ephemeral GitHub-hosted runners and prevents PR triggers on deploy", () => {
+    const targets = runnerTargets(deploy);
+    expect(targets.length).toBeGreaterThan(0);
+    for (const target of targets) {
+      expect(target).not.toContain("self-hosted");
+    }
     expect(triggers(deploy)).not.toContain("pull_request:");
   });
 });
