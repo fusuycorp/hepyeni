@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useEffect, useMemo, useTransition } from "react";
 import { Quote, Tag, Sparkles, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { QuoteCard } from "@/components/quote-card";
@@ -34,6 +34,11 @@ export function QuotesTab({
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedTag, setSelectedTag] = useState<string>("all");
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync local quotes state when server initialQuotes prop updates
+    setQuotes(initialQuotes);
+  }, [initialQuotes]);
 
   // Extract all unique tags
   const allTags = useMemo(() => {
@@ -191,7 +196,12 @@ export function QuotesTab({
           </div>
           {quotes.length === 0 && (
             <div className="pt-2">
-              <AddQuoteDialog shelfItems={shelfItems} />
+              <AddQuoteDialog
+                shelfItems={shelfItems}
+                onSuccess={() => {
+                  window.location.reload();
+                }}
+              />
             </div>
           )}
         </div>

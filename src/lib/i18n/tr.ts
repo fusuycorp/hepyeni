@@ -160,6 +160,7 @@ export const tr: Translations = {
     themeToggle: "Temayı Değiştir",
     mediaTracker: "Medya Takibi",
     backToApp: "Uygulamaya Dön",
+    mobileNavAria: "Mobil Gezinme",
   },
   media: {
     book: "Kitap",
@@ -404,6 +405,7 @@ export const tr: Translations = {
     addingCustom: "Gruba ekleniyor...",
     backToSearch: "Aramaya Dön",
     previewCover: "Önizleme",
+    noCover: "Kapak Yok",
   },
 
   reviews: {
@@ -757,6 +759,7 @@ export const tr: Translations = {
     parsingError: "Dosya ayrıştırma hatası: {error}",
     emptyFile: "Seçilen dosya boş veya ayrıştırılamadı.",
     fileSizeExceeded: "Dosya boyutu 15MB sınırını aşıyor.",
+    tooManyItems: "İçe aktarma sınırı aşıldı: tek seferde en fazla {max} öğe içe aktarılabilir.",
     changeFile: "Başka Bir Dosya Yükle",
     clearFile: "Temizle",
     formatGoodreads: "Goodreads Dışa Aktarımı",

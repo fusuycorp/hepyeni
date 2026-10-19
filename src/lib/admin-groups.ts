@@ -4,9 +4,29 @@ export function parsePageParam(value: string | undefined): number {
   return Math.max(1, Number(value) || 1);
 }
 
-export function buildIdListFilter(field: string, ids: string[]): string {
+const SAFE_FIELD_RE = /^[a-zA-Z0-9_.]{1,64}$/;
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
+export function buildIdListFilter(
+  field: string,
+  ids: string[],
+  pbFilter?: (raw: string, params?: Record<string, unknown>) => string,
+): string {
+  if (!SAFE_FIELD_RE.test(field)) {
+    throw new Error(`Invalid filter field: ${field}`);
+  }
   if (ids.length === 0) return "";
-  return ids.map((id) => `${field} = ${JSON.stringify(id)}`).join(" || ");
+  return ids
+    .map((id) => {
+      if (typeof id !== "string" || !SAFE_ID_RE.test(id)) {
+        throw new Error("Invalid record id in filter");
+      }
+      if (pbFilter) {
+        return pbFilter(`${field} = {:id}`, { id });
+      }
+      return `${field} = ${JSON.stringify(id)}`;
+    })
+    .join(" || ");
 }
 
 export function countByGroup(rows: { group: string }[]): Map<string, number> {

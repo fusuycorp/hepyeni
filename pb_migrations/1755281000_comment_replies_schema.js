@@ -24,6 +24,7 @@ migrate((app) => {
   if (!comments) return;
   const existingField = comments.fields.getByName("parentId");
   if (existingField) {
+    comments.removeIndex("idx_comments_parent");
     comments.fields.removeByName("parentId");
     app.save(comments);
   }

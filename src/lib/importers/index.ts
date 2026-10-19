@@ -22,14 +22,17 @@ export * from "./storygraph";
 // Upgrade path: return stable codes ("IMPORT_EMPTY_FILE", ...) and let the
 // import dropzone map them to localized copy via useTranslations().
 const IMPORT_EMPTY_FILE = "The selected file is empty or could not be parsed.";
+const IMPORT_FILE_TOO_LARGE = "The selected file is too large to import.";
 const IMPORT_NO_VALID_RECORDS = "No valid importable records were found in the file.";
 const IMPORT_PARSE_FAILED = "The file could not be parsed.";
+
+export const MAX_IMPORT_FILE_CHARS = 10 * 1024 * 1024;
 
 export function detectImportSource(
   content: string,
   filename?: string,
 ): { source: ImportSource; parsedTable?: ReturnType<typeof parseCsvToTable> } {
-  if (!content || typeof content !== "string") {
+  if (!content || typeof content !== "string" || content.length > MAX_IMPORT_FILE_CHARS) {
     return { source: "generic_csv" };
   }
   const trimmed = content.trim();
@@ -81,8 +84,11 @@ export function detectImportSource(
   return { source: "generic_csv", parsedTable: table };
 }
 
-function parseGenericCsv(content: string): NormalizedImportItem[] {
-  const table = parseCsvToTable(content);
+function parseGenericCsv(
+  content: string,
+  parsedTable?: ReturnType<typeof parseCsvToTable>,
+): NormalizedImportItem[] {
+  const table = parsedTable ?? parseCsvToTable(content);
   const items: NormalizedImportItem[] = [];
 
   const validMediaTypes = new Set(["book", "movie", "tv", "music", "podcast"]);
@@ -278,9 +284,12 @@ export function parseImportFile(content: string, filename?: string): ParseResult
   if (!content || typeof content !== "string" || !content.trim()) {
     return { source: "generic_csv", items: [], errors: [IMPORT_EMPTY_FILE] };
   }
+  if (content.length > MAX_IMPORT_FILE_CHARS) {
+    return { source: "generic_csv", items: [], errors: [IMPORT_FILE_TOO_LARGE] };
+  }
 
   try {
-    const { source } = detectImportSource(content, filename);
+    const { source, parsedTable } = detectImportSource(content, filename);
 
     let items: NormalizedImportItem[] = [];
     switch (source) {
@@ -298,7 +307,7 @@ export function parseImportFile(content: string, filename?: string): ParseResult
         break;
       case "generic_csv":
       default:
-        items = parseGenericCsv(content);
+        items = parseGenericCsv(content, parsedTable);
         break;
     }
 

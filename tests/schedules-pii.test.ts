@@ -1,4 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import * as superuserModule from "@/lib/pocketbase/superuser";
 import * as errorsModule from "@/lib/errors";
 
@@ -49,8 +57,12 @@ const mockPb = {
 
 describe("Group schedules — expand must not leak the creator record", () => {
   beforeEach(() => {
-    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(mockPb as never);
-    spyOn(errorsModule, "logDiagnostic").mockReturnValue({ traceId: "test" } as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(
+      mockPb as never,
+    );
+    spyOn(errorsModule, "logDiagnostic").mockReturnValue({
+      traceId: "test",
+    } as never);
   });
 
   afterAll(() => {
@@ -69,18 +81,24 @@ describe("Group schedules — expand must not leak the creator record", () => {
       canViewComments: true,
     } as never;
 
-    const schedules = await getGroupSchedules("grp_1", {
-      id: "u2",
-      email: "bob@example.com",
-      name: "Bob",
-      isAdmin: false,
-    } as never, access);
+    const schedules = await getGroupSchedules(
+      "grp_1",
+      {
+        id: "u2",
+        email: "bob@example.com",
+        name: "Bob",
+        isAdmin: false,
+      } as never,
+      access,
+    );
 
     expect(schedules.length).toBe(1);
 
     // The projected creator is fine.
     expect(schedules[0].creator?.name).toBe("Alice");
-    expect(schedules[0].creator as Record<string, unknown>).not.toHaveProperty("email");
+    expect(schedules[0].creator as Record<string, unknown>).not.toHaveProperty(
+      "email",
+    );
 
     // ...but spreading the record must not re-introduce it through `expand`.
     expect(

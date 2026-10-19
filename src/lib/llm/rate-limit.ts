@@ -16,7 +16,7 @@ export interface LlmUsageLimits {
 }
 
 export type LlmUsageResult =
-  | { allowed: true }
+  | { allowed: true; reservedIds?: string[] }
   | { allowed: false; reason: "requests" | "input" };
 
 function positiveEnvInt(names: string | string[], fallback: number): number {
@@ -71,6 +71,14 @@ async function deleteReservations(pb: PocketBase, ids: string[]): Promise<void> 
       }
     }),
   );
+}
+
+export async function releaseLlmUsage(
+  pb: PocketBase,
+  reservedIds?: string[],
+): Promise<void> {
+  if (!reservedIds || reservedIds.length === 0) return;
+  await deleteReservations(pb, reservedIds);
 }
 
 /**
@@ -168,5 +176,12 @@ export async function reserveLlmUsage(
     return { allowed: false, reason: "input" };
   }
 
-  return { allowed: true };
+  const result: LlmUsageResult = { allowed: true };
+  Object.defineProperty(result, "reservedIds", {
+    value: [...requestIds, ...inputIds],
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  });
+  return result;
 }

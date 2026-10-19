@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Trash2, UserMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,9 @@ import {
   adminDeleteTitle,
   adminRemoveGroupMember,
 } from "@/lib/actions/admin";
+import { requireAdmin } from "@/lib/admin";
 import { isNotFound } from "@/lib/pocketbase/errors";
+import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
 import { attachTitleTallies } from "@/lib/admin-groups";
@@ -36,6 +38,9 @@ export default async function AdminGroupDetailPage({
 }: {
   params: Promise<{ groupId: string }>;
 }) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireAdmin(session.id);
   const { groupId } = await params;
   const pb = await getSuperuserClient();
   const t = await getServerTranslations();

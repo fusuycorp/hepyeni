@@ -1,11 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Users, Ban, Layers, Sparkles, CheckCircle2, ThumbsUp, Star, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { requireAdmin } from "@/lib/admin";
+import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
 import type { GroupsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 export default async function AdminDashboardPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireAdmin(session.id);
   const pb = await getSuperuserClient();
   const t = await getServerTranslations();
 

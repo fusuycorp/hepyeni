@@ -377,7 +377,7 @@ export default async function ActivityPage() {
                               </span>
                             </div>
                             <p className="text-xs text-foreground/90 leading-relaxed line-clamp-2">
-                              {comment.content}
+                              <SpoilerText text={comment.content} />
                             </p>
                           </div>
                         </div>

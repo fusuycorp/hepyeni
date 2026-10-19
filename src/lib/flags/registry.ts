@@ -13,6 +13,7 @@ export interface FeatureFlagDefinition {
   key: FeatureFlagKey;
   defaultEnabled: boolean;
   stage: FeatureFlagStage;
+  serverOnly?: boolean;
 }
 
 export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagDefinition> = {
@@ -50,6 +51,7 @@ export const FEATURE_FLAGS: Record<FeatureFlagKey, FeatureFlagDefinition> = {
     key: "llm_extract",
     defaultEnabled: false,
     stage: "alpha",
+    serverOnly: true,
   },
 } as const;
 

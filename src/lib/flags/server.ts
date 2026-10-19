@@ -112,17 +112,19 @@ export async function isFeatureEnabled(
     return Boolean(context.group.flags[flagKey]);
   }
 
-  // 4. User Cookie Override
-  const mainCookieVal = await getCookieValue(FEATURE_FLAGS_COOKIE_NAME, context);
-  const cookieFlags = parseCookieFlags(mainCookieVal);
-  if (cookieFlags[flagKey] !== undefined) {
-    return Boolean(cookieFlags[flagKey]);
-  }
+  // 4. User Cookie Override (skipped for server-only flags)
+  if (!FEATURE_FLAGS[flagKey]?.serverOnly) {
+    const mainCookieVal = await getCookieValue(FEATURE_FLAGS_COOKIE_NAME, context);
+    const cookieFlags = parseCookieFlags(mainCookieVal);
+    if (cookieFlags[flagKey] !== undefined) {
+      return Boolean(cookieFlags[flagKey]);
+    }
 
-  const individualCookieVal = await getCookieValue(`flag_${flagKey}`, context);
-  if (individualCookieVal !== undefined) {
-    if (/^(true|1|yes|on)$/i.test(individualCookieVal.trim())) return true;
-    if (/^(false|0|no|off)$/i.test(individualCookieVal.trim())) return false;
+    const individualCookieVal = await getCookieValue(`flag_${flagKey}`, context);
+    if (individualCookieVal !== undefined) {
+      if (/^(true|1|yes|on)$/i.test(individualCookieVal.trim())) return true;
+      if (/^(false|0|no|off)$/i.test(individualCookieVal.trim())) return false;
+    }
   }
 
   // 5. Default Registry Value
@@ -181,10 +183,24 @@ export async function getFeatureFlags(
       continue;
     }
 
-    // 4. Cookie
-    if (cookieFlags[key] !== undefined) {
-      result[key] = Boolean(cookieFlags[key]);
-      continue;
+    // 4. Cookie (skipped for server-only flags)
+    if (!FEATURE_FLAGS[key]?.serverOnly) {
+      if (cookieFlags[key] !== undefined) {
+        result[key] = Boolean(cookieFlags[key]);
+        continue;
+      }
+
+      const individualCookieVal = await getCookieValue(`flag_${key}`, context);
+      if (individualCookieVal !== undefined) {
+        if (/^(true|1|yes|on)$/i.test(individualCookieVal.trim())) {
+          result[key] = true;
+          continue;
+        }
+        if (/^(false|0|no|off)$/i.test(individualCookieVal.trim())) {
+          result[key] = false;
+          continue;
+        }
+      }
     }
 
     // 5. Default

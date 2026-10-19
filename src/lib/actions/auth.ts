@@ -1,8 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import PocketBase from "pocketbase";
-import { isValidationNotUnique } from "@/lib/pocketbase/errors";
+import PocketBase, { ClientResponseError } from "pocketbase";
+import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import {
   buildOAuthInitUrl,
@@ -10,6 +10,7 @@ import {
   consumeOtpCookie,
   getPbUrl,
   getSession,
+  peekOtpCookie,
   setOAuth2StateCookie,
   setOtpCookie,
   setSessionCookie,
@@ -25,6 +26,15 @@ export type UserAuthMethods = {
   hasOtp: boolean;
   oauthProviders: string[];
 };
+
+async function safeAutoJoinPendingInvite(userId: string): Promise<string | null> {
+  try {
+    return await autoJoinPendingInvite(userId);
+  } catch (err) {
+    logDiagnostic(err, { action: "autoJoinPendingInvite", userId });
+    return null;
+  }
+}
 
 // This action is published as a public RPC endpoint ("use server"), so a
 // caller-supplied userId let ANY caller read another account's linked OAuth
@@ -186,19 +196,35 @@ export async function signInWithEmail(formData: FormData) {
   // provider. Look up-or-create first to preserve "first email sign-in
   // creates the account".
   const superuser = await getSuperuserClient();
+  let invalidEmail = false;
   try {
     await superuser
       .collection("users")
       .getFirstListItem(superuser.filter("email = {:email}", { email }));
-  } catch {
+  } catch (err) {
+    if (!isNotFound(err)) throw err;
     const randomPassword = crypto.randomUUID();
-    await superuser.collection("users").create({
-      email,
-      emailVisibility: true,
-      verified: false,
-      password: randomPassword,
-      passwordConfirm: randomPassword,
-    });
+    try {
+      await superuser.collection("users").create({
+        email,
+        emailVisibility: false,
+        verified: false,
+        password: randomPassword,
+        passwordConfirm: randomPassword,
+      });
+    } catch (createErr) {
+      if (!isValidationNotUnique(createErr, "email")) {
+        if (createErr instanceof ClientResponseError && createErr.status === 400) {
+          invalidEmail = true;
+        } else {
+          throw createErr;
+        }
+      }
+    }
+  }
+
+  if (invalidEmail) {
+    redirect("/login?error=InvalidEmail");
   }
 
   const pb = new PocketBase(getPbUrl());
@@ -210,13 +236,11 @@ export async function signInWithEmail(formData: FormData) {
 
 export async function verifyEmailCode(formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
-  // Must run BEFORE consumeOtpCookie(), which deletes the cookie: a limited
-  // request would otherwise destroy the user's pending OTP state and force a
-  // fresh code. IP-only, because the otpId is not readable without consuming.
-  await enforceAuthRateLimit("verifyEmailCode");
+  const stored = await peekOtpCookie();
+  // Must run enforceAuthRateLimit("verifyEmailCode") BEFORE await consumeOtpCookie()
+  // so a rate-limited or mistyped request does not destroy the user's OTP state.
+  await enforceAuthRateLimit("verifyEmailCode", stored?.otpId);
   if (!code) throw new Error("Code is required");
-
-  const stored = await consumeOtpCookie();
   if (!stored) redirect("/login?error=InvalidCode");
 
   // redirect() throws a special error that must propagate un-caught, so the
@@ -233,10 +257,12 @@ export async function verifyEmailCode(formData: FormData) {
     redirect("/login?error=InvalidCode");
   }
 
+  await consumeOtpCookie();
+
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 
   await setSessionCookie(token);
-  const pendingGroupId = await autoJoinPendingInvite(record.id);
+  const pendingGroupId = await safeAutoJoinPendingInvite(record.id);
   redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
 
@@ -262,7 +288,7 @@ export async function signInWithPassword(formData: FormData) {
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 
   await setSessionCookie(token);
-  const pendingGroupId = await autoJoinPendingInvite(record.id);
+  const pendingGroupId = await safeAutoJoinPendingInvite(record.id);
   redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
 
@@ -280,19 +306,42 @@ export async function signUpWithPassword(formData: FormData) {
   // null), so self-service signup has to go through the superuser client,
   // same as the email/OTP account-creation path above.
   const superuser = await getSuperuserClient();
+  let emailConflict = false;
+  let signupFailed = false;
   try {
     await superuser.collection("users").create({
       email,
-      emailVisibility: true,
+      emailVisibility: false,
       verified: false,
       password,
       passwordConfirm: password,
     });
   } catch (err) {
     if (isValidationNotUnique(err, "email")) {
-      redirect("/login?error=EmailInUse");
+      emailConflict = true;
+    } else {
+      signupFailed = true;
     }
+  }
+
+  if (signupFailed) {
     redirect("/login?error=SignupFailed");
+  }
+
+  if (emailConflict) {
+    const existingUser = await superuser
+      .collection("users")
+      .getFirstListItem<UsersResponse>(
+        superuser.filter("email = {:email}", { email }),
+      )
+      .catch(() => null);
+    if (existingUser && !existingUser.verified) {
+      const pbOtp = new PocketBase(getPbUrl());
+      const { otpId } = await pbOtp.collection("users").requestOTP(email);
+      await setOtpCookie({ email, otpId });
+      redirect("/login?step=code");
+    }
+    redirect("/login?error=EmailInUse");
   }
 
   const pb = new PocketBase(getPbUrl());
@@ -303,7 +352,7 @@ export async function signUpWithPassword(formData: FormData) {
   if (record.bannedAt) redirect("/login?error=AccessDenied");
 
   await setSessionCookie(token);
-  const pendingGroupId = await autoJoinPendingInvite(record.id);
+  const pendingGroupId = await safeAutoJoinPendingInvite(record.id);
   redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
 
@@ -327,13 +376,16 @@ export async function requestPasswordReset(formData: FormData) {
 }
 
 export async function confirmPasswordReset(formData: FormData) {
-  await enforceAuthRateLimit("confirmPasswordReset");
   const token = String(formData.get("token") ?? "");
+  await enforceAuthRateLimit("confirmPasswordReset", token.slice(0, 64));
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
   if (!token) redirect("/login?error=AccessDenied");
   if (password.length < 8) {
     redirect(`/reset-password?token=${encodeURIComponent(token)}&error=WeakPassword`);
+  }
+  if (password.length > 128) {
+    redirect("/reset-password?error=InvalidPassword");
   }
   if (password !== passwordConfirm) {
     redirect(`/reset-password?token=${encodeURIComponent(token)}&error=Mismatch`);

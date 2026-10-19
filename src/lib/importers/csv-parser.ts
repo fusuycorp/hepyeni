@@ -160,7 +160,7 @@ export function getField(row: Record<string, string>, ...possibleKeys: string[])
   return undefined;
 }
 
-export function parseSafeDate(dateStr?: string | null): string | undefined {
+export function parseSafeDate(dateStr?: string | null, allowRange = true): string | undefined {
   if (!dateStr || typeof dateStr !== "string") return undefined;
   const trimmed = dateStr.trim();
   if (!trimmed) return undefined;
@@ -168,16 +168,18 @@ export function parseSafeDate(dateStr?: string | null): string | undefined {
 
   // Handle range formats like "2023/10/01-2023/10/10", "2023/10/01 - 2023/10/10", "2023-01-01 to 2023-01-20"
   // Taking the last valid date represents completion / latest activity date.
-  if (trimmed.includes(" - ") || trimmed.toLowerCase().includes(" to ") || trimmed.includes(",")) {
-    const parts = trimmed.split(/\s+to\s+|\s+-\s+|,\s*/i);
-    for (let p = parts.length - 1; p >= 0; p--) {
-      const candidate = parseSafeDate(parts[p]);
+  if (allowRange) {
+    if (trimmed.includes(" - ") || trimmed.toLowerCase().includes(" to ") || trimmed.includes(",")) {
+      const parts = trimmed.split(/\s+to\s+|\s+-\s+|,\s*/i);
+      for (let p = parts.length - 1; p >= 0; p--) {
+        const candidate = parseSafeDate(parts[p], false);
+        if (candidate) return candidate;
+      }
+    } else if (/^\d{4}\/\d{1,2}\/\d{1,2}-\d{4}\/\d{1,2}\/\d{1,2}$/.test(trimmed)) {
+      const parts = trimmed.split("-");
+      const candidate = parseSafeDate(parts[parts.length - 1], false);
       if (candidate) return candidate;
     }
-  } else if (/^\d{4}\/\d{1,2}\/\d{1,2}-\d{4}\/\d{1,2}\/\d{1,2}$/.test(trimmed)) {
-    const parts = trimmed.split("-");
-    const candidate = parseSafeDate(parts[parts.length - 1]);
-    if (candidate) return candidate;
   }
 
   // Handle formats like "YYYY/MM/DD", "YYYY-MM-DD", "YYYY.MM.DD"

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EditProgressDialog } from "@/app/shelf/edit-progress-dialog";
 import { AddToShelfDialog } from "@/app/shelf/add-to-shelf-dialog";
+import { SpoilerText } from "@/components/spoiler-text";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -148,7 +149,7 @@ export function CircleTitleProgress({
                   {/* Member Note */}
                   {progress.notes && (
                     <p className="text-[11px] text-muted-foreground italic line-clamp-2 pl-8">
-                      &ldquo;{progress.notes}&rdquo;
+                      &ldquo;<SpoilerText text={progress.notes} />&rdquo;
                     </p>
                   )}
                 </div>

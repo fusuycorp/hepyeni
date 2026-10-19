@@ -67,11 +67,10 @@ export function ImportDropzone({
       // Mirror of the server-side cap in batchImportProgress (P3). Keep the
       // file-size guard and the row cap in the same place so an oversized file
       // fails before a heavy preview render.
-      // ponytail: plain English import limit message <- i18n keys require synchronized updates across types.ts, en.ts, and tr.ts -> add dedicated importExport.tooManyItems translation key
       const MAX_IMPORT_ITEMS = 5000;
       if (result.items.length > MAX_IMPORT_ITEMS) {
         throw new Error(
-          `Import limit exceeded: a maximum of ${MAX_IMPORT_ITEMS} items can be imported at once.`,
+          t.importExport.tooManyItems.replace("{max}", String(MAX_IMPORT_ITEMS)),
         );
       }
 

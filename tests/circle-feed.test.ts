@@ -1,6 +1,17 @@
-import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import { ClientResponseError } from "pocketbase";
-import { fetchCircleFeed, fetchCircleTitleDetail } from "@/lib/queries/circle-feed";
+import {
+  fetchCircleFeed,
+  fetchCircleTitleDetail,
+} from "@/lib/queries/circle-feed";
 import * as superuserModule from "@/lib/pocketbase/superuser";
 import * as schedulesModule from "@/lib/queries/schedules";
 import * as progressModule from "@/lib/queries/progress";
@@ -58,7 +69,9 @@ const mockPb = {
             group: "grp_1",
             user: "u1",
             role: "member",
-            expand: { user: { id: "u1", name: "Alice", email: "alice@secret.com" } },
+            expand: {
+              user: { id: "u1", name: "Alice", email: "alice@secret.com" },
+            },
           },
         ]);
       }
@@ -72,7 +85,9 @@ const mockPb = {
             createdAt: "2026-08-01T00:00:00Z",
             expand: {
               addedBy: { id: "u1", name: "Alice", email: "alice@secret.com" },
-              votes_via_title: [{ id: "v1", title: "t1", user: "u1", value: "up" }],
+              votes_via_title: [
+                { id: "v1", title: "t1", user: "u1", value: "up" },
+              ],
             },
           },
         ]);
@@ -85,7 +100,9 @@ const mockPb = {
             group: "grp_1",
             content: "Great read!",
             createdAt: "2026-08-01T01:00:00Z",
-            expand: { user: { id: "u1", name: "Alice", email: "alice@secret.com" } },
+            expand: {
+              user: { id: "u1", name: "Alice", email: "alice@secret.com" },
+            },
           },
         ]);
       }
@@ -98,7 +115,9 @@ const mockPb = {
             rating: 5,
             reviewText: "Masterpiece",
             createdAt: "2026-08-01T02:00:00Z",
-            expand: { user: { id: "u1", name: "Alice", email: "alice@secret.com" } },
+            expand: {
+              user: { id: "u1", name: "Alice", email: "alice@secret.com" },
+            },
           },
         ]);
       }
@@ -112,9 +131,13 @@ const mockPb = {
 
 describe("Circle Feed Deep Query Module", () => {
   beforeEach(() => {
-    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(mockPb as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(
+      mockPb as never,
+    );
     spyOn(schedulesModule, "getGroupSchedules").mockResolvedValue([] as never);
-    spyOn(progressModule, "getTitleCircleProgress").mockResolvedValue([] as never);
+    spyOn(progressModule, "getTitleCircleProgress").mockResolvedValue(
+      [] as never,
+    );
   });
 
   afterAll(() => {
@@ -122,7 +145,12 @@ describe("Circle Feed Deep Query Module", () => {
   });
 
   it("fetches and partitions the complete circle feed", async () => {
-    const session = { id: "u1", email: "alice@secret.com", name: "Alice", isAdmin: false };
+    const session = {
+      id: "u1",
+      email: "alice@secret.com",
+      name: "Alice",
+      isAdmin: false,
+    };
     const feed = await fetchCircleFeed("grp_1", session);
 
     expect(feed.group.id).toBe("grp_1");
@@ -168,7 +196,12 @@ describe("Circle Feed Deep Query Module", () => {
       getSuperuserClient: () => Promise.resolve(blindPickMockPb),
     }));
 
-    const session = { id: "u2", email: "bob@example.com", name: "Bob", isAdmin: false };
+    const session = {
+      id: "u2",
+      email: "bob@example.com",
+      name: "Bob",
+      isAdmin: false,
+    };
     const feed = await fetchCircleFeed("grp_1", session);
 
     expect(feed.proposed.length).toBe(1);
@@ -206,7 +239,11 @@ describe("Circle Feed Deep Query Module", () => {
                 status: "proposed",
                 createdAt: "2026-08-02T00:00:00Z",
                 expand: {
-                  addedBy: { id: "u1", name: "Alice", email: "alice@secret.com" },
+                  addedBy: {
+                    id: "u1",
+                    name: "Alice",
+                    email: "alice@secret.com",
+                  },
                   votes_via_title: [],
                 },
               },
@@ -230,7 +267,9 @@ describe("Circle Feed Deep Query Module", () => {
               },
             ]);
           }
-          return (mockPb.collection(name).getFullList as (a?: unknown) => unknown)(...args);
+          return (
+            mockPb.collection(name).getFullList as (a?: unknown) => unknown
+          )(...args);
         }),
       }),
     };
@@ -239,7 +278,12 @@ describe("Circle Feed Deep Query Module", () => {
       getSuperuserClient: () => Promise.resolve(consumedProposalPb),
     }));
 
-    const session = { id: "u2", email: "bob@example.com", name: "Bob", isAdmin: false };
+    const session = {
+      id: "u2",
+      email: "bob@example.com",
+      name: "Bob",
+      isAdmin: false,
+    };
     const feed = await fetchCircleFeed("grp_1", session);
 
     // The title left the backlog and is now in progress.
@@ -322,7 +366,12 @@ describe("Circle Feed Deep Query Module", () => {
       getSuperuserClient: () => Promise.resolve(finishedProposalPb),
     }));
 
-    const session = { id: "u2", email: "bob@example.com", name: "Bob", isAdmin: false };
+    const session = {
+      id: "u2",
+      email: "bob@example.com",
+      name: "Bob",
+      isAdmin: false,
+    };
     const feed = await fetchCircleFeed("grp_1", session);
 
     expect(feed.consumed.length).toBe(1);
@@ -333,7 +382,12 @@ describe("Circle Feed Deep Query Module", () => {
   });
 
   it("fetches title details with comment and review PII stripped", async () => {
-    const session = { id: "u1", email: "alice@secret.com", name: "Alice", isAdmin: false };
+    const session = {
+      id: "u1",
+      email: "alice@secret.com",
+      name: "Alice",
+      isAdmin: false,
+    };
     const detail = await fetchCircleTitleDetail("grp_1", "t1", session);
 
     expect(detail.title.id).toBe("t1");
@@ -353,16 +407,31 @@ describe("Circle Feed Deep Query Module", () => {
       ...mockPb,
       collection: (name: string) => ({
         ...mockPb.collection(name),
-        getOne: mock(() => Promise.resolve({ id: "grp_private", isPublic: false })),
-        getFirstListItem: mock(() => Promise.reject(new ClientResponseError({ status: 404 }))),
+        getOne: mock(() =>
+          Promise.resolve({ id: "grp_private", isPublic: false }),
+        ),
+        getFirstListItem: mock(() =>
+          Promise.reject(new ClientResponseError({ status: 404 })),
+        ),
       }),
     };
 
-    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(privateMockPb as never);
+    spyOn(superuserModule, "getSuperuserClient").mockResolvedValue(
+      privateMockPb as never,
+    );
 
-    await expect(fetchCircleFeed("grp_private", null)).rejects.toThrow("ACCESS_DENIED");
+    await expect(fetchCircleFeed("grp_private", null)).rejects.toThrow(
+      "ACCESS_DENIED",
+    );
 
-    const nonMemberSession = { id: "u2", email: "bob@test.com", name: "Bob", isAdmin: false };
-    await expect(fetchCircleFeed("grp_private", nonMemberSession)).rejects.toThrow("ACCESS_DENIED");
+    const nonMemberSession = {
+      id: "u2",
+      email: "bob@test.com",
+      name: "Bob",
+      isAdmin: false,
+    };
+    await expect(
+      fetchCircleFeed("grp_private", nonMemberSession),
+    ).rejects.toThrow("ACCESS_DENIED");
   });
 });

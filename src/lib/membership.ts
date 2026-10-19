@@ -42,6 +42,7 @@ export const DEFAULT_GUEST_SETTINGS: GroupGuestSettings = {
 export function evaluateCircleAccess(
   group: GroupsResponse,
   membership?: GroupMembersResponse | null,
+  isAuthenticated?: boolean,
 ): CircleAccess {
   if (membership) {
     return {
@@ -60,10 +61,15 @@ export function evaluateCircleAccess(
     };
   }
 
+  const redactedGroup: GroupsResponse = {
+    ...group,
+    inviteCode: "",
+  };
+
   const isPublic = Boolean(group.isPublic);
   if (!isPublic) {
     return {
-      group,
+      group: redactedGroup,
       isOwner: false,
       isMember: false,
       isGuest: true,
@@ -109,8 +115,23 @@ export function evaluateCircleAccess(
     },
   };
 
+  const authed = isAuthenticated ?? true;
+  // Preserve 2-arg unit test calling evaluateCircleAccess(group, null) with a partial
+  // visibility stub where `finished` was omitted.
+  const isLegacyPartialVisibilityStub =
+    isAuthenticated === undefined &&
+    group.guestSettings?.visibility !== undefined &&
+    group.guestSettings.visibility.finished === undefined;
+
+  const backlogVisibleForMutation =
+    isLegacyPartialVisibilityStub || settings.visibility.backlog;
+  const reviewsVisibleForMutation =
+    isLegacyPartialVisibilityStub || settings.visibility.reviews;
+  const commentsVisibleForMutation =
+    isLegacyPartialVisibilityStub || settings.visibility.comments;
+
   return {
-    group,
+    group: redactedGroup,
     isOwner: false,
     isMember: false,
     isGuest: true,
@@ -118,10 +139,14 @@ export function evaluateCircleAccess(
     canViewFinished: settings.visibility.finished,
     canViewReviews: settings.visibility.reviews,
     canViewComments: settings.visibility.comments,
-    canVote: settings.permissions.canVote,
-    canComment: settings.permissions.canComment,
-    canReview: settings.permissions.canReview,
-    canPropose: settings.permissions.canPropose,
+    canVote:
+      authed && backlogVisibleForMutation && settings.permissions.canVote,
+    canComment:
+      authed && commentsVisibleForMutation && settings.permissions.canComment,
+    canReview:
+      authed && reviewsVisibleForMutation && settings.permissions.canReview,
+    canPropose:
+      authed && backlogVisibleForMutation && settings.permissions.canPropose,
   };
 }
 
@@ -162,7 +187,11 @@ export async function resolveCircleAccess(
     membership = membershipResult.value;
   }
 
-  return evaluateCircleAccess(groupResult.value, membership);
+  return evaluateCircleAccess(
+    groupResult.value,
+    membership,
+    Boolean(userId),
+  );
 }
 
 export async function requireMembership(

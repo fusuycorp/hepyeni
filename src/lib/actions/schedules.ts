@@ -83,6 +83,9 @@ export async function createGroupSchedule(
   if (validMilestones.length === 0) {
     return { success: false, error: "Add at least one valid milestone." };
   }
+  if (validMilestones.length > 50) {
+    return { success: false, error: "A schedule can have at most 50 milestones." };
+  }
 
   const pb = await getSuperuserClient();
 
@@ -259,12 +262,18 @@ export async function getMilestoneComments(
     if (!access.isMember && !access.group.isPublic) {
       return { success: false, error: "You do not have access to this circle." };
     }
+    if (!access.canViewComments) {
+      return {
+        success: true,
+        data: { comments: [], hasCheckedIn: false, isLocked: true, lockedCount: 0 },
+      };
+    }
 
     await requireMilestoneInGroup(milestoneId, groupId);
     const pb = await getSuperuserClient();
 
     let hasCheckedIn = false;
-    if (session?.id) {
+    if (session?.id && access.isMember) {
       const checkin = await pb
         .collection("milestone_checkins")
         .getFirstListItem<MilestoneCheckinsResponse>(

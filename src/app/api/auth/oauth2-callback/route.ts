@@ -54,8 +54,17 @@ async function handleCallback(
     if (record.bannedAt) return deny();
 
     await setSessionCookie(token);
-    const { autoJoinPendingInvite } = await import("@/lib/invites");
-    const pendingGroupId = await autoJoinPendingInvite(record.id);
+    let pendingGroupId: string | null = null;
+    try {
+      const { autoJoinPendingInvite } = await import("@/lib/invites");
+      pendingGroupId = await autoJoinPendingInvite(record.id);
+    } catch (inviteErr) {
+      const { logDiagnostic } = await import("@/lib/errors");
+      logDiagnostic(inviteErr, {
+        action: "oauth2-callback:autoJoinPendingInvite",
+        userId: record.id,
+      });
+    }
     return NextResponse.redirect(
       new URL(
         pendingGroupId ? `/groups/${pendingGroupId}` : "/groups",

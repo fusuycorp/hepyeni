@@ -165,6 +165,7 @@ export function redactProposedTitles<
   titles: T[],
   isBlindPickEnabled?: boolean,
   isOwnerOrAdmin?: boolean,
+  currentUserId?: string,
 ): T[] {
   if (!titles || !Array.isArray(titles)) return [];
   if (!shouldRedactProposalIdentity({ isBlindPickEnabled, isOwnerOrAdmin })) {
@@ -181,7 +182,18 @@ export function redactProposedTitles<
         // reviews expands (reviewer identity + review text) for non-owner/admins.
         delete expandCopy.addedBy;
         delete expandCopy.votes_via_title;
-        delete expandCopy.reviews_via_title;
+        if (currentUserId && Array.isArray(expandCopy.reviews_via_title)) {
+          const ownReviews = (
+            expandCopy.reviews_via_title as { user?: string }[]
+          ).filter((r) => r && r.user === currentUserId);
+          if (ownReviews.length > 0) {
+            expandCopy.reviews_via_title = ownReviews;
+          } else {
+            delete expandCopy.reviews_via_title;
+          }
+        } else {
+          delete expandCopy.reviews_via_title;
+        }
         copy.expand = expandCopy;
       }
       return copy;

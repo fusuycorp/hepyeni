@@ -41,8 +41,11 @@ export async function addTitle(
       return { success: false, error: "Title is required" };
     }
 
-    const externalSource = String(result.externalSource ?? "").slice(0, 100);
-    const externalId = String(result.externalId ?? "").slice(0, 200);
+    const externalSource = String(result.externalSource ?? "").trim().slice(0, 100);
+    const externalId = String(result.externalId ?? "").trim().slice(0, 200);
+    if (!externalSource || !externalId) {
+      return { success: false, error: "External source and ID are required" };
+    }
     const creator = result.creator ? String(result.creator).slice(0, 300) : null;
     const coverUrl =
       result.coverUrl && /^https?:\/\//i.test(result.coverUrl)
@@ -274,7 +277,7 @@ export async function markConsumed(
       });
     }
 
-    // Check if all circle members have now completed this title
+    // Check if all circle members have now completed this title (ignoring opted-out private rows)
     const members = await pb.collection("group_members").getFullList({
       filter: pb.filter("group = {:groupId}", { groupId }),
     });
@@ -282,9 +285,12 @@ export async function markConsumed(
       const allCompletedProgress = await pb
         .collection("user_media_progress")
         .getFullList({
-          filter: pb.filter("groupTitle = {:titleId} && status = 'completed'", {
-            titleId,
-          }),
+          filter: pb.filter(
+            "groupTitle = {:titleId} && status = 'completed' && isSharedWithCircles != false",
+            {
+              titleId,
+            },
+          ),
         });
       const completedUserIds = new Set(allCompletedProgress.map((p) => p.user));
       const allMembersFinished = members.every((m) => completedUserIds.has(m.user));
@@ -319,7 +325,7 @@ export async function unmarkConsumed(
 
   try {
     // M-4: independent reads — membership and title-in-group in parallel.
-    await Promise.all([
+    const [membership] = await Promise.all([
       requireMembership(groupId, session.id),
       requireTitleInGroup(titleId, groupId),
     ]);
@@ -343,10 +349,16 @@ export async function unmarkConsumed(
     }
 
     // If title was marked consumed at title level, demote back to proposed
-    await pb.collection("titles").update(titleId, {
-      status: "proposed",
-      consumedAt: null,
-    }).catch(() => null);
+    // only when the user actually had a progress record or is owner/admin
+    if (existing || membership.role === "owner" || session.isAdmin) {
+      await pb
+        .collection("titles")
+        .update(titleId, {
+          status: "proposed",
+          consumedAt: null,
+        })
+        .catch(() => null);
+    }
 
     revalidatePath(`/groups/${groupId}`);
     revalidatePath(`/groups/${groupId}/titles/${titleId}`);

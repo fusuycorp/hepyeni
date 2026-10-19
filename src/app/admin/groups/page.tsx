@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Users, Sparkles, Trash2, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { CopyInviteButton } from "@/components/copy-invite-button";
 import { adminDeleteGroup } from "@/lib/actions/admin";
+import { requireAdmin } from "@/lib/admin";
+import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getServerTranslations } from "@/lib/i18n/server";
 import { buildIdListFilter, countByGroup, parsePageParam } from "@/lib/admin-groups";
@@ -17,6 +20,9 @@ export default async function AdminGroupsPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  await requireAdmin(session.id);
   const pb = await getSuperuserClient();
   const { page: pageParam } = await searchParams;
   const currentPage = parsePageParam(pageParam);

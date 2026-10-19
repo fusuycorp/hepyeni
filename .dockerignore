@@ -4,3 +4,8 @@ node_modules
 .env*
 !.env.example
 *.tsbuildinfo
+tests
+docs
+.agents
+.scratch
+reviews

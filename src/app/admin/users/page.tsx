@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
 import { banUser, setUserAdmin, unbanUser } from "@/lib/actions/admin";
+import { requireAdmin } from "@/lib/admin";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getInitials } from "@/lib/format";
@@ -22,6 +23,7 @@ export default async function AdminUsersPage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
+  await requireAdmin(session.id);
 
   const { page: pageParam } = await searchParams;
   const currentPage = Math.max(1, Number(pageParam) || 1);

@@ -29,7 +29,7 @@ export function ExportCard() {
         const res = await exportShelfData(format);
         if (!res.success) {
           toast.error(res.error || t.importExport.exportFailed, {
-            description: res.traceId ? `Trace ID: ${res.traceId}` : undefined,
+            description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
           });
           return;
         }

@@ -160,6 +160,7 @@ export const en: Translations = {
     themeToggle: "Toggle theme",
     mediaTracker: "Media Tracker",
     backToApp: "Back to App",
+    mobileNavAria: "Mobile Navigation",
   },
   media: {
     book: "Book",
@@ -406,6 +407,7 @@ export const en: Translations = {
     addingCustom: "Adding to circle...",
     backToSearch: "Back to Search",
     previewCover: "Preview",
+    noCover: "No Cover",
   },
 
   reviews: {
@@ -759,6 +761,7 @@ export const en: Translations = {
     parsingError: "Error parsing file: {error}",
     emptyFile: "The selected file is empty or could not be parsed.",
     fileSizeExceeded: "File size exceeds 15MB limit.",
+    tooManyItems: "Import limit exceeded: a maximum of {max} items can be imported at once.",
     changeFile: "Upload Another File",
     clearFile: "Clear",
     formatGoodreads: "Goodreads Export",

@@ -15,7 +15,7 @@ import {
 import { logDiagnostic } from "@/lib/errors";
 import { chatJson, getLlmConfig } from "@/lib/llm/client";
 import { buildExtractPrompt } from "@/lib/llm/prompt";
-import { reserveLlmUsage } from "@/lib/llm/rate-limit";
+import { releaseLlmUsage, reserveLlmUsage } from "@/lib/llm/rate-limit";
 import {
   foldTitleKey,
   MAX_CANDIDATES,
@@ -81,6 +81,7 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
     try {
       content = await chatJson(config, prompt.system, prompt.user);
     } catch (err) {
+      await releaseLlmUsage(pb, usage.reservedIds);
       // S2-esque: never log the dump — length + model only.
       const diag = logDiagnostic(err, {
         action: "llm-extract/chat",

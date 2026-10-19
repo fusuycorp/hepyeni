@@ -72,15 +72,64 @@ export async function saveMediaProgress(
   try {
     const pb = await getSuperuserClient();
 
+    let cleanGroupTitleId: string | undefined;
+    if (input.groupTitleId && input.groupTitleId.trim()) {
+      cleanGroupTitleId = input.groupTitleId.trim();
+      const titleRecord = await pb.collection("titles").getOne(cleanGroupTitleId);
+      if (titleRecord) {
+        await requireMembership(titleRecord.group, session.id);
+      } else {
+        cleanGroupTitleId = undefined;
+      }
+    }
+
+    let existing: UserMediaProgressResponse | null = null;
+    if (input.id) {
+      existing = await pb
+        .collection("user_media_progress")
+        .getOne<UserMediaProgressResponse>(input.id);
+      if (existing.user !== session.id) {
+        return { success: false, error: "You do not have permission to edit this record." };
+      }
+    } else if (input.externalSource && input.externalId) {
+      existing = await pb
+        .collection("user_media_progress")
+        .getFirstListItem<UserMediaProgressResponse>(
+          pb.filter(
+            "user = {:userId} && externalSource = {:source} && externalId = {:extId}",
+            {
+              userId: session.id,
+              source: input.externalSource,
+              extId: input.externalId,
+            },
+          ),
+        )
+        .catch(() => null);
+    } else if (cleanGroupTitleId) {
+      existing = await pb
+        .collection("user_media_progress")
+        .getFirstListItem<UserMediaProgressResponse>(
+          pb.filter("user = {:userId} && groupTitle = {:titleId}", {
+            userId: session.id,
+            titleId: cleanGroupTitleId,
+          }),
+        )
+        .catch(() => null);
+    }
+
     const normalizedMoods = normalizeMoods(input.moods);
     const normalizedPace = normalizePace(input.pace);
+    const cleanCoverUrl =
+      input.coverUrl && /^https?:\/\//i.test(input.coverUrl.trim())
+        ? input.coverUrl.trim().slice(0, 2000)
+        : null;
 
     const data: Record<string, unknown> = {
       user: session.id,
       mediaType: input.mediaType,
       title: cleanTitle.slice(0, 300),
       creator: input.creator ? input.creator.trim().slice(0, 300) : null,
-      coverUrl: input.coverUrl ? input.coverUrl.trim().slice(0, 2000) : null,
+      coverUrl: cleanCoverUrl,
       externalSource: input.externalSource ? input.externalSource.slice(0, 100) : null,
       externalId: input.externalId ? input.externalId.slice(0, 200) : null,
       status: input.status,
@@ -101,20 +150,19 @@ export async function saveMediaProgress(
           : null,
       moods: normalizedMoods.length > 0 ? normalizedMoods : null,
       pace: normalizedPace || null,
-      isSharedWithCircles: input.isSharedWithCircles ?? true,
+      isSharedWithCircles:
+        input.isSharedWithCircles !== undefined
+          ? input.isSharedWithCircles
+          : (existing?.isSharedWithCircles ?? true),
     };
 
-    if (input.groupTitleId && input.groupTitleId.trim()) {
-      const cleanGroupTitleId = input.groupTitleId.trim();
-      const titleRecord = await pb.collection("titles").getOne(cleanGroupTitleId);
-      if (titleRecord) {
-        await requireMembership(titleRecord.group, session.id);
-        data.groupTitle = cleanGroupTitleId;
-      }
+    if (cleanGroupTitleId) {
+      data.groupTitle = cleanGroupTitleId;
     }
 
     const parsedStarted = toIsoDate(input.startedAt);
     if (parsedStarted) data.startedAt = parsedStarted;
+    else if (existing?.startedAt) data.startedAt = existing.startedAt;
     else if (data.status === "in_progress") data.startedAt = new Date().toISOString();
 
     const parsedCompleted = toIsoDate(input.completedAt);
@@ -123,43 +171,14 @@ export async function saveMediaProgress(
 
     let result: UserMediaProgressResponse;
 
-    if (input.id) {
-      const existing = await pb
-        .collection("user_media_progress")
-        .getOne<UserMediaProgressResponse>(input.id);
-      if (existing.user !== session.id) {
-        return { success: false, error: "You do not have permission to edit this record." };
-      }
+    if (existing) {
       result = await pb
         .collection("user_media_progress")
-        .update<UserMediaProgressResponse>(input.id, data);
+        .update<UserMediaProgressResponse>(existing.id, data);
     } else {
-      let existingItem: UserMediaProgressResponse | null = null;
-      if (input.externalSource && input.externalId) {
-        existingItem = await pb
-          .collection("user_media_progress")
-          .getFirstListItem<UserMediaProgressResponse>(
-            pb.filter(
-              "user = {:userId} && externalSource = {:source} && externalId = {:extId}",
-              {
-                userId: session.id,
-                source: input.externalSource,
-                extId: input.externalId,
-              },
-            ),
-          )
-          .catch(() => null);
-      }
-
-      if (existingItem) {
-        result = await pb
-          .collection("user_media_progress")
-          .update<UserMediaProgressResponse>(existingItem.id, data);
-      } else {
-        result = await pb
-          .collection("user_media_progress")
-          .create<UserMediaProgressResponse>(data);
-      }
+      result = await pb
+        .collection("user_media_progress")
+        .create<UserMediaProgressResponse>(data);
     }
 
     revalidatePath("/shelf");
@@ -194,6 +213,10 @@ export async function updateProgressQuickStep(
     return { success: false, error: "Please sign in first." };
   }
 
+  if (typeof delta !== "number" || !Number.isFinite(delta)) {
+    return { success: false, error: "Invalid progress step." };
+  }
+
   try {
     const pb = await getSuperuserClient();
     const existing = await pb
@@ -205,7 +228,11 @@ export async function updateProgressQuickStep(
     }
 
     const current = existing.progressCurrent ?? 0;
-    const newCurrent = Math.max(0, current + delta);
+    const unclamped = Math.max(0, current + delta);
+    const newCurrent =
+      existing.progressTotal && existing.progressTotal > 0
+        ? Math.min(existing.progressTotal, unclamped)
+        : unclamped;
     const updateData: Partial<UserMediaProgressRecord> = {
       progressCurrent: newCurrent,
     };
@@ -260,12 +287,12 @@ export async function deleteMediaProgress(
 
 export async function getTitleCircleProgress(
   titleId: string,
-  title: TitlesResponse | null,
+  _title: TitlesResponse | null,
   groupId: string,
 ): Promise<TitleMemberProgressItem[]> {
   const session = await getSession();
   if (!session) return [];
-  return getTitleCircleProgressQuery(titleId, title, groupId, session);
+  return getTitleCircleProgressQuery(titleId, null, groupId, session);
 }
 
 export interface CircleLiveActivityItem {

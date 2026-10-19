@@ -102,7 +102,7 @@ async function fetchChatJson(
  * `fetchImpl` / `retryDelayMs` are injectable for tests only.
  */
 function classifyError(err: unknown): { kind: LlmErrorKind; retryable: boolean } {
-  if (err instanceof Error && err.name === "AbortError") {
+  if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")) {
     return { kind: "timeout", retryable: true };
   }
   if (err instanceof LlmClientError) {

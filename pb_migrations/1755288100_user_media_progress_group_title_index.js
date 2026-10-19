@@ -1,7 +1,9 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("user_media_progress");
   collection.indexes = collection.indexes || [];
-  collection.indexes.push("CREATE INDEX idx_user_progress_group_title ON user_media_progress (groupTitle, status)");
+  if (!collection.indexes.some((idx) => idx.includes("idx_user_progress_group_title"))) {
+    collection.indexes.push("CREATE INDEX idx_user_progress_group_title ON user_media_progress (groupTitle, status)");
+  }
   app.save(collection);
 }, (app) => {
   const collection = app.findCollectionByNameOrId("user_media_progress");

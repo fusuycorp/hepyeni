@@ -15,6 +15,31 @@ function foldTitle(title: string): string {
     .replace(/[^\p{L}\p{N}]/gu, "");
 }
 
+function isSafeCoverUrl(rawUrl: string): boolean {
+  if (!/^https?:\/\//i.test(rawUrl)) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (
+      host === "localhost" ||
+      host === "0.0.0.0" ||
+      host === "::1" ||
+      host === "0:0:0:0:0:0:0:1" ||
+      host.startsWith("127.") ||
+      host.startsWith("169.254.") ||
+      host.startsWith("10.") ||
+      host.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeProviderResult(
   mediaType: MediaType,
   value: unknown,
@@ -42,8 +67,8 @@ export function normalizeProviderResult(
       ? record.creator.trim().slice(0, MAX_CREATOR_CHARS)
       : undefined;
   const coverUrl =
-    typeof record.coverUrl === "string" && /^https?:\/\//i.test(record.coverUrl)
-      ? record.coverUrl.slice(0, MAX_COVER_URL_CHARS)
+    typeof record.coverUrl === "string" && isSafeCoverUrl(record.coverUrl.trim())
+      ? record.coverUrl.trim().slice(0, MAX_COVER_URL_CHARS)
       : undefined;
   const metadata =
     record.metadata !== null &&

@@ -322,7 +322,7 @@ export function AddTitleForm({
                     ) : (
                       <div className="flex flex-col items-center text-muted-foreground/60 gap-1 p-2">
                         <ImageIcon className="size-6" />
-                        <span className="text-[9px] leading-tight">No Cover</span>
+                        <span className="text-[9px] leading-tight">{t.titles.noCover}</span>
                       </div>
                     )}
                   </div>

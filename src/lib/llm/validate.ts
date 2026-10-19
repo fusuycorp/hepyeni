@@ -76,39 +76,67 @@ export function extractJsonValue(content: string): unknown {
     return null;
   }
 
-  // The model sometimes wraps JSON in prose / markdown fences. Scan for the
-  // first balanced [ or { block (string-aware so "brackets inside quotes"
-  // don't disturb the balance) and parse just that span.
-  const start = trimmed.search(/[\[{]/);
-  if (start === -1) return null;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < trimmed.length; i++) {
-    const ch = trimmed[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      continue;
-    }
-    if (ch === "[" || ch === "{") {
-      depth++;
-    } else if (ch === "]" || ch === "}") {
-      depth--;
-      if (depth === 0) {
-        const block = trimmed.slice(start, i + 1);
-        const value = safeParse(block);
-        if (value === undefined || value === null || typeof value !== "object") return null;
-        return value;
+  // The model sometimes wraps JSON in prose / markdown fences. Scan for
+  // balanced [ or { blocks (string-aware so "brackets inside quotes"
+  // don't disturb the balance); if a leading bracketed citation like "[1]"
+  // parses to a primitive array, continue scanning for the real JSON block.
+  let searchFrom = 0;
+  let fallback: unknown = null;
+
+  while (searchFrom < trimmed.length) {
+    const relStart = trimmed.slice(searchFrom).search(/[\[{]/);
+    if (relStart === -1) break;
+    const start = searchFrom + relStart;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let closedAt = -1;
+
+    for (let i = start; i < trimmed.length; i++) {
+      const ch = trimmed[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === "[" || ch === "{") {
+        depth++;
+      } else if (ch === "]" || ch === "}") {
+        depth--;
+        if (depth === 0) {
+          closedAt = i;
+          break;
+        }
       }
     }
+
+    if (closedAt === -1) break;
+
+    const block = trimmed.slice(start, closedAt + 1);
+    const value = safeParse(block);
+    if (value !== undefined && value !== null && typeof value === "object") {
+      if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        value.some((el) => el !== null && typeof el === "object" && !Array.isArray(el))
+      ) {
+        return value;
+      }
+      if (fallback === null) {
+        fallback = value;
+      }
+    }
+
+    searchFrom = closedAt + 1;
   }
-  return null;
+
+  return fallback;
 }
 
 function arrayFromValue(value: unknown): unknown[] {

@@ -20,6 +20,7 @@ import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { getDisplayName, getInitials } from "@/lib/format";
+import { pickReviewerUser, type PublicUser } from "@/lib/group-titles";
 import { getServerTranslations } from "@/lib/i18n/server";
 import type {
   GroupMembersResponse,
@@ -58,13 +59,24 @@ export default async function GroupSettingsPage({
 
   const isOwner = membership.role === "owner";
 
-  const members = await pb
+  const rawMembers = await pb
     .collection("group_members")
     .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
       filter: pb.filter("group = {:groupId}", { groupId }),
       expand: "user",
+      fields: "id,group,user,role,joinedAt,createdAt,updatedAt,expand.user.id,expand.user.name,expand.user.avatarUrl",
       sort: "joinedAt",
     });
+
+  const members: GroupMembersResponse<{ user?: PublicUser }>[] = rawMembers.map(
+    (m) => ({
+      ...m,
+      expand: {
+        ...m.expand,
+        user: pickReviewerUser(m.expand?.user),
+      },
+    }),
+  );
 
   const currentUser = {
     id: session.id,
@@ -113,40 +125,41 @@ export default async function GroupSettingsPage({
         )}
 
         {/* Invite Code & Sharing Section */}
-        <Card className="border-border/70 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <KeyRound className="size-4 text-primary" />
-              <div>
-                <CardTitle className="text-sm font-semibold">{t.groups.inviteCodeText}</CardTitle>
-                <CardDescription className="text-xs">
-                  {t.groups.inviteCodeSectionDesc}
-                </CardDescription>
+        {membership && group.inviteCode && (
+          <Card className="border-border/70 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="size-4 text-primary" />
+                <div>
+                  <CardTitle className="text-sm font-semibold">{t.groups.inviteCodeText}</CardTitle>
+                  <CardDescription className="text-xs">
+                    {t.groups.inviteCodeSectionDesc}
+                  </CardDescription>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <CopyInviteButton code={group.inviteCode} variant="button" mode="code" />
-              <CopyInviteButton code={group.inviteCode} variant="button" mode="link" />
-            </div>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <CopyInviteButton code={group.inviteCode} variant="button" mode="code" />
+                <CopyInviteButton code={group.inviteCode} variant="button" mode="link" />
+              </div>
 
-
-            {isOwner && (
-              <ConfirmActionButton
-                triggerLabel={t.groups.regenerateInviteCode}
-                triggerVariant="outline"
-                variant="default"
-                size="sm"
-                title={t.groups.regenerateConfirmTitle}
-                description={t.groups.regenerateConfirmDesc}
-                confirmLabel={t.groups.regenerateConfirm}
-                pendingLabel={t.groups.regenerating}
-                onConfirm={regenerateInviteCode.bind(null, groupId)}
-              />
-            )}
-          </CardContent>
-        </Card>
+              {isOwner && (
+                <ConfirmActionButton
+                  triggerLabel={t.groups.regenerateInviteCode}
+                  triggerVariant="outline"
+                  variant="default"
+                  size="sm"
+                  title={t.groups.regenerateConfirmTitle}
+                  description={t.groups.regenerateConfirmDesc}
+                  confirmLabel={t.groups.regenerateConfirm}
+                  pendingLabel={t.groups.regenerating}
+                  onConfirm={regenerateInviteCode.bind(null, groupId)}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Public Access & Guest Permissions (Owner only) */}
         {isOwner && (
@@ -181,8 +194,7 @@ export default async function GroupSettingsPage({
             <div className="divide-y divide-border/50">
               {members.map((m) => {
                 const userName = getDisplayName(m.expand?.user, t.common.unnamedUser);
-                const userEmail = m.expand?.user?.email;
-                const initials = getInitials(m.expand?.user?.name, m.expand?.user?.email);
+                const initials = getInitials(m.expand?.user?.name);
                 const isMemberOwner = m.role === "owner";
                 const isSelf = m.id === membership.id;
 
@@ -207,11 +219,6 @@ export default async function GroupSettingsPage({
                             <span className="text-[10px] text-muted-foreground font-normal">{t.groups.youParen}</span>
                           )}
                         </div>
-                        {userEmail && (
-                          <span className="text-[11px] text-muted-foreground truncate">
-                            {userEmail}
-                          </span>
-                        )}
                       </div>
                     </div>
 

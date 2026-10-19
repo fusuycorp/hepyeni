@@ -26,12 +26,15 @@ export interface ZipFileInput {
 }
 
 export function createZipArchive(files: ZipFileInput[]): Uint8Array {
+  if (files.length > 0xffff) {
+    throw new Error("Too many files for standard ZIP archive");
+  }
   const encoder = new TextEncoder();
   const now = new Date();
   const dosTime =
-    (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+    (now.getUTCHours() << 11) | (now.getUTCMinutes() << 5) | Math.floor(now.getUTCSeconds() / 2);
   const dosDate =
-    ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    ((now.getUTCFullYear() - 1980) << 9) | ((now.getUTCMonth() + 1) << 5) | now.getUTCDate();
 
   const localHeadersAndData: Uint8Array[] = [];
   const centralDirectoryHeaders: Uint8Array[] = [];

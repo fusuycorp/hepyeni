@@ -148,7 +148,7 @@ export function ImportPreviewTable({ items: initialItems, onSuccess }: ImportPre
         }
       } else {
         toast.error(res.error || t.importExport.importFailed, {
-          description: res.traceId ? `Trace ID: ${res.traceId}` : undefined,
+          description: res.traceId ? t.common.refCode.replace("{code}", res.traceId) : undefined,
         });
       }
     });
