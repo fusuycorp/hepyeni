@@ -61,6 +61,7 @@ export function checkRateLimit(
   }
 
   recent.push(now);
+  rateLimitStore.delete(key);
   rateLimitStore.set(key, { timestamps: recent, windowMs: options.windowMs });
 
   return {

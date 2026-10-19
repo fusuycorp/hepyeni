@@ -33,10 +33,10 @@ describe("Argon Audit Workstream 4 Remediation", () => {
       expect(src).toContain("<SpoilerText text={comment.content} />");
     });
 
-    it("wraps milestone campfire comments marked isSpoiler with || markers when not already tagged", async () => {
+    it("wraps milestone campfire comments marked isSpoiler with || markers across the entire content", async () => {
       const src = await readRepoFile("src/components/milestone-campfire-dialog.tsx");
       expect(src).toContain(
-        '<SpoilerText text={c.isSpoiler && c.content && !c.content.includes("||") ? `||${c.content}||` : c.content} />',
+        '`||${c.content.replace(/\\|\\|/g, "")}||`',
       );
     });
 

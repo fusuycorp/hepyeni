@@ -73,7 +73,7 @@ describe("Reverse-Proxy Origin Resolution & OAuth URL Protocol", () => {
       }),
     };
 
-    expect(getRequestOrigin(mockReq)).toBe("https://localhost:3000");
+    expect(getRequestOrigin(mockReq)).toBe("http://localhost:3000");
   });
 
   it("rejects header-injection / malformed hosts instead of echoing them", () => {

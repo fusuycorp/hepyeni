@@ -83,6 +83,7 @@ export async function batchImportProgress(
     // 2. Build deduplication lookups
     const externalKeySet = new Set<string>();
     const titleKeySet = new Set<string>();
+    const noCreatorTitleKeySet = new Set<string>();
 
     for (const rec of existingRecords) {
       if (rec.externalSource && rec.externalId) {
@@ -92,6 +93,9 @@ export async function batchImportProgress(
       const normCreator = rec.creator ? normalizeTitleKey(rec.creator) : "";
       titleKeySet.add(`${rec.mediaType}:${normTitle}:${normCreator}`);
       titleKeySet.add(`${rec.mediaType}:${normTitle}`);
+      if (!normCreator) {
+        noCreatorTitleKeySet.add(`${rec.mediaType}:${normTitle}`);
+      }
     }
 
     let importedCount = 0;
@@ -133,7 +137,8 @@ export async function batchImportProgress(
 
       if (
         titleKeySet.has(fullTitleKey) ||
-        titleKeySet.has(shortTitleKey) ||
+        (normCreator === "" && titleKeySet.has(shortTitleKey)) ||
+        noCreatorTitleKeySet.has(shortTitleKey) ||
         seenBatchKeys.has(fullTitleKey)
       ) {
         skippedCount++;
@@ -141,6 +146,9 @@ export async function batchImportProgress(
       }
 
       seenBatchKeys.add(fullTitleKey);
+      if (!normCreator) {
+        noCreatorTitleKeySet.add(shortTitleKey);
+      }
 
       // Prepare clean record payload
       const startedAt =

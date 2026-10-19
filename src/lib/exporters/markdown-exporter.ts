@@ -136,6 +136,7 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
     const uniqueName = uniqueNames[i];
     const noteBasename = uniqueName.replace(/\.md$/i, "");
     const safeCreator = (item.creator || "-")
+      .replace(/\\/g, "\\\\")
       .replace(/\|/g, "\\|")
       .replace(/\r?\n/g, " ");
     const ratingStr = item.rating ? `${item.rating}/5` : "-";

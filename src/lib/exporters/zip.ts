@@ -32,9 +32,9 @@ export function createZipArchive(files: ZipFileInput[]): Uint8Array {
   const encoder = new TextEncoder();
   const now = new Date();
   const dosTime =
-    (now.getUTCHours() << 11) | (now.getUTCMinutes() << 5) | Math.floor(now.getUTCSeconds() / 2);
+    (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
   const dosDate =
-    ((now.getUTCFullYear() - 1980) << 9) | ((now.getUTCMonth() + 1) << 5) | now.getUTCDate();
+    ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
 
   const localHeadersAndData: Uint8Array[] = [];
   const centralDirectoryHeaders: Uint8Array[] = [];

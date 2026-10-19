@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
-import { Quote, Tag, Sparkles, Filter } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Quote, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { QuoteCard } from "@/components/quote-card";
 import { AddQuoteDialog } from "@/components/add-quote-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
 import { deleteQuote } from "@/lib/actions/marginalia";
@@ -30,6 +30,7 @@ export function QuotesTab({
   isAdmin,
 }: QuotesTabProps) {
   const t = useTranslations();
+  const router = useRouter();
   const [quotes, setQuotes] = useState(initialQuotes);
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedTag, setSelectedTag] = useState<string>("all");
@@ -142,8 +143,7 @@ export function QuotesTab({
           <AddQuoteDialog
             shelfItems={shelfItems}
             onSuccess={() => {
-              // Trigger a soft refresh or the revalidatePath will handle it on next navigation
-              window.location.reload();
+              router.refresh();
             }}
           />
         </div>
@@ -199,7 +199,7 @@ export function QuotesTab({
               <AddQuoteDialog
                 shelfItems={shelfItems}
                 onSuccess={() => {
-                  window.location.reload();
+                  router.refresh();
                 }}
               />
             </div>

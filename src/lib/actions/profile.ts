@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ClientResponseError } from "pocketbase";
+import { isNotFound } from "@/lib/pocketbase/errors";
 import { clearSessionCookie, getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { logDiagnostic } from "@/lib/errors";
@@ -86,7 +87,10 @@ export async function deleteAccount(): Promise<ActionResult<void>> {
       const group = await pb
         .collection("groups")
         .getOne<GroupsResponse>(title.group)
-        .catch(() => null);
+        .catch((err) => {
+          if (isNotFound(err)) return null;
+          throw err;
+        });
       if (group && group.createdBy && group.createdBy !== session.id) {
         await pb
           .collection("titles")
@@ -105,7 +109,10 @@ export async function deleteAccount(): Promise<ActionResult<void>> {
       const group = await pb
         .collection("groups")
         .getOne<GroupsResponse>(schedule.group)
-        .catch(() => null);
+        .catch((err) => {
+          if (isNotFound(err)) return null;
+          throw err;
+        });
       if (group && group.createdBy && group.createdBy !== session.id) {
         await pb
           .collection("group_schedules")

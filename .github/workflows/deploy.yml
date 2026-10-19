@@ -12,10 +12,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-main
-  cancel-in-progress: false
-
 jobs:
   changes:
     name: Detect Changed Paths
@@ -134,6 +130,9 @@ jobs:
   deploy:
     name: Trigger Dokploy Redeployment
     needs: [changes, build-app, build-pocketbase]
+    concurrency:
+      group: deploy-main
+      cancel-in-progress: false
     # build-pocketbase is conditionally skipped (see `changes` job) when this
     # push doesn't touch pb_migrations/**  or Dockerfile.pocketbase — that
     # must not block deploy. It must still block deploy if it actually ran

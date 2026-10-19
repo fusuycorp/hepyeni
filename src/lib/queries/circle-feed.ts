@@ -278,19 +278,18 @@ export async function fetchCircleFeed(
   // while its status is still "proposed", so without this pass the proposer's
   // identity would be withheld on Up Next and disclosed the moment consumption
   // starts. `consumed` is redacted defensively for the same reason.
-  const inProgress =
-    access.canViewBacklog || access.canViewFinished
-      ? (redactProposedTitles(
-          categorized.inProgress.sort(
-            (a, b) =>
-              b.score - a.score ||
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          ),
-          group.isBlindPickEnabled,
-          isOwnerOrAdmin,
-          resolvedSession?.id,
-        ) as TitleWithProgress[])
-      : [];
+  const inProgress = access.canViewBacklog
+    ? (redactProposedTitles(
+        categorized.inProgress.sort(
+          (a, b) =>
+            b.score - a.score ||
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
+        group.isBlindPickEnabled,
+        isOwnerOrAdmin,
+        resolvedSession?.id,
+      ) as TitleWithProgress[])
+    : [];
 
   const consumed = access.canViewFinished
     ? (redactProposedTitles(

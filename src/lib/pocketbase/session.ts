@@ -171,14 +171,7 @@ export function getRequestOrigin(req?: {
 
     if (isValidHost(host) && !host.includes("0.0.0.0")) {
       if (proto === null && isLoopbackHost(host)) {
-        // Legacy test compatibility for tests/origin.test.ts and tests/oauth-origin.test.ts
-        const isLegacyOriginTest =
-          host === "localhost:3000" &&
-          req.headers instanceof Headers &&
-          Boolean(new Error().stack?.includes("origin.test.ts"));
-        if (!isLegacyOriginTest) {
-          return `http://${host}`;
-        }
+        return `http://${host}`;
       }
       return `${normalizeProto(proto)}://${host}`;
     }

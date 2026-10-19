@@ -243,6 +243,18 @@ export async function verifyEmailCode(formData: FormData) {
   if (!code) throw new Error("Code is required");
   if (!stored) redirect("/login?error=InvalidCode");
 
+  // Cap lifetime attempts on a single otpId across the entire 10-minute OTP
+  // validity window: allow up to 3 attempts for accidental typos, then consume
+  // the cookie so an attacker cannot keep guessing 5 codes/minute across windows.
+  const otpAttempts = checkRateLimit(`otp-attempts:${stored.otpId}`, {
+    limit: 3,
+    windowMs: 10 * 60_000,
+  });
+  if (!otpAttempts.allowed) {
+    await consumeOtpCookie();
+    redirect("/login?error=InvalidCode");
+  }
+
   // redirect() throws a special error that must propagate un-caught, so the
   // fallible OTP exchange is isolated in its own try/catch and every
   // redirect() call happens outside of it.
@@ -254,6 +266,9 @@ export async function verifyEmailCode(formData: FormData) {
       .collection("users")
       .authWithOTP<UsersResponse>(stored.otpId, code));
   } catch {
+    if (otpAttempts.remaining === 0) {
+      await consumeOtpCookie();
+    }
     redirect("/login?error=InvalidCode");
   }
 
