@@ -52,11 +52,16 @@ export async function createGroup(formData: FormData): Promise<ActionResult<{ gr
       return { success: false, error: "Couldn't generate a unique invite code, try again" };
     }
 
-    await pb.collection("group_members").create({
-      group: group.id,
-      user: session.id,
-      role: "owner",
-    });
+    try {
+      await pb.collection("group_members").create({
+        group: group.id,
+        user: session.id,
+        role: "owner",
+      });
+    } catch (memberErr) {
+      await pb.collection("groups").delete(group.id).catch(() => {});
+      throw memberErr;
+    }
 
     revalidatePath("/groups");
     return { success: true, data: { groupId: group.id } };

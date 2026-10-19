@@ -41,7 +41,7 @@ export async function getPersonalShelf(
   statusFilter?: UserMediaProgressStatusOptions,
   session?: Session | null,
 ): Promise<UserMediaProgressResponse[]> {
-  const resolvedSession = session || (await getSession());
+  const resolvedSession = session === undefined ? await getSession() : session;
   if (!resolvedSession) return [];
 
   try {
@@ -81,7 +81,7 @@ export async function getTitleCircleProgress(
   // P2-mirror hoist (H-1): the page already resolved session/access and the
   // title record (requireTitleInGroup) — skip the redundant getSession,
   // resolveCircleAccess, and title fetch when provided.
-  const resolvedSession = session || (await getSession());
+  const resolvedSession = session === undefined ? await getSession() : session;
   const resolvedAccess = access || (await resolveCircleAccess(groupId, resolvedSession?.id));
   if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
     return [];
@@ -91,7 +91,7 @@ export async function getTitleCircleProgress(
     const pb = await getSuperuserClient();
 
     const [resolvedTitle, members] = await Promise.all([
-      title
+      title && title.id === titleId && (!title.group || title.group === groupId)
         ? Promise.resolve(title)
         : pb
             .collection("titles")
@@ -165,7 +165,10 @@ export async function getTitleCircleProgress(
 
           result.push({
             user,
-            progress: p,
+            progress:
+              p.groupTitle && p.groupTitle !== titleId
+                ? { ...p, groupTitle: "" }
+                : p,
             percentage,
           });
         }

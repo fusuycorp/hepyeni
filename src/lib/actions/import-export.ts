@@ -7,7 +7,10 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { logDiagnostic } from "@/lib/errors";
 import { isValidationNotUnique } from "@/lib/pocketbase/errors";
 import type { ActionResult } from "@/types/actions";
-import { normalizeImportItemPayload, type NormalizedImportItem } from "@/lib/importers/types";
+import {
+  normalizeImportItemPayload,
+  type NormalizedImportItem,
+} from "@/lib/importers/types";
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 import { exportShelfToJson } from "@/lib/exporters/json-exporter";
 import {
@@ -32,6 +35,7 @@ export interface ExportResult {
 function normalizeTitleKey(title: string): string {
   return title
     .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
     .replace(/[^\p{L}\p{N}]/gu, "");
@@ -79,6 +83,7 @@ export async function batchImportProgress(
     // 2. Build deduplication lookups
     const externalKeySet = new Set<string>();
     const titleKeySet = new Set<string>();
+    const noCreatorTitleKeySet = new Set<string>();
 
     for (const rec of existingRecords) {
       if (rec.externalSource && rec.externalId) {
@@ -88,6 +93,9 @@ export async function batchImportProgress(
       const normCreator = rec.creator ? normalizeTitleKey(rec.creator) : "";
       titleKeySet.add(`${rec.mediaType}:${normTitle}:${normCreator}`);
       titleKeySet.add(`${rec.mediaType}:${normTitle}`);
+      if (!normCreator) {
+        noCreatorTitleKeySet.add(`${rec.mediaType}:${normTitle}`);
+      }
     }
 
     let importedCount = 0;
@@ -130,6 +138,7 @@ export async function batchImportProgress(
       if (
         titleKeySet.has(fullTitleKey) ||
         (normCreator === "" && titleKeySet.has(shortTitleKey)) ||
+        noCreatorTitleKeySet.has(shortTitleKey) ||
         seenBatchKeys.has(fullTitleKey)
       ) {
         skippedCount++;
@@ -137,6 +146,9 @@ export async function batchImportProgress(
       }
 
       seenBatchKeys.add(fullTitleKey);
+      if (!normCreator) {
+        noCreatorTitleKeySet.add(shortTitleKey);
+      }
 
       // Prepare clean record payload
       const startedAt =
@@ -154,7 +166,8 @@ export async function batchImportProgress(
         coverUrl: item.coverUrl || null,
         status: item.status,
         progressCurrent:
-          typeof item.progressCurrent === "number" && !isNaN(item.progressCurrent)
+          typeof item.progressCurrent === "number" &&
+          !isNaN(item.progressCurrent)
             ? Math.max(0, item.progressCurrent)
             : null,
         progressTotal:
@@ -175,13 +188,17 @@ export async function batchImportProgress(
           ? neutralizeFormulaPrefix(item.notes.trim()).slice(0, 3000)
           : null,
         rating:
-          typeof item.rating === "number" && item.rating >= 1 && item.rating <= 5
+          typeof item.rating === "number" &&
+          item.rating >= 1 &&
+          item.rating <= 5
             ? item.rating
             : null,
         isSharedWithCircles: true,
         startedAt,
         completedAt,
-        externalSource: item.externalSource ? item.externalSource.slice(0, 100) : null,
+        externalSource: item.externalSource
+          ? item.externalSource.slice(0, 100)
+          : null,
         externalId: item.externalId ? item.externalId.slice(0, 200) : null,
       };
 

@@ -26,6 +26,9 @@ export interface ZipFileInput {
 }
 
 export function createZipArchive(files: ZipFileInput[]): Uint8Array {
+  if (files.length > 0xffff) {
+    throw new Error("Too many files for standard ZIP archive");
+  }
   const encoder = new TextEncoder();
   const now = new Date();
   const dosTime =

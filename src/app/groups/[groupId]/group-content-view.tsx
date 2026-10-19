@@ -508,6 +508,9 @@ export function GroupContentView({
           groupId={group.id}
           schedules={schedules || []}
           titles={[...proposed, ...consumed]}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+          isAdmin={isAdmin}
           isOwner={currentUserRole === "owner" || isAdmin}
           isMember={!isGuest}
           memberCount={members.length}
@@ -701,6 +704,7 @@ export function GroupContentView({
                         onClick={() => {
                           setSelectedMediaType("all");
                           setSelectedRecommender("all");
+                          setSelectedMood("all");
                         }}
                       >
                         <X className="size-3.5" />
@@ -1061,6 +1065,7 @@ export function GroupContentView({
                         onClick={() => {
                           setSelectedMediaType("all");
                           setSelectedRecommender("all");
+                          setSelectedMood("all");
                         }}
                       >
                         <X className="size-3.5" />

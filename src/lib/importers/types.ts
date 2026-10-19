@@ -40,6 +40,31 @@ export interface ParseResult {
   errors: string[];
 }
 
+function isSafeHttpUrl(rawUrl: string): boolean {
+  if (!/^https?:\/\//i.test(rawUrl)) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (
+      host === "localhost" ||
+      host === "0.0.0.0" ||
+      host === "::1" ||
+      host === "0:0:0:0:0:0:0:1" ||
+      host.startsWith("127.") ||
+      host.startsWith("169.254.") ||
+      host.startsWith("10.") ||
+      host.startsWith("192.168.") ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeImportItemPayload(item: unknown): NormalizedImportItem | null {
   if (!item || typeof item !== "object" || Array.isArray(item)) return null;
 
@@ -66,7 +91,7 @@ export function normalizeImportItemPayload(item: unknown): NormalizedImportItem 
   if (typeof raw.creator === "string" && raw.creator.trim()) {
     normalized.creator = raw.creator.trim().slice(0, 300);
   }
-  if (typeof raw.coverUrl === "string" && /^https?:\/\//i.test(raw.coverUrl.trim())) {
+  if (typeof raw.coverUrl === "string" && isSafeHttpUrl(raw.coverUrl.trim())) {
     normalized.coverUrl = raw.coverUrl.trim().slice(0, 2000);
   }
   if (typeof raw.externalSource === "string" && raw.externalSource.trim()) {
@@ -76,9 +101,26 @@ export function normalizeImportItemPayload(item: unknown): NormalizedImportItem 
     normalized.externalId = raw.externalId.trim().slice(0, 200);
   }
 
-  if (typeof raw.rating === "number") normalized.rating = raw.rating;
-  if (typeof raw.progressCurrent === "number") normalized.progressCurrent = raw.progressCurrent;
-  if (typeof raw.progressTotal === "number") normalized.progressTotal = raw.progressTotal;
+  if (typeof raw.rating === "number" && Number.isFinite(raw.rating)) {
+    const rounded = Math.round(raw.rating);
+    if (rounded >= 1 && rounded <= 5) {
+      normalized.rating = rounded;
+    }
+  }
+  if (
+    typeof raw.progressCurrent === "number" &&
+    Number.isFinite(raw.progressCurrent) &&
+    raw.progressCurrent >= 0
+  ) {
+    normalized.progressCurrent = raw.progressCurrent;
+  }
+  if (
+    typeof raw.progressTotal === "number" &&
+    Number.isFinite(raw.progressTotal) &&
+    raw.progressTotal > 0
+  ) {
+    normalized.progressTotal = raw.progressTotal;
+  }
   if (
     typeof raw.progressUnit === "string" &&
     Object.values(ProgressUnitOptions).includes(raw.progressUnit as UserMediaProgressUnitOptions)

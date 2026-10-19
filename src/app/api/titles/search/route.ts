@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getSessionFromToken, SESSION_COOKIE_NAME } from "@/lib/pocketbase/session";
+import {
+  getSessionFromToken,
+  SESSION_COOKIE_NAME,
+} from "@/lib/pocketbase/session";
 import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { getProvider } from "@/lib/providers";
 import { normalizeProviderResult } from "@/lib/providers/validation";

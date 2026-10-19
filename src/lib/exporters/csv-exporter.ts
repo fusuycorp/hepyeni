@@ -6,10 +6,12 @@ import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 // and the importer boundary (batchImportProgress) so the two sides cannot
 // drift — the stored value may be verbatim user content, but anything that
 // reaches a spreadsheet-capable format is neutralized here.
-const FORMULA_PREFIX_RE = /^[=+\-@\t\r]/;
+const FORMULA_PREFIX_RE = /^[=+\-@|\t\r\n]/;
 
 export function neutralizeFormulaPrefix(val: string): string {
-  return FORMULA_PREFIX_RE.test(val.trim()) ? `'${val}` : val;
+  return FORMULA_PREFIX_RE.test(val) || FORMULA_PREFIX_RE.test(val.trimStart())
+    ? `'${val}`
+    : val;
 }
 
 function escapeCsvField(val: unknown): string {

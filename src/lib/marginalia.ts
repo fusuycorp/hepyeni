@@ -88,7 +88,7 @@ export function parseTags(input: string | string[] | undefined | null): string[]
     }
   }
 
-  return result;
+  return result.slice(0, 20);
 }
 
 export function formatAttribution(

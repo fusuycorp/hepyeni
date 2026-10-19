@@ -2,7 +2,8 @@ import { isNotFound } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import type { GroupsResponse } from "@/types/pocketbase-types";
+import { redactProposedTitles } from "@/lib/moods";
+import type { GroupMembersResponse, GroupsResponse } from "@/types/pocketbase-types";
 
 export type PublicGroupOverview = {
   group: GroupsResponse;
@@ -68,7 +69,7 @@ export async function getGroupByInviteCode(
       session
         ? pb
             .collection("group_members")
-            .getFirstListItem(
+            .getFirstListItem<GroupMembersResponse>(
               pb.filter("group = {:groupId} && user = {:userId}", {
                 groupId: group.id,
                 userId: session.id,
@@ -78,19 +79,33 @@ export async function getGroupByInviteCode(
         : Promise.resolve(null),
     ]);
 
+  const canViewBacklog =
+    Boolean(userMembership) ||
+    group.guestSettings?.visibility?.backlog !== false;
+  const isOwnerOrAdmin =
+    userMembership?.role === "owner" || Boolean(session?.isAdmin);
+
+  const visibleProposals = canViewBacklog
+    ? redactProposedTitles(
+        proposedTitles.items,
+        Boolean(group.isBlindPickEnabled),
+        isOwnerOrAdmin,
+      ).map((t) => ({
+        id: t.id,
+        title: t.title,
+        creator: t.creator,
+        mediaType: t.mediaType,
+        coverUrl: t.coverUrl,
+        createdAt: t.createdAt,
+      }))
+    : [];
+
   return {
     group,
     memberCount: membersResult.totalItems,
     proposedCount: proposedTitles.totalItems,
     consumedCount: consumedResult.totalItems,
     isMember: Boolean(userMembership),
-    proposedTitles: proposedTitles.items.map((t) => ({
-      id: t.id,
-      title: t.title,
-      creator: t.creator,
-      mediaType: t.mediaType,
-      coverUrl: t.coverUrl,
-      createdAt: t.createdAt,
-    })),
+    proposedTitles: visibleProposals,
   };
 }

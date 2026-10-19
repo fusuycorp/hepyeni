@@ -172,16 +172,19 @@ export async function toggleShareQuoteWithCircle(
       return { success: false, error: "Unauthorized to update this quote" };
     }
 
-    await requireMembership(circleId, session.id);
-
     const currentCircles = Array.isArray(quote.isSharedWithCircles)
       ? [...quote.isSharedWithCircles]
       : [];
+    const isCurrentlyShared = currentCircles.includes(circleId);
+
+    if (!isCurrentlyShared) {
+      await requireMembership(circleId, session.id);
+    }
 
     let isShared = false;
     let updatedCircles: string[] = [];
 
-    if (currentCircles.includes(circleId)) {
+    if (isCurrentlyShared) {
       updatedCircles = currentCircles.filter((id) => id !== circleId);
       isShared = false;
     } else {

@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { isKnownFeatureFlag, type FeatureFlagKey } from "./registry";
+import { FEATURE_FLAGS, isKnownFeatureFlag, type FeatureFlagKey } from "./registry";
 import { FEATURE_FLAGS_COOKIE_NAME } from "./server";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
@@ -15,6 +15,13 @@ export async function toggleUserFeatureFlag(
     return {
       success: false,
       error: `Unknown feature flag: ${String(flagKey)}`,
+    };
+  }
+
+  if (FEATURE_FLAGS[flagKey]?.serverOnly) {
+    return {
+      success: false,
+      error: "This feature flag is managed by the server administrator.",
     };
   }
 

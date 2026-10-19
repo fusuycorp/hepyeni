@@ -20,7 +20,7 @@ export function BottomNav() {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 md:hidden border-t border-border/60 bg-background/95 backdrop-blur-md supports-backdrop-filter:bg-background/80"
-      aria-label="Mobile Navigation"
+      aria-label={t.nav.mobileNavAria}
     >
       <div className="mx-auto flex w-full max-w-md items-center justify-around px-1 pt-1 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)]">
         {tabs.map(({ href, label, icon: Icon }) => {

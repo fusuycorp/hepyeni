@@ -104,7 +104,7 @@ describe("OAuth initiation URL (signInWithOAuth2 entry path)", () => {
     });
 
     expect(url).toBe(
-      `${PROVIDER_AUTH_URL}https://localhost:3000${CALLBACK_PATH}`,
+      `${PROVIDER_AUTH_URL}http://localhost:3000${CALLBACK_PATH}`,
     );
   });
 });

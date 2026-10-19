@@ -163,7 +163,7 @@ export async function adminRemoveGroupMember(
     await requireCallerAdmin();
 
     const pb = await getSuperuserClient();
-    let member: { id: string };
+    let member: { id: string; role?: string };
     try {
       member = await pb
         .collection("group_members")
@@ -176,6 +176,22 @@ export async function adminRemoveGroupMember(
     } catch (err) {
       if (isNotFound(err)) return { success: false, error: "Üye bulunamadı." };
       throw err;
+    }
+
+    if (member.role === "owner") {
+      const otherOwners = await pb.collection("group_members").getList(1, 1, {
+        filter: pb.filter(
+          "group = {:groupId} && role = 'owner' && id != {:memberId}",
+          { groupId, memberId: member.id },
+        ),
+      });
+      if (otherOwners.totalItems === 0) {
+        return {
+          success: false,
+          error:
+            "Cannot remove the sole owner of a group. Delete the group instead.",
+        };
+      }
     }
 
     await pb.collection("group_members").delete(member.id);

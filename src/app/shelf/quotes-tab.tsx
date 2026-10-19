@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
-import { Quote, Tag, Sparkles, Filter } from "lucide-react";
+import { useState, useEffect, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Quote, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { QuoteCard } from "@/components/quote-card";
 import { AddQuoteDialog } from "@/components/add-quote-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
 import { deleteQuote } from "@/lib/actions/marginalia";
@@ -30,10 +30,16 @@ export function QuotesTab({
   isAdmin,
 }: QuotesTabProps) {
   const t = useTranslations();
+  const router = useRouter();
   const [quotes, setQuotes] = useState(initialQuotes);
   const [selectedMediaType, setSelectedMediaType] = useState<string>("all");
   const [selectedTag, setSelectedTag] = useState<string>("all");
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync local quotes state when server initialQuotes prop updates
+    setQuotes(initialQuotes);
+  }, [initialQuotes]);
 
   // Extract all unique tags
   const allTags = useMemo(() => {
@@ -137,8 +143,7 @@ export function QuotesTab({
           <AddQuoteDialog
             shelfItems={shelfItems}
             onSuccess={() => {
-              // Trigger a soft refresh or the revalidatePath will handle it on next navigation
-              window.location.reload();
+              router.refresh();
             }}
           />
         </div>
@@ -191,7 +196,12 @@ export function QuotesTab({
           </div>
           {quotes.length === 0 && (
             <div className="pt-2">
-              <AddQuoteDialog shelfItems={shelfItems} />
+              <AddQuoteDialog
+                shelfItems={shelfItems}
+                onSuccess={() => {
+                  router.refresh();
+                }}
+              />
             </div>
           )}
         </div>

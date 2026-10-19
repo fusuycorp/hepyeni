@@ -31,6 +31,13 @@ export function clearSearchCache(): void {
 }
 
 function evictOldest(): void {
+  const now = Date.now();
+  for (const [k, entry] of store.entries()) {
+    if (entry.expiresAt <= now) {
+      store.delete(k);
+      return;
+    }
+  }
   const oldest = store.keys().next().value;
   if (oldest !== undefined) store.delete(oldest);
 }

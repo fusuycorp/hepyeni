@@ -1,11 +1,9 @@
 import { getSession, type Session } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import {
-  resolveCircleAccess,
-  type CircleAccess,
-} from "@/lib/membership";
+import { resolveCircleAccess, type CircleAccess } from "@/lib/membership";
 import { logDiagnostic } from "@/lib/errors";
 import { pickReviewerUser, type PublicUser } from "@/lib/group-titles";
+import { redactProposedTitles } from "@/lib/moods";
 import type {
   GroupSchedulesResponse,
   MilestoneCheckinsResponse,
@@ -35,7 +33,7 @@ export async function getGroupSchedules(
 ): Promise<GroupScheduleWithMilestones[]> {
   // P2: accept already-resolved session/access from the caller to avoid a
   // second getSession()/resolveCircleAccess round trip on the group page.
-  const resolvedSession = session ?? (await getSession());
+  const resolvedSession = session === undefined ? await getSession() : session;
   const resolvedAccess =
     access ?? (await resolveCircleAccess(groupId, resolvedSession?.id));
   if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
@@ -47,7 +45,12 @@ export async function getGroupSchedules(
 
     const schedules = await pb
       .collection("group_schedules")
-      .getFullList<GroupSchedulesResponse<{ title?: TitlesResponse; createdBy?: UsersResponse }>>({
+      .getFullList<
+        GroupSchedulesResponse<{
+          title?: TitlesResponse;
+          createdBy?: UsersResponse;
+        }>
+      >({
         filter: pb.filter("group = {:groupId}", { groupId }),
         expand: "title,createdBy",
         sort: "-createdAt",
@@ -77,19 +80,23 @@ export async function getGroupSchedules(
         .map((id) => pb.filter("milestone = {:id}", { id }))
         .join(" || ");
       const [checkinsRes, commentsRes] = await Promise.all([
-        pb.collection("milestone_checkins").getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
-          filter: milestoneFilter,
-          expand: "user",
-          // R2: trim the expanded voter to id/name/avatarUrl on the wire.
-          fields:
-            "id,milestone,user,createdAt," +
-            "expand.user.id,expand.user.name,expand.user.avatarUrl",
-        }),
+        pb
+          .collection("milestone_checkins")
+          .getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
+            filter: milestoneFilter,
+            expand: "user",
+            // R2: trim the expanded voter to id/name/avatarUrl on the wire.
+            fields:
+              "id,milestone,user,createdAt," +
+              "expand.user.id,expand.user.name,expand.user.avatarUrl",
+          }),
         // P6: only the milestone id is needed for the comment tally
-        pb.collection("milestone_comments").getFullList<MilestoneCommentsResponse>({
-          filter: milestoneFilter,
-          fields: "id,milestone",
-        }),
+        pb
+          .collection("milestone_comments")
+          .getFullList<MilestoneCommentsResponse>({
+            filter: milestoneFilter,
+            fields: "id,milestone",
+          }),
       ]);
       allCheckins = checkinsRes.map((c) => {
         const user = pickReviewerUser(c.expand?.user);
@@ -139,9 +146,18 @@ export async function getGroupSchedules(
     // GroupSchedulesCard, so anything left on it is serialised into the RSC
     // payload for every viewer of the circle, including public-circle guests.
     // Same shape as the checkin handling above.
+    const isOwnerOrAdmin =
+      resolvedAccess.isOwner || Boolean(resolvedSession?.isAdmin);
     return schedules.map(({ expand, ...schedule }) => ({
       ...schedule,
-      titleRecord: expand?.title,
+      titleRecord: expand?.title
+        ? (redactProposedTitles(
+            [expand.title as TitlesResponse<Record<string, unknown>>],
+            resolvedAccess.group?.isBlindPickEnabled,
+            isOwnerOrAdmin,
+            resolvedSession?.id,
+          )[0] as TitlesResponse)
+        : undefined,
       creator: pickReviewerUser(expand?.createdBy),
       milestones: milestonesBySchedule.get(schedule.id) || [],
     }));

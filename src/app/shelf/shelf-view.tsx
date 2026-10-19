@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
+import { SpoilerText } from "@/components/spoiler-text";
 import { AddToShelfDialog } from "./add-to-shelf-dialog";
 import { EditProgressDialog } from "./edit-progress-dialog";
 import { QuotesTab } from "./quotes-tab";
@@ -310,7 +311,7 @@ export function ShelfView({
                   {/* Personal Notes Snippet */}
                   {item.notes && (
                     <div className="p-2 rounded-lg bg-muted/30 border border-border/40 text-[11px] text-muted-foreground line-clamp-2 italic">
-                      &ldquo;{item.notes}&rdquo;
+                      &ldquo;<SpoilerText text={item.notes} />&rdquo;
                     </div>
                   )}
 

@@ -2,8 +2,10 @@ import { trustForwardedHeaders } from "@/lib/pocketbase/session";
 
 type RateLimitRecord = {
   timestamps: number[];
+  windowMs: number;
 };
 
+const MAX_STORE_KEYS = 5000;
 const rateLimitStore = new Map<string, RateLimitRecord>();
 
 export interface RateLimitOptions {
@@ -25,7 +27,10 @@ export function checkRateLimit(
   options: RateLimitOptions = { limit: 60, windowMs: 60_000 },
   now = Date.now(),
 ): RateLimitResult {
-  const record = rateLimitStore.get(key) ?? { timestamps: [] };
+  const record = rateLimitStore.get(key) ?? {
+    timestamps: [],
+    windowMs: options.windowMs,
+  };
   const cutoff = now - options.windowMs;
   const recent = record.timestamps.filter((ts) => ts > cutoff);
 
@@ -35,20 +40,29 @@ export function checkRateLimit(
     return { allowed: false, remaining: 0, resetMs };
   }
 
-  recent.push(now);
-  rateLimitStore.set(key, { timestamps: recent });
-
-  // Periodically clean stale keys if store grows
+  // Periodically clean stale keys if store grows using each entry's own windowMs
   if (rateLimitStore.size > 2000) {
     for (const [k, v] of rateLimitStore.entries()) {
-      const valid = v.timestamps.filter((t) => t > cutoff);
+      const entryCutoff = now - v.windowMs;
+      const valid = v.timestamps.filter((t) => t > entryCutoff);
       if (valid.length === 0) {
         rateLimitStore.delete(k);
       } else {
-        rateLimitStore.set(k, { timestamps: valid });
+        rateLimitStore.set(k, { timestamps: valid, windowMs: v.windowMs });
       }
     }
   }
+
+  if (!rateLimitStore.has(key) && rateLimitStore.size >= MAX_STORE_KEYS) {
+    const oldestKey = rateLimitStore.keys().next().value;
+    if (oldestKey !== undefined) {
+      rateLimitStore.delete(oldestKey);
+    }
+  }
+
+  recent.push(now);
+  rateLimitStore.delete(key);
+  rateLimitStore.set(key, { timestamps: recent, windowMs: options.windowMs });
 
   return {
     allowed: true,
@@ -66,13 +80,18 @@ export async function getClientIp(): Promise<string> {
     const { headers } = await import("next/headers");
     const h = await headers();
     if (trustForwardedHeaders()) {
+      const realIp = h.get("x-real-ip")?.trim();
+      if (realIp) return realIp;
+
       const forwarded = h.get("x-forwarded-for");
       if (forwarded) {
-        const first = forwarded.split(",")[0]?.trim();
-        if (first) return first;
+        const parts = forwarded
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean);
+        const hop = parts[parts.length - 1];
+        if (hop) return hop;
       }
-      const realIp = h.get("x-real-ip");
-      if (realIp?.trim()) return realIp.trim();
     }
   } catch {
     // outside request context or in unit tests

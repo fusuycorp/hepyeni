@@ -11,15 +11,25 @@ declare global {
   var __pbSuperuserAuth: Promise<void> | undefined;
 }
 
+function attachAuthRecovery(client: PocketBase): PocketBase {
+  client.afterSend = (response, data) => {
+    if (response?.status === 401 || response?.status === 403) {
+      client.authStore.clear();
+    }
+    return data;
+  };
+  return client;
+}
+
 function createClient(): PocketBase {
   const pb = new PocketBase(getPbUrl());
   // Without this, concurrent requests from different users on this shared
   // singleton would cancel each other's in-flight calls.
   pb.autoCancellation(false);
-  return pb;
+  return attachAuthRecovery(pb);
 }
 
-const pb = globalThis.__pbSuperuser ?? createClient();
+const pb = attachAuthRecovery(globalThis.__pbSuperuser ?? createClient());
 globalThis.__pbSuperuser = pb;
 
 async function ensureAuthenticated(): Promise<void> {

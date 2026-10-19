@@ -362,7 +362,13 @@ export function MilestoneCampfireDialog({
                   </div>
 
                   <div className="text-foreground/90 whitespace-pre-wrap break-words leading-relaxed pl-8">
-                    <SpoilerText text={c.content} />
+                    <SpoilerText
+                      text={
+                        c.isSpoiler && c.content
+                          ? `||${c.content.replace(/\|\|/g, "")}||`
+                          : c.content
+                      }
+                    />
                   </div>
                 </div>
               );

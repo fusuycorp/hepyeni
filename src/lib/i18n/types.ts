@@ -162,6 +162,7 @@ export interface Translations {
     themeToggle: string;
     mediaTracker: string;
     backToApp: string;
+    mobileNavAria: string;
   };
   media: {
     book: string;
@@ -408,6 +409,7 @@ export interface Translations {
     addingCustom: string;
     backToSearch: string;
     previewCover: string;
+    noCover: string;
   };
 
   reviews: {
@@ -761,6 +763,7 @@ export interface Translations {
     parsingError: string;
     emptyFile: string;
     fileSizeExceeded: string;
+    tooManyItems: string;
     changeFile: string;
     clearFile: string;
     formatGoodreads: string;

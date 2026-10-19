@@ -131,7 +131,7 @@ export default async function GroupPage({
               </p>
             </div>
             <Link
-              href={`/invite?code=${group.inviteCode}`}
+              href={group.inviteCode ? `/invite?code=${group.inviteCode}` : "/invite"}
               className={buttonVariants({
                 variant: "default",
                 size: "sm",
@@ -151,7 +151,9 @@ export default async function GroupPage({
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 {group.name}
               </h1>
-              <CopyInviteButton code={group.inviteCode} />
+              {!access.isGuest && group.inviteCode && (
+                <CopyInviteButton code={group.inviteCode} />
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               {members.length} {t.groups.members}
@@ -182,7 +184,7 @@ export default async function GroupPage({
 
             {access.isGuest && (
               <Link
-                href={`/invite?code=${group.inviteCode}`}
+                href={group.inviteCode ? `/invite?code=${group.inviteCode}` : "/invite"}
                 className={buttonVariants({
                   variant: "default",
                   size: "sm",
@@ -208,7 +210,6 @@ export default async function GroupPage({
           currentUserRole={currentUserRole}
           isAdmin={session?.isAdmin}
           currentUserName={currentUser?.name}
-          currentUserEmail={currentUser?.email}
           currentUserAvatarUrl={currentUser?.avatarUrl}
           commentCounts={commentCounts}
           isGuest={access.isGuest}

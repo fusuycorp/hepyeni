@@ -3,14 +3,22 @@ import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 
 function sanitizeFilename(name: string): string {
   return name
-    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/[/\\?%*:|"<>[\]\x00-\x1f]/g, "_")
     .replace(/\s+/g, " ")
     .trim()
+    .replace(/^\.+/, "_")
     .slice(0, 100);
 }
 
 function escapeYamlString(val: string): string {
-  if (val.includes("\n") || val.includes('"') || val.includes(":") || val.includes("#")) {
+  if (
+    val.includes("\n") ||
+    val.includes("\r") ||
+    val.includes('"') ||
+    val.includes(":") ||
+    val.includes("#") ||
+    val.includes("\\")
+  ) {
     return JSON.stringify(val);
   }
   return `"${val}"`;
@@ -38,8 +46,8 @@ export function generateItemMarkdown(item: UserMediaProgressResponse): {
   }
   if (item.progressUnit) yamlLines.push(`progress_unit: "${item.progressUnit}"`);
   if (item.currentLabel) yamlLines.push(`current_label: ${escapeYamlString(item.currentLabel)}`);
-  if (item.startedAt) yamlLines.push(`started_at: "${item.startedAt}"`);
-  if (item.completedAt) yamlLines.push(`completed_at: "${item.completedAt}"`);
+  if (item.startedAt) yamlLines.push(`started_at: ${escapeYamlString(item.startedAt)}`);
+  if (item.completedAt) yamlLines.push(`completed_at: ${escapeYamlString(item.completedAt)}`);
   if (item.externalSource) yamlLines.push(`external_source: ${escapeYamlString(item.externalSource)}`);
   if (item.externalId) yamlLines.push(`external_id: ${escapeYamlString(item.externalId)}`);
   yamlLines.push(`created_at: "${item.createdAt}"`);
@@ -83,14 +91,15 @@ export function generateItemMarkdown(item: UserMediaProgressResponse): {
 
 export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Uint8Array {
   const files: ZipFileInput[] = [];
-  const usedFilenames = new Set<string>();
+  const usedFilenames = new Set<string>(["index.md"]);
+  const uniqueNames: string[] = [];
 
   for (const item of items) {
     const { filename, content } = generateItemMarkdown(item);
     let uniqueName = filename;
     let counter = 1;
 
-    while (usedFilenames.has(uniqueName)) {
+    while (usedFilenames.has(uniqueName.toLowerCase())) {
       const dotIndex = filename.lastIndexOf(".");
       const base = dotIndex !== -1 ? filename.slice(0, dotIndex) : filename;
       const ext = dotIndex !== -1 ? filename.slice(dotIndex) : "";
@@ -98,7 +107,8 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
       counter++;
     }
 
-    usedFilenames.add(uniqueName);
+    usedFilenames.add(uniqueName.toLowerCase());
+    uniqueNames.push(uniqueName);
     files.push({
       name: `HepYeni Shelf/${uniqueName}`,
       content,
@@ -121,13 +131,20 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
     "| :--- | :--- | :--- | :--- | :--- | :--- |",
   ];
 
-  for (const item of items) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const uniqueName = uniqueNames[i];
+    const noteBasename = uniqueName.replace(/\.md$/i, "");
+    const safeCreator = (item.creator || "-")
+      .replace(/\\/g, "\\\\")
+      .replace(/\|/g, "\\|")
+      .replace(/\r?\n/g, " ");
     const ratingStr = item.rating ? `${item.rating}/5` : "-";
     const progressStr = item.progressTotal
       ? `${item.progressCurrent ?? 0}/${item.progressTotal} ${item.progressUnit ?? ""}`
       : "-";
     indexLines.push(
-      `| [[${sanitizeFilename(item.title)}]] | ${item.creator || "-"} | ${item.mediaType} | ${item.status} | ${ratingStr} | ${progressStr} |`,
+      `| [[${noteBasename}]] | ${safeCreator} | ${item.mediaType} | ${item.status} | ${ratingStr} | ${progressStr} |`,
     );
   }
 

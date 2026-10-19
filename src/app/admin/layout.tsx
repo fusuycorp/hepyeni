@@ -15,7 +15,14 @@ export default async function AdminLayout({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  await requireAdmin(session.id);
+  let isAdmin = false;
+  try {
+    await requireAdmin(session.id);
+    isAdmin = true;
+  } catch {
+    isAdmin = false;
+  }
+  if (!isAdmin) redirect("/groups");
   const t = await getServerTranslations();
 
   return (

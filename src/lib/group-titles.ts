@@ -70,6 +70,7 @@ export function groupTitleQuery(canViewReviews: boolean): {
     "mediaType",
     "coverUrl",
     "status",
+    "consumedAt",
     "createdAt",
     "addedBy",
     "metadata",

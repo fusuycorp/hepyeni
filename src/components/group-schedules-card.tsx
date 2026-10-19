@@ -56,6 +56,9 @@ interface GroupSchedulesCardProps {
   groupId: string;
   schedules: GroupScheduleWithMilestones[];
   titles: TitlesResponse[];
+  currentUserId?: string;
+  currentUserRole?: string;
+  isAdmin?: boolean;
   isOwner?: boolean;
   isMember?: boolean;
   memberCount: number;
@@ -65,6 +68,9 @@ export function GroupSchedulesCard({
   groupId,
   schedules,
   titles,
+  currentUserId,
+  currentUserRole,
+  isAdmin,
   isOwner = false,
   isMember = true,
   memberCount,
@@ -156,17 +162,22 @@ export function GroupSchedulesCard({
     });
   };
 
-  const handleToggleCheckin = (milestoneId: string, scheduleId: string) => {
-    if (!isMember) return;
-    startTransition(async () => {
-      const res = await toggleMilestoneCheckin(milestoneId, groupId);
-      if (!res.success) {
-        toast.error(res.error, {
-          description: res.traceId
-            ? t.common.refCode.replace("{code}", res.traceId)
-            : undefined,
-        });
-      }
+  const handleToggleCheckin = (milestoneId: string, _scheduleId: string): Promise<boolean> => {
+    if (!isMember) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const res = await toggleMilestoneCheckin(milestoneId, groupId);
+        if (!res.success) {
+          toast.error(res.error, {
+            description: res.traceId
+              ? t.common.refCode.replace("{code}", res.traceId)
+              : undefined,
+          });
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      });
     });
   };
 
@@ -585,21 +596,26 @@ export function GroupSchedulesCard({
         milestone={campfireMilestone?.milestone ?? null}
         scheduleName={campfireMilestone?.scheduleName}
         groupId={groupId}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        isAdmin={isAdmin}
         isMember={isMember}
-        onCheckinToggle={(milestoneId) => {
+        onCheckinToggle={async (milestoneId) => {
           if (campfireMilestone) {
-            handleToggleCheckin(milestoneId, "");
-            setCampfireMilestone((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    milestone: {
-                      ...prev.milestone,
-                      hasCheckedIn: !prev.milestone.hasCheckedIn,
-                    },
-                  }
-                : null,
-            );
+            const ok = await handleToggleCheckin(milestoneId, "");
+            if (ok) {
+              setCampfireMilestone((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      milestone: {
+                        ...prev.milestone,
+                        hasCheckedIn: !prev.milestone.hasCheckedIn,
+                      },
+                    }
+                  : null,
+              );
+            }
           }
         }}
       />

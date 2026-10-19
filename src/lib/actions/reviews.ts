@@ -36,6 +36,9 @@ export async function submitReview(
     }
     const rawReview = String(formData.get("reviewText") ?? "").trim();
     const reviewText = rawReview ? rawReview.slice(0, 5000) : null;
+    const clearReviewText =
+      formData.get("clearReviewText") === "true" ||
+      formData.get("clearReviewText") === "1";
 
     const pb = await getSuperuserClient();
     try {
@@ -58,9 +61,11 @@ export async function submitReview(
         );
       // H1-defensive: an empty/whitespace incoming reviewText means the client
       // lost its prefill (cluster-1 P1 strip regressed this). Never null out an
-      // existing review body on a rating-only save — keep the stored body.
+      // existing review body on a rating-only save unless clearReviewText is set.
       const hasExistingBody = Boolean(existing.reviewText?.trim());
-      const finalReviewText = reviewText ?? (hasExistingBody ? existing.reviewText : null);
+      const finalReviewText = clearReviewText
+        ? reviewText
+        : (reviewText ?? (hasExistingBody ? existing.reviewText : null));
       await pb.collection("reviews").update(existing.id, { rating, reviewText: finalReviewText });
     }
 

@@ -48,11 +48,13 @@ export default function RootError({
 }) {
   const [copied, setCopied] = useState(false);
   const [locale, setLocale] = useState<keyof typeof ERROR_COPY>("tr");
-  const cookieLocale = getLocaleCookie();
-  if (locale !== cookieLocale) setLocale(cookieLocale);
-  const copy = ERROR_COPY[cookieLocale];
+  const copy = ERROR_COPY[locale];
 
   useEffect(() => {
+    const cookieLocale = getLocaleCookie();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate client cookie locale after SSR fallback
+    setLocale(cookieLocale);
+
     // Structured error logging in browser console
     console.error("[HepYeni Application Error Caught]:", {
       digest: error.digest,
