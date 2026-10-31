@@ -32,11 +32,7 @@ migrate((app) => {
       { type: "autodate", name: "createdAt", onCreate: true, onUpdate: false },
     ],
   });
-  // ponytail: PocketBase 0.39.11 throws `sql: no rows in result set` for the
-  // old not-found guard and for explicit indexes here (the composite relation
-  // index fails on fresh data; single-column indexes fail on the production
-  // volume). No index needed: rate-limit.ts creates and deletes by unique
-  // reservation id, covered by the implicit primary-key index.
+  // ponytail: llm_usage primary-key lookup <- PocketBase 0.39.11 throws sql: no rows in result set on explicit secondary indexes here -> add secondary index only if PocketBase JSVM index creation bug is resolved
   app.save(usage);
 }, (app) => {
   const usage = app.findCollectionByNameOrId("llm_usage");

@@ -113,7 +113,7 @@ export async function fetchCircleFeed(
         filter: pb.filter("group = {:groupId}", { groupId }),
         expand: "user",
         fields:
-          "id,group,user,role,createdAt,updatedAt," +
+          "id,group,user,role,joinedAt,createdAt,updatedAt," +
           "expand.user.id,expand.user.name,expand.user.avatarUrl",
       }),
     needsTitles

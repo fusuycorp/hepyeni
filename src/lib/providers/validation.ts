@@ -15,22 +15,34 @@ function foldTitle(title: string): string {
     .replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-function isSafeCoverUrl(rawUrl: string): boolean {
+export function isSafeCoverUrl(rawUrl: string): boolean {
   if (!/^https?:\/\//i.test(rawUrl)) return false;
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    const host = parsed.hostname
+      .toLowerCase()
+      .replace(/\.+$/, "")
+      .replace(/^\[|\]$/g, "");
     if (
       host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      host.endsWith(".internal") ||
       host === "0.0.0.0" ||
+      host === "::" ||
       host === "::1" ||
       host === "0:0:0:0:0:0:0:1" ||
+      host.startsWith("::ffff:") ||
+      host.startsWith("0:0:0:0:0:ffff:") ||
+      /^fe[89ab][0-9a-f]:/.test(host) ||
+      /^f[cd][0-9a-f]{2}:/.test(host) ||
       host.startsWith("127.") ||
       host.startsWith("169.254.") ||
       host.startsWith("10.") ||
       host.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
+      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)
     ) {
       return false;
     }

@@ -292,12 +292,12 @@ describe("Circle Guest Management & Granular Access Matrix", () => {
     });
 
     it("has non-empty translation strings for all guestManagement keys in both languages", () => {
-      for (const [key, value] of Object.entries(en.guestManagement)) {
+      for (const value of Object.values(en.guestManagement)) {
         expect(typeof value).toBe("string");
         expect(value.trim().length).toBeGreaterThan(0);
       }
 
-      for (const [key, value] of Object.entries(tr.guestManagement)) {
+      for (const value of Object.values(tr.guestManagement)) {
         expect(typeof value).toBe("string");
         expect(value.trim().length).toBeGreaterThan(0);
       }

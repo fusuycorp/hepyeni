@@ -67,7 +67,7 @@ describe("Argon Audit Workstream 4 Remediation", () => {
     it("awaits handleToggleCheckin before flipping campfireMilestone.hasCheckedIn", async () => {
       const schedulesCardSrc = await readRepoFile("src/components/group-schedules-card.tsx");
       expect(schedulesCardSrc).toContain("Promise<boolean>");
-      expect(schedulesCardSrc).toMatch(/await\s+handleToggleCheckin\(milestoneId,\s*""\)/);
+      expect(schedulesCardSrc).toMatch(/await\s+handleToggleCheckin\(milestoneId\)/);
     });
   });
 
@@ -98,17 +98,19 @@ describe("Argon Audit Workstream 4 Remediation", () => {
   });
 
   describe("P2-12: Dockerfile, .dockerignore, and GitHub Actions hardening", () => {
-    it("pinsoven/bun:1.3.14-alpine and chains next build with && in Dockerfile", async () => {
+    it("pins oven/bun:1.4.2-alpine, chains next build with &&, and defines HEALTHCHECK in Dockerfile", async () => {
       const dockerfile = await readRepoFile("Dockerfile");
-      expect(dockerfile).toContain("FROM oven/bun:1.3.14-alpine AS base");
+      expect(dockerfile).toContain("FROM oven/bun:1.4.2-alpine AS base");
       expect(dockerfile).not.toContain("next build; test -f");
       expect(dockerfile).toMatch(/next build\s*&&\s*test -f \.next\/standalone\/server\.js/);
+      expect(dockerfile).toContain("HEALTHCHECK ");
     });
 
     it("excludes non-runtime directories in .dockerignore", async () => {
       const dockerignore = await readRepoFile(".dockerignore");
-      for (const entry of ["tests", "docs", ".agents", ".scratch", "reviews", ".git"]) {
-        expect(dockerignore.split("\n").map((l) => l.trim())).toContain(entry);
+      const lines = dockerignore.split("\n").map((l) => l.trim());
+      for (const entry of ["tests", "docs", ".agents", ".mimori", ".pi", ".pi-glla", ".scratch", "reviews", ".git", "pb_data"]) {
+        expect(lines).toContain(entry);
       }
     });
 

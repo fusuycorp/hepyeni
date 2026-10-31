@@ -1,4 +1,4 @@
-import { getField, normalizeHeaderKey, parseCsvToTable, parseSafeDate } from "./csv-parser";
+import { getField, parseCsvToTable, parseSafeDate } from "./csv-parser";
 import { parseGoodreadsCsv } from "./goodreads";
 import { parseLetterboxdCsv } from "./letterboxd";
 import { parseStoryGraphCsv } from "./storygraph";
@@ -15,12 +15,7 @@ export * from "./goodreads";
 export * from "./letterboxd";
 export * from "./storygraph";
 
-// ponytail: importer errors are stable, neutral English strings because this
-// parsing lib is locale-agnostic (i18n keys must be added to types.ts +
-// en.ts + tr.ts in tandem, and no UI layer owns this file). Never surface a
-// raw err.message here — it can leak parser internals into the dropzone UI.
-// Upgrade path: return stable codes ("IMPORT_EMPTY_FILE", ...) and let the
-// import dropzone map them to localized copy via useTranslations().
+// ponytail: neutral English importer error strings <- pure parser library is locale-agnostic and owns no UI layer -> return stable error codes and map via useTranslations in import dropzone
 const IMPORT_EMPTY_FILE = "The selected file is empty or could not be parsed.";
 const IMPORT_FILE_TOO_LARGE = "The selected file is too large to import.";
 const IMPORT_NO_VALID_RECORDS = "No valid importable records were found in the file.";

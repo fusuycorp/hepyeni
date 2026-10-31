@@ -1,19 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Clock, CheckCircle2, Bookmark, Star, Plus } from "lucide-react";
+import { Users, Clock, CheckCircle2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EditProgressDialog } from "@/app/shelf/edit-progress-dialog";
-import { AddToShelfDialog } from "@/app/shelf/add-to-shelf-dialog";
 import { SpoilerText } from "@/components/spoiler-text";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import type { TitleMemberProgressItem } from "@/lib/actions/progress";
-import type { TitlesMediaTypeOptions, TitlesResponse, UserMediaProgressResponse } from "@/types/pocketbase-types";
+import type { TitlesResponse, UserMediaProgressResponse } from "@/types/pocketbase-types";
 
 interface CircleTitleProgressProps {
   title: TitlesResponse;
@@ -23,7 +22,6 @@ interface CircleTitleProgressProps {
 }
 
 export function CircleTitleProgress({
-  title,
   memberProgress,
   currentUserId,
   isMember = true,

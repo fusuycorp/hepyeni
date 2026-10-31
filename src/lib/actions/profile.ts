@@ -46,8 +46,8 @@ export async function deleteAccount(): Promise<ActionResult<void>> {
     return { success: false, error: "Please sign in first" };
   }
 
-  const pb = await getSuperuserClient();
   try {
+    const pb = await getSuperuserClient();
     // Clean up or reassign records with cascadeDelete: false referencing session.id
     const ownedGroups = await pb.collection("groups").getFullList<GroupsResponse>({
       filter: pb.filter("createdBy = {:userId}", { userId: session.id }),

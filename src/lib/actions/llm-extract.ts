@@ -92,6 +92,7 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
     }
 
     if (!content) {
+      await releaseLlmUsage(pb, usage.reservedIds);
       return { success: false, error: LLM_REQUEST_FAILED };
     }
 
@@ -131,7 +132,7 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
         filter: pb.filter("user = {:user}", { user: session.id }),
         expand: "group",
         fields: "group,expand.group.id,expand.group.name",
-        sort: "created",
+        sort: "joinedAt",
       });
     const userGroups = memberships
       .map((m) => ({ id: m.expand?.group?.id ?? m.group, name: m.expand?.group?.name ?? "" }))
@@ -203,80 +204,85 @@ export async function proposeExtractedTitles(
     const seenExt = new Set<string>();
     let skippedCount = 0;
 
-    // Resolve candidate provider searches concurrently (R2-Q03)
-    const resolvedCandidates = await Promise.all(
-      entries.map(async (entry) => {
-        if (!entry || !MEDIA_TYPES.includes(entry.mediaType)) {
-          return { status: "skipped" as const };
-        }
-
-        const rawTitle = entry.match?.title ?? entry.custom?.title;
-        const title = typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
-        if (!title) {
-          return { status: "skipped" as const };
-        }
-
-        const titleKey = foldTitleKey(entry.mediaType, title);
-        const customTarget = !entry.match;
-
-        let externalSource: string;
-        let externalId: string;
-        let creator: string | null = null;
-        let coverUrl: string | null = null;
-        let metadata: Record<string, unknown> | null = null;
-        let resolvedTitleStr = title;
-
-        if (entry.match) {
-          const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
-          if (!suppliedMatch) {
+    // Resolve candidate provider searches with bounded concurrency (chunks of 3)
+    const resolvedCandidates = [];
+    for (let i = 0; i < entries.length; i += 3) {
+      const chunk = entries.slice(i, i + 3);
+      const chunkResults = await Promise.all(
+        chunk.map(async (entry) => {
+          if (!entry || !MEDIA_TYPES.includes(entry.mediaType)) {
             return { status: "skipped" as const };
           }
 
-          const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
-          let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
-          try {
-            const results = await getProvider(entry.mediaType).search(query);
-            canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
-          } catch (err) {
-            logDiagnostic(err, {
-              action: "proposeExtractedTitles/provider-validation",
-              groupId,
-              mediaType: entry.mediaType,
-            });
-          }
-          if (!canonicalMatch) {
+          const rawTitle = entry.match?.title ?? entry.custom?.title;
+          const title = typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
+          if (!title) {
             return { status: "skipped" as const };
           }
 
-          externalSource = canonicalMatch.externalSource;
-          externalId = canonicalMatch.externalId;
-          resolvedTitleStr = canonicalMatch.title;
-          creator = canonicalMatch.creator ?? null;
-          coverUrl = canonicalMatch.coverUrl ?? null;
-          metadata = canonicalMatch.metadata ?? null;
-        } else {
-          externalSource = "custom";
-          externalId = `custom_${crypto.randomUUID()}`;
-          creator =
-            typeof entry.custom?.creator === "string"
-              ? entry.custom.creator.trim().slice(0, 300) || null
-              : null;
-        }
+          const titleKey = foldTitleKey(entry.mediaType, title);
+          const customTarget = !entry.match;
 
-        return {
-          status: "valid" as const,
-          entry,
-          titleKey,
-          customTarget,
-          externalSource,
-          externalId,
-          title: resolvedTitleStr,
-          creator,
-          coverUrl,
-          metadata,
-        };
-      }),
-    );
+          let externalSource: string;
+          let externalId: string;
+          let creator: string | null = null;
+          let coverUrl: string | null = null;
+          let metadata: Record<string, unknown> | null = null;
+          let resolvedTitleStr = title;
+
+          if (entry.match) {
+            const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
+            if (!suppliedMatch) {
+              return { status: "skipped" as const };
+            }
+
+            const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
+            let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
+            try {
+              const results = await getProvider(entry.mediaType).search(query);
+              canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
+            } catch (err) {
+              logDiagnostic(err, {
+                action: "proposeExtractedTitles/provider-validation",
+                groupId,
+                mediaType: entry.mediaType,
+              });
+            }
+            if (!canonicalMatch) {
+              return { status: "skipped" as const };
+            }
+
+            externalSource = canonicalMatch.externalSource;
+            externalId = canonicalMatch.externalId;
+            resolvedTitleStr = canonicalMatch.title;
+            creator = canonicalMatch.creator ?? null;
+            coverUrl = canonicalMatch.coverUrl ?? null;
+            metadata = canonicalMatch.metadata ?? null;
+          } else {
+            externalSource = "custom";
+            externalId = `custom_${crypto.randomUUID()}`;
+            creator =
+              typeof entry.custom?.creator === "string"
+                ? entry.custom.creator.trim().slice(0, 300) || null
+                : null;
+          }
+
+          return {
+            status: "valid" as const,
+            entry,
+            titleKey,
+            customTarget,
+            externalSource,
+            externalId,
+            title: resolvedTitleStr,
+            creator,
+            coverUrl,
+            metadata,
+          };
+        }),
+      );
+      resolvedCandidates.push(...chunkResults);
+    }
 
     for (const res of resolvedCandidates) {
       if (res.status === "skipped") {

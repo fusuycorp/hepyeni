@@ -56,7 +56,6 @@ export interface DecisionWheelDialogProps {
 export function DecisionWheelDialog({
   items,
   groupId,
-  groupName,
   open: controlledOpen,
   onOpenChange: setControlledOpen,
   trigger,

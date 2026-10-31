@@ -9,6 +9,8 @@ import {
   UserMediaProgressUnitOptions as ProgressUnitOptions,
 } from "@/types/pocketbase-types";
 
+import { isSafeCoverUrl as isSafeHttpUrl } from "@/lib/providers/validation";
+
 export type ImportSource =
   | "goodreads"
   | "letterboxd"
@@ -38,31 +40,6 @@ export interface ParseResult {
   source: ImportSource;
   items: NormalizedImportItem[];
   errors: string[];
-}
-
-function isSafeHttpUrl(rawUrl: string): boolean {
-  if (!/^https?:\/\//i.test(rawUrl)) return false;
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-    if (
-      host === "localhost" ||
-      host === "0.0.0.0" ||
-      host === "::1" ||
-      host === "0:0:0:0:0:0:0:1" ||
-      host.startsWith("127.") ||
-      host.startsWith("169.254.") ||
-      host.startsWith("10.") ||
-      host.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
-    ) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export function normalizeImportItemPayload(item: unknown): NormalizedImportItem | null {

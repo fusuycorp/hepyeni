@@ -1,19 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Calendar,
   CheckCircle2,
   FileText,
-  Globe,
   Layers,
   MessageSquare,
   Share2,
   Sparkles,
   Star,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,7 +21,7 @@ import { MediaBadge } from "@/components/media-badge";
 import { VoteControl } from "@/components/vote-control";
 import { MarkConsumedButton } from "@/components/mark-consumed-button";
 import { ReviewForm } from "@/components/review-form";
-import { CommentThread, type DisplayComment } from "@/components/comment-thread";
+import { CommentThread } from "@/components/comment-thread";
 import { CircleTitleProgress } from "@/components/circle-title-progress";
 import { SpoilerText } from "@/components/spoiler-text";
 import { getDisplayName, getInitials } from "@/lib/format";
@@ -110,7 +106,6 @@ export function TitleDetailView({
     ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
     : null;
   const myReview = reviews.find((r) => r.user === currentUserId);
-  const otherReviews = reviews.filter((r) => r.user !== currentUserId);
 
   const recommender = title.expand?.addedBy;
   const recommenderName = getDisplayName(recommender, t.common.unnamedUser);

@@ -53,7 +53,7 @@ export function AddToShelfDialog() {
   const [progressUnit, setProgressUnit] = useState<UserMediaProgressUnitOptions>("pages");
   const [currentLabel, setCurrentLabel] = useState("");
   const [notes, setNotes] = useState("");
-  const [rating, setRating] = useState<number | undefined>(undefined);
+  const [rating] = useState<number | undefined>(undefined);
   const [isSharedWithCircles, setIsSharedWithCircles] = useState(true);
   const [selectedMoods, setSelectedMoods] = useState<MoodType[]>([]);
   const [selectedPace, setSelectedPace] = useState<PaceType | undefined>(undefined);
