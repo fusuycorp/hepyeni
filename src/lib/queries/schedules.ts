@@ -39,6 +39,13 @@ export async function getGroupSchedules(
   if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
     return [];
   }
+  if (
+    !resolvedAccess.isMember &&
+    resolvedAccess.canViewBacklog === false &&
+    resolvedAccess.canViewFinished === false
+  ) {
+    return [];
+  }
 
   try {
     const pb = await getSuperuserClient();

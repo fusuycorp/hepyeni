@@ -5,11 +5,8 @@ import {
   Flame,
   Loader2,
   Lock,
-  MessageSquare,
   Send,
-  Sparkles,
   Trash2,
-  AlertTriangle,
   EyeOff,
   CheckCircle2,
 } from "lucide-react";
@@ -78,7 +75,6 @@ export function MilestoneCampfireDialog({
   const locale = useLocale();
   const [comments, setComments] = useState<MilestoneCommentItem[]>([]);
   const [isLocked, setIsLocked] = useState(false);
-  const [lockedCount, setLockedCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isSpoiler, setIsSpoiler] = useState(false);
@@ -87,34 +83,49 @@ export function MilestoneCampfireDialog({
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const fetchComments = async (milestoneId: string) => {
-    setLoading(true);
-    try {
-      const res = await getMilestoneComments(milestoneId, groupId);
-      if (res.success) {
-        setComments(res.data.comments);
-        setIsLocked(res.data.isLocked);
-        setLockedCount(res.data.lockedCount);
-      } else {
-        toast.error(res.error || t.campfires.messageAddFailed);
-      }
-    } catch {
-      toast.error(t.common.error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const milestoneId = milestone?.id;
+  const hasCheckedIn = milestone?.hasCheckedIn;
 
   useEffect(() => {
-    if (open && milestone) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-open resets + loads state as a deliberate effect of the open/milestone prop
-      fetchComments(milestone.id);
-    } else {
+    if (!open || !milestoneId) return;
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await getMilestoneComments(milestoneId, groupId);
+        if (cancelled) return;
+        if (res.success) {
+          setComments(res.data.comments);
+          setIsLocked(res.data.isLocked);
+        } else {
+          toast.error(res.error || t.campfires.messageAddFailed);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error(t.common.error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, milestoneId, hasCheckedIn, groupId, t.campfires.messageAddFailed, t.common.error]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setComments([]);
       setCommentText("");
       setIsSpoiler(false);
     }
-  }, [open, milestone?.id, groupId, milestone?.hasCheckedIn]);
+    onOpenChange(nextOpen);
+  };
 
   if (!milestone) return null;
 
@@ -181,7 +192,7 @@ export function MilestoneCampfireDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
         <DialogHeader className="pb-3 border-b">
           <div className="flex items-center gap-2">

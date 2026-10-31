@@ -7,7 +7,6 @@ import {
   FolderArchive,
   Download,
   Loader2,
-  CheckCircle2,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -56,7 +55,7 @@ export function ExportCard() {
         URL.revokeObjectURL(url);
 
         toast.success(t.importExport.exportSuccess);
-      } catch (err) {
+      } catch {
         toast.error(t.importExport.exportFailed);
       } finally {
         setActiveFormat(null);

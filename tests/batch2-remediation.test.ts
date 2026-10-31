@@ -120,7 +120,7 @@ describe("Batch 2 Remediation: Invariants, Performance & Robustness", () => {
         collection(name: string) {
           if (name !== LLM_USAGE_COLLECTION) throw new Error("Unexpected collection");
           return {
-            getFullList: async ({ filter: _filter }: { filter?: string } = {}) => {
+            getFullList: async () => {
               // Simulate filter for window < "12"
               return records.filter((r) => Number.parseInt(r.window, 10) < 12);
             },

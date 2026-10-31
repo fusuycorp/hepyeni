@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { CheckCircle2, Sparkles, Star, Users, Settings, User, Filter, X, Calendar, Clock, Play, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { MEDIA_TYPES } from "@/lib/media-types";
 import { getDisplayName, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useTranslations, useLocale } from "@/lib/i18n/client";
+import { useTranslations } from "@/lib/i18n/client";
 import { useFeatureFlag } from "@/lib/flags/client";
 import { DecisionWheelDialog } from "@/components/decision-wheel-dialog";
 import { MOODS, MOOD_DETAILS, type MoodType } from "@/lib/moods";
@@ -117,14 +117,17 @@ export function GroupContentView({
   const moodFeatureEnabled = useFeatureFlag("mood_pace_folksonomy");
   const wheelFeatureEnabled = useFeatureFlag("blind_pick_wheel");
 
-  const currentList =
-    activeTab === "proposed"
-      ? proposed
-      : activeTab === "in_progress"
-      ? inProgress
-      : activeTab === "consumed"
-      ? consumed
-      : [];
+  const currentList = useMemo(
+    () =>
+      activeTab === "proposed"
+        ? proposed
+        : activeTab === "in_progress"
+        ? inProgress
+        : activeTab === "consumed"
+        ? consumed
+        : [],
+    [activeTab, proposed, inProgress, consumed],
+  );
 
   const recommenderCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -158,29 +161,32 @@ export function GroupContentView({
     return Array.from(map.values());
   }, [members, recommenderCounts, currentUserId, t]);
 
-  const filterTitle = (item: TitleWithScore) => {
-    const matchesType =
-      selectedMediaType === "all" ? true : item.mediaType === selectedMediaType;
-    const matchesRecommender =
-      selectedRecommender === "all"
-        ? true
-        : selectedRecommender === "me"
-        ? item.addedBy === currentUserId
-        : item.addedBy === selectedRecommender;
-    const itemMoods =
-      (Array.isArray(item.moods)
-        ? item.moods
-        : (item.metadata?.moods as string[] | undefined)) ?? [];
-    const matchesMood =
-      !moodFeatureEnabled || selectedMood === "all"
-        ? true
-        : itemMoods.includes(selectedMood);
-    return matchesType && matchesRecommender && matchesMood;
-  };
+  const filterTitle = useCallback(
+    (item: TitleWithScore) => {
+      const matchesType =
+        selectedMediaType === "all" ? true : item.mediaType === selectedMediaType;
+      const matchesRecommender =
+        selectedRecommender === "all"
+          ? true
+          : selectedRecommender === "me"
+          ? item.addedBy === currentUserId
+          : item.addedBy === selectedRecommender;
+      const itemMoods =
+        (Array.isArray(item.moods)
+          ? item.moods
+          : (item.metadata?.moods as string[] | undefined)) ?? [];
+      const matchesMood =
+        !moodFeatureEnabled || selectedMood === "all"
+          ? true
+          : itemMoods.includes(selectedMood);
+      return matchesType && matchesRecommender && matchesMood;
+    },
+    [selectedMediaType, selectedRecommender, currentUserId, moodFeatureEnabled, selectedMood],
+  );
 
-  const filteredProposed = useMemo(() => proposed.filter(filterTitle), [proposed, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
-  const filteredInProgress = useMemo(() => inProgress.filter(filterTitle), [inProgress, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
-  const filteredConsumed = useMemo(() => consumed.filter(filterTitle), [consumed, selectedMediaType, selectedRecommender, selectedMood, moodFeatureEnabled, currentUserId]);
+  const filteredProposed = useMemo(() => proposed.filter(filterTitle), [proposed, filterTitle]);
+  const filteredInProgress = useMemo(() => inProgress.filter(filterTitle), [inProgress, filterTitle]);
+  const filteredConsumed = useMemo(() => consumed.filter(filterTitle), [consumed, filterTitle]);
 
   const isFiltered =
     selectedMediaType !== "all" ||

@@ -7,8 +7,6 @@ import {
   Trash2,
   CheckCircle2,
   Clock,
-  ChevronRight,
-  Flag,
   Flame,
   Loader2,
   Sparkles,
@@ -47,7 +45,7 @@ import {
   type GroupScheduleWithMilestones,
   type MilestoneWithCheckins,
 } from "@/lib/actions/schedules";
-import { getDisplayName, getInitials } from "@/lib/format";
+import { getInitials } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import type { TitlesResponse } from "@/types/pocketbase-types";
@@ -162,7 +160,7 @@ export function GroupSchedulesCard({
     });
   };
 
-  const handleToggleCheckin = (milestoneId: string, _scheduleId: string): Promise<boolean> => {
+  const handleToggleCheckin = (milestoneId: string): Promise<boolean> => {
     if (!isMember) return Promise.resolve(false);
     return new Promise<boolean>((resolve) => {
       startTransition(async () => {
@@ -176,6 +174,17 @@ export function GroupSchedulesCard({
           resolve(false);
           return;
         }
+        setCampfireMilestone((prev) =>
+          prev && prev.milestone.id === milestoneId
+            ? {
+                ...prev,
+                milestone: {
+                  ...prev.milestone,
+                  hasCheckedIn: res.data.checkedIn,
+                },
+              }
+            : prev,
+        );
         resolve(true);
       });
     });
@@ -477,7 +486,7 @@ export function GroupSchedulesCard({
                               type="button"
                               aria-label={m.hasCheckedIn ? t.schedules.checkedIn : t.schedules.checkIn}
                               title={m.hasCheckedIn ? t.schedules.checkedIn : t.schedules.checkIn}
-                              onClick={() => handleToggleCheckin(m.id, schedule.id)}
+                              onClick={() => handleToggleCheckin(m.id)}
                               disabled={!isMember || isPending}
                               className={cn(
                                 "flex size-6 shrink-0 items-center justify-center rounded-full border transition-all mt-0.5 cursor-pointer",
@@ -591,6 +600,7 @@ export function GroupSchedulesCard({
 
       {/* Milestone Campfire Discussion Dialog */}
       <MilestoneCampfireDialog
+        key={campfireMilestone?.milestone.id ?? "closed"}
         open={Boolean(campfireMilestone)}
         onOpenChange={(open) => !open && setCampfireMilestone(null)}
         milestone={campfireMilestone?.milestone ?? null}
@@ -602,20 +612,7 @@ export function GroupSchedulesCard({
         isMember={isMember}
         onCheckinToggle={async (milestoneId) => {
           if (campfireMilestone) {
-            const ok = await handleToggleCheckin(milestoneId, "");
-            if (ok) {
-              setCampfireMilestone((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      milestone: {
-                        ...prev.milestone,
-                        hasCheckedIn: !prev.milestone.hasCheckedIn,
-                      },
-                    }
-                  : null,
-              );
-            }
+            await handleToggleCheckin(milestoneId);
           }
         }}
       />

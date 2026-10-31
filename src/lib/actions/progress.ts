@@ -6,6 +6,7 @@ import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import { requireMembership } from "@/lib/membership";
 import { extractErrorMessage, logDiagnostic } from "@/lib/errors";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
+import { isSafeCoverUrl } from "@/lib/providers/validation";
 import type { PublicUser } from "@/lib/group-titles";
 import type { ActionResult } from "@/types/actions";
 import type {
@@ -120,7 +121,7 @@ export async function saveMediaProgress(
     const normalizedMoods = normalizeMoods(input.moods);
     const normalizedPace = normalizePace(input.pace);
     const cleanCoverUrl =
-      input.coverUrl && /^https?:\/\//i.test(input.coverUrl.trim())
+      input.coverUrl && isSafeCoverUrl(input.coverUrl.trim())
         ? input.coverUrl.trim().slice(0, 2000)
         : null;
 

@@ -8,6 +8,7 @@ import { MEDIA_TYPES, type MediaType } from "@/lib/media-types";
 import { requireMembership, requireTitleInGroup, resolveCircleAccess } from "@/lib/membership";
 import { normalizeMoods, normalizePace, type MoodType, type PaceType } from "@/lib/moods";
 import type { NormalizedSearchResult } from "@/lib/providers/types";
+import { isSafeCoverUrl } from "@/lib/providers/validation";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 
@@ -48,8 +49,8 @@ export async function addTitle(
     }
     const creator = result.creator ? String(result.creator).slice(0, 300) : null;
     const coverUrl =
-      result.coverUrl && /^https?:\/\//i.test(result.coverUrl)
-        ? result.coverUrl.slice(0, 2000)
+      result.coverUrl && isSafeCoverUrl(result.coverUrl.trim())
+        ? result.coverUrl.trim().slice(0, 2000)
         : null;
 
     const normalizedMoods = normalizeMoods(options?.moods ?? result.metadata?.moods);
@@ -125,7 +126,7 @@ export async function addCustomTitle(
       ? String(data.creator).slice(0, 300).trim() || null
       : null;
     const cleanCover =
-      data.coverUrl && /^https?:\/\//i.test(data.coverUrl.trim())
+      data.coverUrl && isSafeCoverUrl(data.coverUrl.trim())
         ? data.coverUrl.trim().slice(0, 2000)
         : null;
     const cleanDesc = data.description

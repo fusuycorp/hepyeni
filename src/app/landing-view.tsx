@@ -4,12 +4,8 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpen,
-  CheckCircle2,
   Clapperboard,
-  Compass,
   Disc3,
-  Flame,
-  Heart,
   Layers,
   MessageSquare,
   Mic,
@@ -18,19 +14,16 @@ import {
   Sparkles,
   Star,
   Tv,
-  Users,
 } from "lucide-react";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MediaCover } from "@/components/media-cover";
 import { MediaBadge } from "@/components/media-badge";
-import { VoteControl } from "@/components/vote-control";
 import { useTranslations } from "@/lib/i18n/client";
-import { cn } from "@/lib/utils";
 
 interface LandingViewProps {
   currentUser?: {

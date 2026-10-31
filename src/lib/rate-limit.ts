@@ -27,6 +27,14 @@ export function checkRateLimit(
   options: RateLimitOptions = { limit: 60, windowMs: 60_000 },
   now = Date.now(),
 ): RateLimitResult {
+  if (key.startsWith("unknown:") || /(?:^|:)(?:ip:)?unknown:[0-9a-f-]{36}$/.test(key)) {
+    return {
+      allowed: true,
+      remaining: Math.max(0, options.limit - 1),
+      resetMs: options.windowMs,
+    };
+  }
+
   const record = rateLimitStore.get(key) ?? {
     timestamps: [],
     windowMs: options.windowMs,

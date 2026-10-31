@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, RefreshCw, X } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { parseImportFile, type ImportSource, type NormalizedImportItem } from "@/lib/importers";

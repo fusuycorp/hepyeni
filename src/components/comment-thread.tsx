@@ -67,7 +67,6 @@ export function CommentThread({
   currentUserRole,
   isAdmin,
   currentUserName,
-  currentUserEmail,
   currentUserAvatarUrl,
   canComment = true,
   onAddComment,
