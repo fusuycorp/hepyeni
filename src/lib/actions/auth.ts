@@ -181,6 +181,38 @@ async function enforceAuthRateLimit(
   }
 }
 
+async function ensureOtpAccountExists(
+  superuser: Awaited<ReturnType<typeof getSuperuserClient>>,
+  email: string,
+): Promise<"ok" | "invalid_email"> {
+  try {
+    await superuser
+      .collection("users")
+      .getFirstListItem(superuser.filter("email = {:email}", { email }));
+    return "ok";
+  } catch (err) {
+    if (!isNotFound(err)) throw err;
+  }
+
+  const randomPassword = crypto.randomUUID();
+  try {
+    await superuser.collection("users").create({
+      email,
+      emailVisibility: false,
+      verified: false,
+      password: randomPassword,
+      passwordConfirm: randomPassword,
+    });
+    return "ok";
+  } catch (createErr) {
+    if (isValidationNotUnique(createErr, "email")) return "ok";
+    if (createErr instanceof ClientResponseError && createErr.status === 400) {
+      return "invalid_email";
+    }
+    throw createErr;
+  }
+}
+
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get("email") ?? "")
     .trim()
@@ -196,34 +228,8 @@ export async function signInWithEmail(formData: FormData) {
   // provider. Look up-or-create first to preserve "first email sign-in
   // creates the account".
   const superuser = await getSuperuserClient();
-  let invalidEmail = false;
-  try {
-    await superuser
-      .collection("users")
-      .getFirstListItem(superuser.filter("email = {:email}", { email }));
-  } catch (err) {
-    if (!isNotFound(err)) throw err;
-    const randomPassword = crypto.randomUUID();
-    try {
-      await superuser.collection("users").create({
-        email,
-        emailVisibility: false,
-        verified: false,
-        password: randomPassword,
-        passwordConfirm: randomPassword,
-      });
-    } catch (createErr) {
-      if (!isValidationNotUnique(createErr, "email")) {
-        if (createErr instanceof ClientResponseError && createErr.status === 400) {
-          invalidEmail = true;
-        } else {
-          throw createErr;
-        }
-      }
-    }
-  }
-
-  if (invalidEmail) {
+  const status = await ensureOtpAccountExists(superuser, email);
+  if (status === "invalid_email") {
     redirect("/login?error=InvalidEmail");
   }
 
@@ -307,22 +313,11 @@ export async function signInWithPassword(formData: FormData) {
   redirect(pendingGroupId ? `/groups/${pendingGroupId}` : "/groups");
 }
 
-export async function signUpWithPassword(formData: FormData) {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const password = String(formData.get("password") ?? "");
-  await enforceAuthRateLimit("signUpWithPassword", email);
-  if (!email || !password) redirect("/login?error=InvalidCredentials");
-  if (password.length < 8) redirect("/login?error=WeakPassword");
-  if (password.length > 128) redirect("/login?error=InvalidPassword");
-
-  // The `users` collection is create-locked to superusers (all rules are
-  // null), so self-service signup has to go through the superuser client,
-  // same as the email/OTP account-creation path above.
-  const superuser = await getSuperuserClient();
-  let emailConflict = false;
-  let signupFailed = false;
+async function createUnverifiedPasswordUser(
+  superuser: Awaited<ReturnType<typeof getSuperuserClient>>,
+  email: string,
+  password: string,
+): Promise<"created" | "conflict" | "failed"> {
   try {
     await superuser.collection("users").create({
       email,
@@ -331,32 +326,54 @@ export async function signUpWithPassword(formData: FormData) {
       password,
       passwordConfirm: password,
     });
+    return "created";
   } catch (err) {
-    if (isValidationNotUnique(err, "email")) {
-      emailConflict = true;
-    } else {
-      signupFailed = true;
-    }
+    return isValidationNotUnique(err, "email") ? "conflict" : "failed";
   }
+}
 
-  if (signupFailed) {
+async function handleSignupEmailConflict(
+  superuser: Awaited<ReturnType<typeof getSuperuserClient>>,
+  email: string,
+): Promise<never> {
+  const existingUser = await superuser
+    .collection("users")
+    .getFirstListItem<UsersResponse>(superuser.filter("email = {:email}", { email }))
+    .catch(() => null);
+  if (existingUser && !existingUser.verified) {
+    const pbOtp = new PocketBase(getPbUrl());
+    const { otpId } = await pbOtp.collection("users").requestOTP(email);
+    await setOtpCookie({ email, otpId });
+    redirect("/login?step=code");
+  }
+  redirect("/login?error=EmailInUse");
+}
+
+function validateSignupCredentials(email: string, password: string): void {
+  if (!email || !password) redirect("/login?error=InvalidCredentials");
+  if (password.length < 8) redirect("/login?error=WeakPassword");
+  if (password.length > 128) redirect("/login?error=InvalidPassword");
+}
+
+export async function signUpWithPassword(formData: FormData) {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  await enforceAuthRateLimit("signUpWithPassword", email);
+  validateSignupCredentials(email, password);
+
+  // The `users` collection is create-locked to superusers (all rules are
+  // null), so self-service signup has to go through the superuser client,
+  // same as the email/OTP account-creation path above.
+  const superuser = await getSuperuserClient();
+  const outcome = await createUnverifiedPasswordUser(superuser, email, password);
+
+  if (outcome === "failed") {
     redirect("/login?error=SignupFailed");
   }
-
-  if (emailConflict) {
-    const existingUser = await superuser
-      .collection("users")
-      .getFirstListItem<UsersResponse>(
-        superuser.filter("email = {:email}", { email }),
-      )
-      .catch(() => null);
-    if (existingUser && !existingUser.verified) {
-      const pbOtp = new PocketBase(getPbUrl());
-      const { otpId } = await pbOtp.collection("users").requestOTP(email);
-      await setOtpCookie({ email, otpId });
-      redirect("/login?step=code");
-    }
-    redirect("/login?error=EmailInUse");
+  if (outcome === "conflict") {
+    await handleSignupEmailConflict(superuser, email);
   }
 
   const pb = new PocketBase(getPbUrl());

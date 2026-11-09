@@ -60,27 +60,86 @@ export async function getGroupSchedules(
   return getGroupSchedulesQuery(groupId, session);
 }
 
+function buildGroupSchedulePayload(
+  groupId: string,
+  userId: string,
+  cleanName: string,
+  input: CreateGroupScheduleInput,
+  verifiedTitleId?: string,
+): Record<string, unknown> {
+  const scheduleData: Record<string, unknown> = {
+    group: groupId,
+    name: cleanName.slice(0, 200),
+    description: input.description ? input.description.trim().slice(0, 1000) : null,
+    status: "active",
+    createdBy: userId,
+  };
+  if (verifiedTitleId) scheduleData.title = verifiedTitleId;
+  const parsedStartDate = toIsoDate(input.startDate);
+  if (parsedStartDate) scheduleData.startDate = parsedStartDate;
+  const parsedTargetDate = toIsoDate(input.targetDate);
+  if (parsedTargetDate) scheduleData.targetDate = parsedTargetDate;
+  return scheduleData;
+}
+
+function buildMilestoneCreatePayload(
+  scheduleId: string,
+  m: CreateScheduleMilestoneInput,
+  orderIndex: number,
+): Record<string, unknown> {
+  const milestoneData: Record<string, unknown> = {
+    schedule: scheduleId,
+    title: m.title.trim().slice(0, 200),
+    orderIndex,
+  };
+  const mDate = toIsoDate(m.targetDate);
+  if (mDate) milestoneData.targetDate = mDate;
+  const trimmedUnit = m.targetUnit?.trim();
+  if (trimmedUnit) milestoneData.targetUnit = trimmedUnit.slice(0, 100);
+  return milestoneData;
+}
+
+async function resolveOptionalScheduleTitleId(
+  rawTitleId: string | undefined,
+  groupId: string,
+): Promise<{ ok: true; titleId?: string } | { ok: false; error: string }> {
+  const trimmed = rawTitleId?.trim();
+  if (!trimmed) return { ok: true };
+  try {
+    await requireTitleInGroup(trimmed, groupId);
+    return { ok: true, titleId: trimmed };
+  } catch {
+    return { ok: false, error: "The selected media does not belong to this circle." };
+  }
+}
+
+function validateScheduleInput(input: CreateGroupScheduleInput):
+  | { ok: true; cleanName: string; validMilestones: CreateScheduleMilestoneInput[] }
+  | { ok: false; error: string } {
+  const validMilestones = (input.milestones || []).filter((m) => Boolean(m.title?.trim()));
+  if (validMilestones.length === 0) {
+    return { ok: false, error: "Add at least one valid milestone." };
+  }
+  if (validMilestones.length > 50) {
+    return { ok: false, error: "A schedule can have at most 50 milestones." };
+  }
+  const cleanName = input.name?.trim();
+  if (!cleanName) {
+    return { ok: false, error: "Please provide a schedule name." };
+  }
+  return { ok: true, cleanName, validMilestones };
+}
+
 export async function createGroupSchedule(
   groupId: string,
   input: CreateGroupScheduleInput,
 ): Promise<ActionResult<{ id: string }>> {
   const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Please sign in first." };
-  }
+  if (!session) return { success: false, error: "Please sign in first." };
 
-  const validMilestones = (input.milestones || []).filter((m) => m.title && m.title.trim().length > 0);
-  if (validMilestones.length === 0) {
-    return { success: false, error: "Add at least one valid milestone." };
-  }
-  if (validMilestones.length > 50) {
-    return { success: false, error: "A schedule can have at most 50 milestones." };
-  }
-
-  const cleanName = input.name?.trim();
-  if (!cleanName) {
-    return { success: false, error: "Please provide a schedule name." };
-  }
+  const validation = validateScheduleInput(input);
+  if (!validation.ok) return { success: false, error: validation.error };
+  const { cleanName, validMilestones } = validation;
 
   try {
     // Require circle membership or admin
@@ -89,57 +148,26 @@ export async function createGroupSchedule(
       return { success: false, error: "You do not have permission to create schedules in this circle." };
     }
 
+    const titleCheck = await resolveOptionalScheduleTitleId(input.titleId, groupId);
+    if (!titleCheck.ok) return { success: false, error: titleCheck.error };
+
     const pb = await getSuperuserClient();
-
-    const scheduleData: Record<string, unknown> = {
-      group: groupId,
-      name: cleanName.slice(0, 200),
-      description: input.description ? input.description.trim().slice(0, 1000) : null,
-      status: "active",
-      createdBy: session.id,
-    };
-
-    // Only assign relation/date if valid non-empty
-    if (input.titleId && input.titleId.trim()) {
-      try {
-        await requireTitleInGroup(input.titleId.trim(), groupId);
-        scheduleData.title = input.titleId.trim();
-      } catch {
-        return { success: false, error: "The selected media does not belong to this circle." };
-      }
-    }
-    const parsedStartDate = toIsoDate(input.startDate);
-    if (parsedStartDate) {
-      scheduleData.startDate = parsedStartDate;
-    }
-    const parsedTargetDate = toIsoDate(input.targetDate);
-    if (parsedTargetDate) {
-      scheduleData.targetDate = parsedTargetDate;
-    }
-
     const schedule = await pb
       .collection("group_schedules")
-      .create<GroupSchedulesResponse>(scheduleData);
+      .create<GroupSchedulesResponse>(
+        buildGroupSchedulePayload(groupId, session.id, cleanName, input, titleCheck.titleId),
+      );
 
     // P4: create milestones in parallel — orderIndex is stored explicitly, so
     // concurrent writes cannot reorder.
     // ponytail: milestone creation batch <- non-transactional write leaves partial milestones on failure -> wrap in PocketBase transaction once multi-collection transactions are supported
-    const milestoneWrites = validMilestones.map(async (m, i) => {
-      const milestoneData: Record<string, unknown> = {
-        schedule: schedule.id,
-        title: m.title.trim().slice(0, 200),
-        orderIndex: i,
-      };
-
-      const mDate = toIsoDate(m.targetDate);
-      if (mDate) milestoneData.targetDate = mDate;
-      if (m.targetUnit && m.targetUnit.trim()) {
-        milestoneData.targetUnit = m.targetUnit.trim().slice(0, 100);
-      }
-
-      await pb.collection("schedule_milestones").create(milestoneData);
-    });
-    const results = await Promise.allSettled(milestoneWrites);
+    const results = await Promise.allSettled(
+      validMilestones.map((m, i) =>
+        pb
+          .collection("schedule_milestones")
+          .create(buildMilestoneCreatePayload(schedule.id, m, i)),
+      ),
+    );
     const failure = results.find(
       (r): r is PromiseRejectedResult => r.status === "rejected",
     );
@@ -218,6 +246,32 @@ export async function deleteGroupSchedule(
   }
 }
 
+async function deleteCheckinIdempotent(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  checkinId: string,
+): Promise<void> {
+  try {
+    await pb.collection("milestone_checkins").delete(checkinId);
+  } catch (deleteErr) {
+    if (!isNotFound(deleteErr)) throw deleteErr;
+  }
+}
+
+async function createCheckinIdempotent(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  milestoneId: string,
+  userId: string,
+): Promise<void> {
+  try {
+    await pb.collection("milestone_checkins").create({
+      milestone: milestoneId,
+      user: userId,
+    });
+  } catch (createErr) {
+    if (!isValidationNotUnique(createErr)) throw createErr;
+  }
+}
+
 export async function toggleMilestoneCheckin(
   milestoneId: string,
   groupId: string,
@@ -243,25 +297,13 @@ export async function toggleMilestoneCheckin(
       .catch(() => null);
 
     if (existing) {
-      try {
-        await pb.collection("milestone_checkins").delete(existing.id);
-      } catch (deleteErr) {
-        if (!isNotFound(deleteErr)) throw deleteErr;
-      }
-      revalidatePath(`/groups/${groupId}`);
-      return { success: true, data: { checkedIn: false } };
+      await deleteCheckinIdempotent(pb, existing.id);
     } else {
-      try {
-        await pb.collection("milestone_checkins").create({
-          milestone: milestoneId,
-          user: session.id,
-        });
-      } catch (createErr) {
-        if (!isValidationNotUnique(createErr)) throw createErr;
-      }
-      revalidatePath(`/groups/${groupId}`);
-      return { success: true, data: { checkedIn: true } };
+      await createCheckinIdempotent(pb, milestoneId, session.id);
     }
+
+    revalidatePath(`/groups/${groupId}`);
+    return { success: true, data: { checkedIn: !existing } };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "toggleMilestoneCheckin", milestoneId, groupId });
     return { success: false, error: "Unable to update the check-in.", traceId: diag.traceId };

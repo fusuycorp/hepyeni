@@ -12,6 +12,29 @@ import type { CommentsResponse, UsersResponse } from "@/types/pocketbase-types";
 
 // ponytail: action-layer error strings <- hardcoded English in action layer -> map stable error codes through useTranslations on client
 
+async function resolveValidParentCommentId(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  rawParentId: FormDataEntryValue | null,
+  titleId: string,
+  groupId: string,
+): Promise<{ ok: true; parentId: string | null } | { ok: false; error: string }> {
+  if (!rawParentId || typeof rawParentId !== "string" || !rawParentId.trim()) {
+    return { ok: true, parentId: null };
+  }
+  try {
+    const parent = await pb
+      .collection("comments")
+      .getOne<CommentsResponse>(rawParentId.trim());
+    if (parent.title !== titleId || parent.group !== groupId) {
+      return { ok: false, error: "Invalid parent comment." };
+    }
+    return { ok: true, parentId: resolveReplyParentId(parent) };
+  } catch (err) {
+    if (isNotFound(err)) return { ok: false, error: "Parent comment not found." };
+    throw err;
+  }
+}
+
 export async function addComment(
   titleId: string,
   groupId: string,
@@ -32,28 +55,17 @@ export async function addComment(
       return { success: false, error: "You do not have permission to comment in this circle." };
     }
 
-    const rawContent = formData.get("content");
-    const content = validateCommentContent(rawContent);
-
+    const content = validateCommentContent(formData.get("content"));
     const pb = await getSuperuserClient();
 
-    const rawParentId = formData.get("parentId");
-    let parentId: string | null = null;
-    if (rawParentId && typeof rawParentId === "string" && rawParentId.trim()) {
-      const cleanParentId = rawParentId.trim();
-      try {
-        const parent = await pb
-          .collection("comments")
-          .getOne<CommentsResponse>(cleanParentId);
-        if (parent.title !== titleId || parent.group !== groupId) {
-          return { success: false, error: "Invalid parent comment." };
-        }
-        // Enforce +1 depth max: If parent is already a reply, attach to its root parent
-        parentId = resolveReplyParentId(parent);
-      } catch (err) {
-        if (isNotFound(err)) return { success: false, error: "Parent comment not found." };
-        throw err;
-      }
+    const parentResolution = await resolveValidParentCommentId(
+      pb,
+      formData.get("parentId"),
+      titleId,
+      groupId,
+    );
+    if (!parentResolution.ok) {
+      return { success: false, error: parentResolution.error };
     }
 
     const comment = await pb
@@ -64,7 +76,7 @@ export async function addComment(
           user: session.id,
           group: groupId,
           content,
-          parentId,
+          parentId: parentResolution.parentId,
         },
         { expand: "user" },
       );

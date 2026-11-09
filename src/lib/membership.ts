@@ -39,83 +39,96 @@ export const DEFAULT_GUEST_SETTINGS: GroupGuestSettings = {
   },
 };
 
+function mergeBooleanSection<T extends Record<string, boolean>>(
+  defaults: T,
+  overrides?: Partial<T>,
+): T {
+  const result = { ...defaults };
+  if (!overrides) return result;
+  for (const key of Object.keys(defaults) as Array<keyof T>) {
+    if (overrides[key] !== undefined) {
+      result[key] = overrides[key] as T[keyof T];
+    }
+  }
+  return result;
+}
+
+function resolveGuestSettings(group: GroupsResponse): GroupGuestSettings {
+  const gs = group.guestSettings;
+  return {
+    visibility: mergeBooleanSection(DEFAULT_GUEST_SETTINGS.visibility, gs?.visibility),
+    permissions: mergeBooleanSection(DEFAULT_GUEST_SETTINGS.permissions, gs?.permissions),
+  };
+}
+
+function buildMemberCircleAccess(group: GroupsResponse, isOwner: boolean): CircleAccess {
+  return {
+    group,
+    isOwner,
+    isMember: true,
+    isGuest: false,
+    canViewBacklog: true,
+    canViewFinished: true,
+    canViewReviews: true,
+    canViewComments: true,
+    canVote: true,
+    canComment: true,
+    canReview: true,
+    canPropose: true,
+  };
+}
+
+function buildPrivateGuestAccess(redactedGroup: GroupsResponse): CircleAccess {
+  return {
+    group: redactedGroup,
+    isOwner: false,
+    isMember: false,
+    isGuest: true,
+    canViewBacklog: false,
+    canViewFinished: false,
+    canViewReviews: false,
+    canViewComments: false,
+    canVote: false,
+    canComment: false,
+    canReview: false,
+    canPropose: false,
+  };
+}
+
+function computeGuestPermissions(
+  settings: GroupGuestSettings,
+  authed: boolean,
+  isLegacyPartialStub: boolean,
+): GroupGuestSettings["permissions"] {
+  if (!authed) {
+    return { canVote: false, canComment: false, canReview: false, canPropose: false };
+  }
+  const backlogOk = isLegacyPartialStub || settings.visibility.backlog;
+  const commentsOk = isLegacyPartialStub || settings.visibility.comments;
+  const reviewsOk = isLegacyPartialStub || settings.visibility.reviews;
+  return {
+    canVote: backlogOk && settings.permissions.canVote,
+    canComment: commentsOk && settings.permissions.canComment,
+    canReview: reviewsOk && settings.permissions.canReview,
+    canPropose: backlogOk && settings.permissions.canPropose,
+  };
+}
+
 export function evaluateCircleAccess(
   group: GroupsResponse,
   membership?: GroupMembersResponse | null,
   isAuthenticated?: boolean,
 ): CircleAccess {
   if (membership) {
-    return {
-      group,
-      isOwner: membership.role === "owner",
-      isMember: true,
-      isGuest: false,
-      canViewBacklog: true,
-      canViewFinished: true,
-      canViewReviews: true,
-      canViewComments: true,
-      canVote: true,
-      canComment: true,
-      canReview: true,
-      canPropose: true,
-    };
+    return buildMemberCircleAccess(group, membership.role === "owner");
   }
 
-  const redactedGroup: GroupsResponse = {
-    ...group,
-    inviteCode: "",
-  };
-
-  const isPublic = Boolean(group.isPublic);
-  if (!isPublic) {
-    return {
-      group: redactedGroup,
-      isOwner: false,
-      isMember: false,
-      isGuest: true,
-      canViewBacklog: false,
-      canViewFinished: false,
-      canViewReviews: false,
-      canViewComments: false,
-      canVote: false,
-      canComment: false,
-      canReview: false,
-      canPropose: false,
-    };
+  const redactedGroup: GroupsResponse = { ...group, inviteCode: "" };
+  if (!group.isPublic) {
+    return buildPrivateGuestAccess(redactedGroup);
   }
 
-  const settings: GroupGuestSettings = {
-    visibility: {
-      backlog:
-        group.guestSettings?.visibility?.backlog ??
-        DEFAULT_GUEST_SETTINGS.visibility.backlog,
-      finished:
-        group.guestSettings?.visibility?.finished ??
-        DEFAULT_GUEST_SETTINGS.visibility.finished,
-      reviews:
-        group.guestSettings?.visibility?.reviews ??
-        DEFAULT_GUEST_SETTINGS.visibility.reviews,
-      comments:
-        group.guestSettings?.visibility?.comments ??
-        DEFAULT_GUEST_SETTINGS.visibility.comments,
-    },
-    permissions: {
-      canVote:
-        group.guestSettings?.permissions?.canVote ??
-        DEFAULT_GUEST_SETTINGS.permissions.canVote,
-      canComment:
-        group.guestSettings?.permissions?.canComment ??
-        DEFAULT_GUEST_SETTINGS.permissions.canComment,
-      canReview:
-        group.guestSettings?.permissions?.canReview ??
-        DEFAULT_GUEST_SETTINGS.permissions.canReview,
-      canPropose:
-        group.guestSettings?.permissions?.canPropose ??
-        DEFAULT_GUEST_SETTINGS.permissions.canPropose,
-    },
-  };
-
-  const authed = isAuthenticated ?? true;
+  const settings = resolveGuestSettings(group);
   // Preserve 2-arg unit test calling evaluateCircleAccess(group, null) with a partial
   // visibility stub where `finished` was omitted.
   const isLegacyPartialVisibilityStub =
@@ -123,12 +136,11 @@ export function evaluateCircleAccess(
     group.guestSettings?.visibility !== undefined &&
     group.guestSettings.visibility.finished === undefined;
 
-  const backlogVisibleForMutation =
-    isLegacyPartialVisibilityStub || settings.visibility.backlog;
-  const reviewsVisibleForMutation =
-    isLegacyPartialVisibilityStub || settings.visibility.reviews;
-  const commentsVisibleForMutation =
-    isLegacyPartialVisibilityStub || settings.visibility.comments;
+  const perms = computeGuestPermissions(
+    settings,
+    isAuthenticated ?? true,
+    isLegacyPartialVisibilityStub,
+  );
 
   return {
     group: redactedGroup,
@@ -139,14 +151,7 @@ export function evaluateCircleAccess(
     canViewFinished: settings.visibility.finished,
     canViewReviews: settings.visibility.reviews,
     canViewComments: settings.visibility.comments,
-    canVote:
-      authed && backlogVisibleForMutation && settings.permissions.canVote,
-    canComment:
-      authed && commentsVisibleForMutation && settings.permissions.canComment,
-    canReview:
-      authed && reviewsVisibleForMutation && settings.permissions.canReview,
-    canPropose:
-      authed && backlogVisibleForMutation && settings.permissions.canPropose,
+    ...perms,
   };
 }
 

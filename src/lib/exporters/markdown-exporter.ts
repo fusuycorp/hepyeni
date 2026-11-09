@@ -11,57 +11,43 @@ function sanitizeFilename(name: string): string {
 }
 
 function escapeYamlString(val: string): string {
-  if (
-    val.includes("\n") ||
-    val.includes("\r") ||
-    val.includes('"') ||
-    val.includes(":") ||
-    val.includes("#") ||
-    val.includes("\\")
-  ) {
+  if (/[\n\r":#\\]/.test(val)) {
     return JSON.stringify(val);
   }
   return `"${val}"`;
 }
 
-export function generateItemMarkdown(item: UserMediaProgressResponse): {
-  filename: string;
-  content: string;
-} {
-  const safeTitle = sanitizeFilename(item.title) || "untitled";
-  const safeCreator = item.creator ? ` - ${sanitizeFilename(item.creator)}` : "";
-  const filename = `${safeTitle}${safeCreator}.md`;
+function pushOptionalYamlString(lines: string[], key: string, val?: string | null): void {
+  if (val) lines.push(`${key}: ${escapeYamlString(val)}`);
+}
 
-  const yamlLines = ["---"];
-  yamlLines.push(`title: ${escapeYamlString(item.title)}`);
-  if (item.creator) yamlLines.push(`creator: ${escapeYamlString(item.creator)}`);
-  yamlLines.push(`media_type: "${item.mediaType}"`);
-  yamlLines.push(`status: "${item.status}"`);
-  if (item.rating) yamlLines.push(`rating: ${item.rating}`);
-  if (item.progressCurrent !== undefined && item.progressCurrent !== null) {
-    yamlLines.push(`progress_current: ${item.progressCurrent}`);
+function pushOptionalYamlRaw(lines: string[], key: string, val: unknown): void {
+  if (val !== undefined && val !== null && val !== "") {
+    lines.push(`${key}: ${val}`);
   }
-  if (item.progressTotal !== undefined && item.progressTotal !== null) {
-    yamlLines.push(`progress_total: ${item.progressTotal}`);
-  }
+}
+
+function buildMarkdownFrontmatter(item: UserMediaProgressResponse): string[] {
+  const yamlLines = ["---", `title: ${escapeYamlString(item.title)}`];
+  pushOptionalYamlString(yamlLines, "creator", item.creator);
+  yamlLines.push(`media_type: "${item.mediaType}"`, `status: "${item.status}"`);
+  pushOptionalYamlRaw(yamlLines, "rating", item.rating);
+  pushOptionalYamlRaw(yamlLines, "progress_current", item.progressCurrent);
+  pushOptionalYamlRaw(yamlLines, "progress_total", item.progressTotal);
   if (item.progressUnit) yamlLines.push(`progress_unit: "${item.progressUnit}"`);
-  if (item.currentLabel) yamlLines.push(`current_label: ${escapeYamlString(item.currentLabel)}`);
-  if (item.startedAt) yamlLines.push(`started_at: ${escapeYamlString(item.startedAt)}`);
-  if (item.completedAt) yamlLines.push(`completed_at: ${escapeYamlString(item.completedAt)}`);
-  if (item.externalSource) yamlLines.push(`external_source: ${escapeYamlString(item.externalSource)}`);
-  if (item.externalId) yamlLines.push(`external_id: ${escapeYamlString(item.externalId)}`);
-  yamlLines.push(`created_at: "${item.createdAt}"`);
-  yamlLines.push(`updated_at: "${item.updatedAt}"`);
-  yamlLines.push("---");
-  yamlLines.push("");
+  pushOptionalYamlString(yamlLines, "current_label", item.currentLabel);
+  pushOptionalYamlString(yamlLines, "started_at", item.startedAt);
+  pushOptionalYamlString(yamlLines, "completed_at", item.completedAt);
+  pushOptionalYamlString(yamlLines, "external_source", item.externalSource);
+  pushOptionalYamlString(yamlLines, "external_id", item.externalId);
+  yamlLines.push(`created_at: "${item.createdAt}"`, `updated_at: "${item.updatedAt}"`, "---", "");
+  return yamlLines;
+}
 
-  const bodyLines: string[] = [];
-  bodyLines.push(`# ${item.title}`);
-  if (item.creator) {
-    bodyLines.push(`**Creator:** ${item.creator}  `);
-  }
-  bodyLines.push(`**Type:** ${item.mediaType}  `);
-  bodyLines.push(`**Status:** ${item.status}  `);
+function buildMarkdownBody(item: UserMediaProgressResponse): string[] {
+  const bodyLines: string[] = [`# ${item.title}`];
+  if (item.creator) bodyLines.push(`**Creator:** ${item.creator}  `);
+  bodyLines.push(`**Type:** ${item.mediaType}  `, `**Status:** ${item.status}  `);
 
   if (item.rating) {
     const stars = "★".repeat(item.rating) + "☆".repeat(5 - item.rating);
@@ -74,19 +60,58 @@ export function generateItemMarkdown(item: UserMediaProgressResponse): {
     );
   }
 
-  if (item.notes && item.notes.trim()) {
-    bodyLines.push("");
-    bodyLines.push("## Notes");
-    bodyLines.push("");
-    bodyLines.push(item.notes.trim());
+  const trimmedNotes = item.notes?.trim();
+  if (trimmedNotes) {
+    bodyLines.push("", "## Notes", "", trimmedNotes);
   }
 
   bodyLines.push("");
+  return bodyLines;
+}
+
+export function generateItemMarkdown(item: UserMediaProgressResponse): {
+  filename: string;
+  content: string;
+} {
+  const safeTitle = sanitizeFilename(item.title) || "untitled";
+  const safeCreator = item.creator ? ` - ${sanitizeFilename(item.creator)}` : "";
+  const filename = `${safeTitle}${safeCreator}.md`;
+
+  const yamlLines = buildMarkdownFrontmatter(item);
+  const bodyLines = buildMarkdownBody(item);
 
   return {
     filename,
     content: `${yamlLines.join("\n")}\n${bodyLines.join("\n")}`,
   };
+}
+
+function allocateUniqueFilename(filename: string, usedFilenames: Set<string>): string {
+  let uniqueName = filename;
+  let counter = 1;
+  const dotIndex = filename.lastIndexOf(".");
+  const base = dotIndex !== -1 ? filename.slice(0, dotIndex) : filename;
+  const ext = dotIndex !== -1 ? filename.slice(dotIndex) : "";
+
+  while (usedFilenames.has(uniqueName.toLowerCase())) {
+    uniqueName = `${base} (${counter})${ext}`;
+    counter++;
+  }
+  usedFilenames.add(uniqueName.toLowerCase());
+  return uniqueName;
+}
+
+function formatIndexTableRow(item: UserMediaProgressResponse, uniqueName: string): string {
+  const noteBasename = uniqueName.replace(/\.md$/i, "");
+  const safeCreator = (item.creator || "-")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, " ");
+  const ratingStr = item.rating ? `${item.rating}/5` : "-";
+  const progressStr = item.progressTotal
+    ? `${item.progressCurrent ?? 0}/${item.progressTotal} ${item.progressUnit ?? ""}`
+    : "-";
+  return `| [[${noteBasename}]] | ${safeCreator} | ${item.mediaType} | ${item.status} | ${ratingStr} | ${progressStr} |`;
 }
 
 export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Uint8Array {
@@ -96,18 +121,7 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
 
   for (const item of items) {
     const { filename, content } = generateItemMarkdown(item);
-    let uniqueName = filename;
-    let counter = 1;
-
-    while (usedFilenames.has(uniqueName.toLowerCase())) {
-      const dotIndex = filename.lastIndexOf(".");
-      const base = dotIndex !== -1 ? filename.slice(0, dotIndex) : filename;
-      const ext = dotIndex !== -1 ? filename.slice(dotIndex) : "";
-      uniqueName = `${base} (${counter})${ext}`;
-      counter++;
-    }
-
-    usedFilenames.add(uniqueName.toLowerCase());
+    const uniqueName = allocateUniqueFilename(filename, usedFilenames);
     uniqueNames.push(uniqueName);
     files.push({
       name: `HepYeni Shelf/${uniqueName}`,
@@ -129,24 +143,8 @@ export function exportShelfToMarkdownZip(items: UserMediaProgressResponse[]): Ui
     "",
     "| Title | Creator | Type | Status | Rating | Progress |",
     "| :--- | :--- | :--- | :--- | :--- | :--- |",
+    ...items.map((item, i) => formatIndexTableRow(item, uniqueNames[i])),
   ];
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const uniqueName = uniqueNames[i];
-    const noteBasename = uniqueName.replace(/\.md$/i, "");
-    const safeCreator = (item.creator || "-")
-      .replace(/\\/g, "\\\\")
-      .replace(/\|/g, "\\|")
-      .replace(/\r?\n/g, " ");
-    const ratingStr = item.rating ? `${item.rating}/5` : "-";
-    const progressStr = item.progressTotal
-      ? `${item.progressCurrent ?? 0}/${item.progressTotal} ${item.progressUnit ?? ""}`
-      : "-";
-    indexLines.push(
-      `| [[${noteBasename}]] | ${safeCreator} | ${item.mediaType} | ${item.status} | ${ratingStr} | ${progressStr} |`,
-    );
-  }
 
   files.push({
     name: "HepYeni Shelf/Index.md",

@@ -152,6 +152,32 @@ export function shouldRedactProposalIdentity({
   return Boolean(isBlindPickEnabled && !isOwnerOrAdmin);
 }
 
+function redactTitleExpandBlock(
+  expand: Record<string, unknown>,
+  currentUserId?: string,
+): Record<string, unknown> {
+  const expandCopy = { ...expand };
+  // L-2: under blind pick, strip proposer identity AND the raw votes /
+  // reviews expands (reviewer identity + review text) for non-owner/admins.
+  delete expandCopy.addedBy;
+  delete expandCopy.votes_via_title;
+
+  if (!currentUserId || !Array.isArray(expandCopy.reviews_via_title)) {
+    delete expandCopy.reviews_via_title;
+    return expandCopy;
+  }
+
+  const ownReviews = (expandCopy.reviews_via_title as { user?: string }[]).filter(
+    (r) => r && r.user === currentUserId,
+  );
+  if (ownReviews.length > 0) {
+    expandCopy.reviews_via_title = ownReviews;
+  } else {
+    delete expandCopy.reviews_via_title;
+  }
+  return expandCopy;
+}
+
 export function redactProposedTitles<
   T extends {
     status?: string;
@@ -173,33 +199,19 @@ export function redactProposedTitles<
   }
 
   return titles.map((item) => {
-    if (!item || typeof item !== "object") return item;
-    if (item.status === "proposed") {
-      const copy = { ...item, addedBy: "" };
-      if (copy.expand) {
-        const expandCopy = { ...copy.expand };
-        // L-2: under blind pick, strip proposer identity AND the raw votes /
-        // reviews expands (reviewer identity + review text) for non-owner/admins.
-        delete expandCopy.addedBy;
-        delete expandCopy.votes_via_title;
-        if (currentUserId && Array.isArray(expandCopy.reviews_via_title)) {
-          const ownReviews = (
-            expandCopy.reviews_via_title as { user?: string }[]
-          ).filter((r) => r && r.user === currentUserId);
-          if (ownReviews.length > 0) {
-            expandCopy.reviews_via_title = ownReviews;
-          } else {
-            delete expandCopy.reviews_via_title;
-          }
-        } else {
-          delete expandCopy.reviews_via_title;
-        }
-        copy.expand = expandCopy;
-      }
-      return copy;
+    if (!item || typeof item !== "object" || item.status !== "proposed") {
+      return item;
     }
-    return item;
+    const copy = { ...item, addedBy: "" };
+    if (copy.expand) {
+      copy.expand = redactTitleExpandBlock(copy.expand, currentUserId);
+    }
+    return copy;
   });
+}
+
+function isFiniteNum(val: unknown): val is number {
+  return typeof val === "number" && Number.isFinite(val);
 }
 
 export function sampleWheelCandidates<T extends { score?: number }>(
@@ -210,8 +222,8 @@ export function sampleWheelCandidates<T extends { score?: number }>(
   const limit = Math.max(0, isNaN(maxCandidates) ? 8 : maxCandidates);
   // Sort items by score descending
   const sorted = [...items].filter(Boolean).sort((a, b) => {
-    const scoreA = typeof a.score === "number" && !isNaN(a.score) ? a.score : 0;
-    const scoreB = typeof b.score === "number" && !isNaN(b.score) ? b.score : 0;
+    const scoreA = isFiniteNum(a.score) ? a.score : 0;
+    const scoreB = isFiniteNum(b.score) ? b.score : 0;
     return scoreB - scoreA;
   });
   return sorted.slice(0, limit);
@@ -223,7 +235,7 @@ export function pickWheelWinner<T>(
 ): { winner: T; index: number } | null {
   if (!items || !Array.isArray(items) || items.length === 0) return null;
   const rawRng = typeof rng === "function" ? rng() : Math.random();
-  const safeRng = typeof rawRng === "number" && !isNaN(rawRng) ? rawRng : 0;
+  const safeRng = isFiniteNum(rawRng) ? rawRng : 0;
   const clampedRng = Math.max(0, Math.min(0.99999999, safeRng));
   const index = Math.floor(clampedRng * items.length);
   const safeIndex = Math.max(0, Math.min(items.length - 1, index));
@@ -244,26 +256,14 @@ export function calculateWheelRotation({
   minSpins?: number;
   extraOffset?: number;
 }): number {
-  if (
-    typeof totalSlices !== "number" ||
-    isNaN(totalSlices) ||
-    totalSlices <= 0 ||
-    !isFinite(totalSlices)
-  ) {
+  if (!isFiniteNum(totalSlices) || totalSlices <= 0) {
     return 0;
   }
-  const safeWinnerIndex =
-    typeof winnerIndex === "number" && !isNaN(winnerIndex) && isFinite(winnerIndex)
-      ? Math.max(0, Math.min(totalSlices - 1, Math.floor(winnerIndex)))
-      : 0;
-  const safeMinSpins =
-    typeof minSpins === "number" && !isNaN(minSpins) && isFinite(minSpins)
-      ? Math.max(0, minSpins)
-      : 5;
-  const safeOffset =
-    typeof extraOffset === "number" && !isNaN(extraOffset) && isFinite(extraOffset)
-      ? extraOffset
-      : 0;
+  const safeWinnerIndex = isFiniteNum(winnerIndex)
+    ? Math.max(0, Math.min(totalSlices - 1, Math.floor(winnerIndex)))
+    : 0;
+  const safeMinSpins = isFiniteNum(minSpins) ? Math.max(0, minSpins) : 5;
+  const safeOffset = isFiniteNum(extraOffset) ? extraOffset : 0;
 
   const sliceDeg = 360 / totalSlices;
   // Center of the winning slice
@@ -272,6 +272,5 @@ export function calculateWheelRotation({
   // (360 - (safeWinnerIndex * sliceDeg + sliceDeg / 2))
   const sliceCenter = safeWinnerIndex * sliceDeg + sliceDeg / 2;
   const targetDegree = (360 - sliceCenter) % 360;
-  const baseRotation = safeMinSpins * 360 + targetDegree + safeOffset;
-  return baseRotation;
+  return safeMinSpins * 360 + targetDegree + safeOffset;
 }

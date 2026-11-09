@@ -108,6 +108,29 @@ async function searchOpenLibrary(
   }));
 }
 
+function resolveGoogleBooksCover(
+  imageLinks?: { thumbnail?: string; smallThumbnail?: string },
+): string | undefined {
+  const rawCover = imageLinks?.thumbnail || imageLinks?.smallThumbnail;
+  return rawCover?.replace("http://", "https://");
+}
+
+function mapGoogleBooksItem(item: GoogleBooksItem): NormalizedSearchResult {
+  const info = item.volumeInfo ?? {};
+  return {
+    externalId: item.id,
+    externalSource: "google-books",
+    title: info.title ?? "Untitled",
+    creator: info.authors?.join(", "),
+    coverUrl: resolveGoogleBooksCover(info.imageLinks),
+    metadata: {
+      description: info.description,
+      publishedDate: info.publishedDate,
+      pageCount: info.pageCount,
+    },
+  };
+}
+
 async function searchGoogleBooksUncached(
   cleanQuery: string,
 ): Promise<NormalizedSearchResult[]> {
@@ -131,21 +154,7 @@ async function searchGoogleBooksUncached(
 
       if (res.ok) {
         const data = (await res.json()) as { items?: GoogleBooksItem[] };
-        const results = (data.items ?? []).map((item) => ({
-          externalId: item.id,
-          externalSource: "google-books",
-          title: item.volumeInfo?.title ?? "Untitled",
-          creator: item.volumeInfo?.authors?.join(", "),
-          coverUrl: (
-            item.volumeInfo?.imageLinks?.thumbnail ||
-            item.volumeInfo?.imageLinks?.smallThumbnail
-          )?.replace("http://", "https://"),
-          metadata: {
-            description: item.volumeInfo?.description,
-            publishedDate: item.volumeInfo?.publishedDate,
-            pageCount: item.volumeInfo?.pageCount,
-          },
-        }));
+        const results = (data.items ?? []).map(mapGoogleBooksItem);
         if (results.length > 0) return results;
       }
     } catch (googleErr) {
