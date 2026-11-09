@@ -67,32 +67,172 @@ export interface CircleTitleDetailData {
   isOwnerOrAdmin: boolean;
 }
 
-/**
- * Deep query module: fetch the complete circle feed for a circle page.
- *
- * Encapsulates:
- * 1. Access resolution and guest permission gating.
- * 2. 8-way parallel PocketBase collection queries respecting ADR-017.
- * 3. Relation-of-relation in-memory joining for reviews and votes.
- * 4. PII stripping (emails never leave the server; R2 invariant).
- * 5. Review body isolation (only current member's own review body ships).
- * 6. Communal 3-section media lifecycle partitioning (ADR-015).
- * 7. Blind pick author identity redaction during active voting (ADR-012).
- */
-export async function fetchCircleFeed(
-  groupId: string,
-  session?: Session | null,
-): Promise<CircleFeedData> {
-  const resolvedSession = session === undefined ? await getSession() : session;
-  const access = await resolveCircleAccess(groupId, resolvedSession?.id);
-
-  if (!access.isMember && !access.group.isPublic) {
-    throw new Error("ACCESS_DENIED");
+function indexMemberProgressByTitle(
+  memberProgressRows: UserMediaProgressResponse[],
+  viewerId?: string,
+): Map<string, MemberTitleProgress[]> {
+  const memberProgressByTitle = new Map<string, MemberTitleProgress[]>();
+  for (const p of memberProgressRows) {
+    if (!p.groupTitle) continue;
+    // Privacy seam: `isSharedWithCircles` is an opt-out ("Share Live Progress
+    // with Circles"). These rows feed categorizeCircleTitles, which decides the
+    // In Progress / Finished sections and their counts, so an opted-out member
+    // would otherwise still be visible — and could still move a title out of Up
+    // Next. The title-detail consumer already honored this flag; the feed did
+    // not. The viewer's own row stays visible to themselves.
+    if (!isProgressVisibleToViewer(p, viewerId)) continue;
+    const list = memberProgressByTitle.get(p.groupTitle) ?? [];
+    list.push({
+      userId: p.user,
+      status: p.status as "in_progress" | "completed",
+      progressCurrent: p.progressCurrent,
+      progressTotal: p.progressTotal,
+      progressUnit: p.progressUnit,
+      updatedAt: p.updatedAt,
+    });
+    memberProgressByTitle.set(p.groupTitle, list);
   }
+  return memberProgressByTitle;
+}
 
-  const group = access.group;
-  const pb = await getSuperuserClient();
+function indexOwnReviewTextByTitle(ownReviewRows: ReviewsResponse[]): Map<string, string> {
+  const ownReviewTextByTitle = new Map<string, string>();
+  for (const r of ownReviewRows) {
+    if (r.reviewText && r.title) {
+      ownReviewTextByTitle.set(r.title, r.reviewText);
+    }
+  }
+  return ownReviewTextByTitle;
+}
 
+function groupRowsByTitle<T extends { title: string }>(rows: T[]): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const row of rows) {
+    const list = map.get(row.title) ?? [];
+    list.push(row);
+    map.set(row.title, list);
+  }
+  return map;
+}
+
+function tallyCommentsByTitle(commentRows: CommentsResponse[]): Record<string, number> {
+  const commentCounts: Record<string, number> = {};
+  for (const c of commentRows) {
+    commentCounts[c.title] = (commentCounts[c.title] ?? 0) + 1;
+  }
+  return commentCounts;
+}
+
+function sortByScoreDesc(a: TitleWithProgress, b: TitleWithProgress): number {
+  return (
+    b.score - a.score ||
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+function sortByConsumedDesc(a: TitleWithProgress, b: TitleWithProgress): number {
+  return (
+    new Date(b.consumedAt || b.createdAt).getTime() -
+    new Date(a.consumedAt || a.createdAt).getTime()
+  );
+}
+
+function partitionAndRedactCircleTitles(
+  categorized: ReturnType<typeof categorizeCircleTitles>,
+  access: CircleAccess,
+  isBlindPickEnabled: boolean | undefined,
+  isOwnerOrAdmin: boolean,
+  currentUserId?: string,
+): {
+  proposed: TitleWithProgress[];
+  inProgress: TitleWithProgress[];
+  consumed: TitleWithProgress[];
+} {
+  const rawProposed = access.canViewBacklog ? categorized.proposed.sort(sortByScoreDesc) : [];
+  const proposed = redactProposedTitles(
+    rawProposed,
+    isBlindPickEnabled,
+    isOwnerOrAdmin,
+    currentUserId,
+  ) as TitleWithProgress[];
+
+  // ADR-012: redaction must cover every list a non-owner can read, not just the
+  // backlog. A proposal being actively consumed is categorised into `inProgress`
+  // while its status is still "proposed", so without this pass the proposer's
+  // identity would be withheld on Up Next and disclosed the moment consumption
+  // starts. `consumed` is redacted defensively for the same reason.
+  const inProgress = access.canViewBacklog
+    ? (redactProposedTitles(
+        categorized.inProgress.sort(sortByScoreDesc),
+        isBlindPickEnabled,
+        isOwnerOrAdmin,
+        currentUserId,
+      ) as TitleWithProgress[])
+    : [];
+
+  const consumed = access.canViewFinished
+    ? (redactProposedTitles(
+        categorized.consumed.sort(sortByConsumedDesc),
+        isBlindPickEnabled,
+        isOwnerOrAdmin,
+        currentUserId,
+      ) as TitleWithProgress[])
+    : [];
+
+  return { proposed, inProgress, consumed };
+}
+
+async function fetchReviewAndVoteRows(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  groupId: string,
+  canViewReviews: boolean,
+  needsTitles: boolean,
+  currentUserId?: string,
+) {
+  if (!needsTitles) {
+    return {
+      leanVoteRows: [] as LeanVoteRow[],
+      ownReviewRows: [] as ReviewsResponse[],
+      leanReviewRows: [] as ReviewsResponse<{ user?: UsersResponse }>[],
+    };
+  }
+  const [leanVoteRows, ownReviewRows, leanReviewRows] = await Promise.all([
+    !canViewReviews
+      ? pb.collection("votes").getFullList<LeanVoteRow>({
+          filter: pb.filter("title.group = {:groupId}", { groupId }),
+          fields: "value,title,user",
+        })
+      : Promise.resolve([]),
+    canViewReviews && currentUserId
+      ? pb.collection("reviews").getFullList<ReviewsResponse>({
+          filter: pb.filter("user = {:userId} && title.group = {:groupId}", {
+            userId: currentUserId,
+            groupId,
+          }),
+          fields: "id,title,reviewText",
+        })
+      : Promise.resolve([]),
+    canViewReviews
+      ? pb
+          .collection("reviews")
+          .getFullList<ReviewsResponse<{ user?: UsersResponse }>>({
+            filter: pb.filter("title.group = {:groupId}", { groupId }),
+            expand: "user",
+            fields:
+              "id,title,user,rating,createdAt," +
+              "expand.user.id,expand.user.name,expand.user.avatarUrl",
+          })
+      : Promise.resolve([]),
+  ]);
+  return { leanVoteRows, ownReviewRows, leanReviewRows };
+}
+
+async function fetchCircleFeedCollections(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  groupId: string,
+  access: CircleAccess,
+  resolvedSession?: Session | null,
+) {
   const canViewReviews = access.canViewReviews;
   const needsTitles = access.canViewBacklog || access.canViewFinished;
   const titleQuery = groupTitleQuery(canViewReviews);
@@ -102,9 +242,7 @@ export async function fetchCircleFeed(
     groupTitles,
     commentRows,
     schedules,
-    leanVoteRows,
-    ownReviewRows,
-    leanReviewRows,
+    reviewAndVote,
     memberProgressRows,
   ] = await Promise.all([
     pb
@@ -131,32 +269,7 @@ export async function fetchCircleFeed(
         })
       : Promise.resolve([]),
     getGroupSchedules(groupId, resolvedSession, access),
-    !canViewReviews && needsTitles
-      ? pb.collection("votes").getFullList<LeanVoteRow>({
-          filter: pb.filter("title.group = {:groupId}", { groupId }),
-          fields: "value,title,user",
-        })
-      : Promise.resolve([]),
-    canViewReviews && resolvedSession?.id && needsTitles
-      ? pb.collection("reviews").getFullList<ReviewsResponse>({
-          filter: pb.filter("user = {:userId} && title.group = {:groupId}", {
-            userId: resolvedSession.id,
-            groupId,
-          }),
-          fields: "id,title,reviewText",
-        })
-      : Promise.resolve([]),
-    canViewReviews && needsTitles
-      ? pb
-          .collection("reviews")
-          .getFullList<ReviewsResponse<{ user?: UsersResponse }>>({
-            filter: pb.filter("title.group = {:groupId}", { groupId }),
-            expand: "user",
-            fields:
-              "id,title,user,rating,createdAt," +
-              "expand.user.id,expand.user.name,expand.user.avatarUrl",
-          })
-      : Promise.resolve([]),
+    fetchReviewAndVoteRows(pb, groupId, canViewReviews, needsTitles, resolvedSession?.id),
     needsTitles
       ? pb
           .collection("user_media_progress")
@@ -172,6 +285,54 @@ export async function fetchCircleFeed(
       : Promise.resolve([]),
   ]);
 
+  return {
+    rawMembers,
+    groupTitles,
+    commentRows,
+    schedules,
+    ...reviewAndVote,
+    memberProgressRows,
+  };
+}
+
+/**
+ * Deep query module: fetch the complete circle feed for a circle page.
+ *
+ * Encapsulates:
+ * 1. Access resolution and guest permission gating.
+ * 2. 8-way parallel PocketBase collection queries respecting ADR-017.
+ * 3. Relation-of-relation in-memory joining for reviews and votes.
+ * 4. PII stripping (emails never leave the server; R2 invariant).
+ * 5. Review body isolation (only current member's own review body ships).
+ * 6. Communal 3-section media lifecycle partitioning (ADR-015).
+ * 7. Blind pick author identity redaction during active voting (ADR-012).
+ */
+export async function fetchCircleFeed(
+  groupId: string,
+  session?: Session | null,
+): Promise<CircleFeedData> {
+  const resolvedSession = session === undefined ? await getSession() : session;
+  const currentUserId = resolvedSession?.id;
+  const access = await resolveCircleAccess(groupId, currentUserId);
+
+  if (!access.isMember && !access.group.isPublic) {
+    throw new Error("ACCESS_DENIED");
+  }
+
+  const group = access.group;
+  const pb = await getSuperuserClient();
+
+  const {
+    rawMembers,
+    groupTitles,
+    commentRows,
+    schedules,
+    leanVoteRows,
+    ownReviewRows,
+    leanReviewRows,
+    memberProgressRows,
+  } = await fetchCircleFeedCollections(pb, groupId, access, resolvedSession);
+
   // R2 invariant: members expand.user is projected to id/name/avatarUrl only — email never leaves the server
   const members: GroupMembersResponse<{ user?: PublicUser }>[] = rawMembers.map(
     (m) => ({
@@ -183,65 +344,25 @@ export async function fetchCircleFeed(
   );
 
   const memberIds = members.map((m) => m.user);
-  const memberProgressByTitle = new Map<string, MemberTitleProgress[]>();
-  for (const p of memberProgressRows) {
-    if (!p.groupTitle) continue;
-    // Privacy seam: `isSharedWithCircles` is an opt-out ("Share Live Progress
-    // with Circles"). These rows feed categorizeCircleTitles, which decides the
-    // In Progress / Finished sections and their counts, so an opted-out member
-    // would otherwise still be visible — and could still move a title out of Up
-    // Next. The title-detail consumer already honored this flag; the feed did
-    // not. The viewer's own row stays visible to themselves.
-    if (!isProgressVisibleToViewer(p, resolvedSession?.id)) continue;
-    const list = memberProgressByTitle.get(p.groupTitle) ?? [];
-    list.push({
-      userId: p.user,
-      status: p.status as "in_progress" | "completed",
-      progressCurrent: p.progressCurrent,
-      progressTotal: p.progressTotal,
-      progressUnit: p.progressUnit,
-      updatedAt: p.updatedAt,
-    });
-    memberProgressByTitle.set(p.groupTitle, list);
-  }
+  const memberProgressByTitle = indexMemberProgressByTitle(
+    memberProgressRows,
+    currentUserId,
+  );
+  const commentCounts = tallyCommentsByTitle(commentRows);
 
-  const commentCounts: Record<string, number> = {};
-  for (const c of commentRows) {
-    commentCounts[c.title] = (commentCounts[c.title] ?? 0) + 1;
-  }
-
-  const currentMember = resolvedSession?.id
-    ? members.find((m) => m.user === resolvedSession.id)
+  const currentMember = currentUserId
+    ? members.find((m) => m.user === currentUserId)
     : undefined;
   const currentUserRole = currentMember?.role;
 
-  const ownReviewTextByTitle = new Map<string, string>();
-  for (const r of ownReviewRows) {
-    if (r.reviewText && r.title)
-      ownReviewTextByTitle.set(r.title, r.reviewText);
-  }
-
-  const leanVotesByTitle = new Map<string, LeanVoteRow[]>();
-  for (const v of leanVoteRows) {
-    const rows = leanVotesByTitle.get(v.title) ?? [];
-    rows.push(v);
-    leanVotesByTitle.set(v.title, rows);
-  }
-
-  const leanReviewsByTitle = new Map<
-    string,
-    ReviewsResponse<{ user?: UsersResponse }>[]
-  >();
-  for (const r of leanReviewRows) {
-    const rows = leanReviewsByTitle.get(r.title) ?? [];
-    rows.push(r);
-    leanReviewsByTitle.set(r.title, rows);
-  }
+  const ownReviewTextByTitle = indexOwnReviewTextByTitle(ownReviewRows);
+  const leanVotesByTitle = groupRowsByTitle(leanVoteRows);
+  const leanReviewsByTitle = groupRowsByTitle(leanReviewRows);
 
   const withScore = groupTitles.map((title) =>
     buildTitlePayload(title, {
-      canViewReviews,
-      currentUserId: resolvedSession?.id,
+      canViewReviews: access.canViewReviews,
+      currentUserId,
       leanVotesByTitle,
       leanReviewsByTitle,
       ownReviewTextByTitle,
@@ -255,54 +376,16 @@ export async function fetchCircleFeed(
     withScore,
     memberProgressByTitle,
     memberIds,
-    resolvedSession?.id,
+    currentUserId,
   );
 
-  const rawProposed = access.canViewBacklog
-    ? categorized.proposed.sort(
-        (a, b) =>
-          b.score - a.score ||
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-    : [];
-
-  const proposed = redactProposedTitles(
-    rawProposed,
+  const { proposed, inProgress, consumed } = partitionAndRedactCircleTitles(
+    categorized,
+    access,
     group.isBlindPickEnabled,
     isOwnerOrAdmin,
-    resolvedSession?.id,
-  ) as TitleWithProgress[];
-
-  // ADR-012: redaction must cover every list a non-owner can read, not just the
-  // backlog. A proposal being actively consumed is categorised into `inProgress`
-  // while its status is still "proposed", so without this pass the proposer's
-  // identity would be withheld on Up Next and disclosed the moment consumption
-  // starts. `consumed` is redacted defensively for the same reason.
-  const inProgress = access.canViewBacklog
-    ? (redactProposedTitles(
-        categorized.inProgress.sort(
-          (a, b) =>
-            b.score - a.score ||
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        ),
-        group.isBlindPickEnabled,
-        isOwnerOrAdmin,
-        resolvedSession?.id,
-      ) as TitleWithProgress[])
-    : [];
-
-  const consumed = access.canViewFinished
-    ? (redactProposedTitles(
-        categorized.consumed.sort(
-          (a, b) =>
-            new Date(b.consumedAt || b.createdAt).getTime() -
-            new Date(a.consumedAt || a.createdAt).getTime(),
-        ),
-        group.isBlindPickEnabled,
-        isOwnerOrAdmin,
-        resolvedSession?.id,
-      ) as TitleWithProgress[])
-    : [];
+    currentUserId,
+  );
 
   return {
     access,
@@ -321,20 +404,7 @@ export async function fetchCircleFeed(
   };
 }
 
-/**
- * Deep query module: fetch a single title's details within a circle.
- */
-export async function fetchCircleTitleDetail(
-  groupId: string,
-  titleId: string,
-  session?: Session | null,
-): Promise<CircleTitleDetailData> {
-  const resolvedSession = session === undefined ? await getSession() : session;
-  const [access, titleInGroup] = await Promise.all([
-    resolveCircleAccess(groupId, resolvedSession?.id),
-    requireTitleInGroup(titleId, groupId),
-  ]);
-
+function assertTitleDetailAccess(access: CircleAccess, titleInGroup: TitlesResponse): void {
   if (!access.isMember && !access.group.isPublic) {
     throw new Error("ACCESS_DENIED");
   }
@@ -346,25 +416,23 @@ export async function fetchCircleTitleDetail(
       throw new Error("ACCESS_DENIED");
     }
   }
+}
 
-  const group = access.group;
-  const pb = await getSuperuserClient();
+async function fetchTitleDetailCollections(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  groupId: string,
+  titleId: string,
+  titleInGroup: TitlesResponse,
+  access: CircleAccess,
+  resolvedSession?: Session | null,
+) {
   const titleQuery = groupTitleQuery(access.canViewReviews);
 
-  const [
-    titleRecord,
-    leanReviewRows,
-    ownReviewRows,
-    leanVoteRows,
-    comments,
-    memberProgress,
-  ] = await Promise.all([
-    pb
-      .collection("titles")
-      .getOne<TitlesResponse<TitleExpand>>(titleId, {
-        expand: titleQuery.expand,
-        fields: titleQuery.fields,
-      }),
+  return Promise.all([
+    pb.collection("titles").getOne<TitlesResponse<TitleExpand>>(titleId, {
+      expand: titleQuery.expand,
+      fields: titleQuery.fields,
+    }),
     access.canViewReviews
       ? pb
           .collection("reviews")
@@ -407,27 +475,51 @@ export async function fetchCircleTitleDetail(
               "expand.user.id,expand.user.name,expand.user.avatarUrl",
           })
       : Promise.resolve([]),
-    getTitleCircleProgress(
-      titleId,
-      titleInGroup,
-      groupId,
-      resolvedSession,
-      access,
-    ),
+    getTitleCircleProgress(titleId, titleInGroup, groupId, resolvedSession, access),
   ]);
+}
+
+/**
+ * Deep query module: fetch a single title's details within a circle.
+ */
+export async function fetchCircleTitleDetail(
+  groupId: string,
+  titleId: string,
+  session?: Session | null,
+): Promise<CircleTitleDetailData> {
+  const resolvedSession = session === undefined ? await getSession() : session;
+  const [access, titleInGroup] = await Promise.all([
+    resolveCircleAccess(groupId, resolvedSession?.id),
+    requireTitleInGroup(titleId, groupId),
+  ]);
+
+  assertTitleDetailAccess(access, titleInGroup);
+
+  const group = access.group;
+  const pb = await getSuperuserClient();
+
+  const [
+    titleRecord,
+    leanReviewRows,
+    ownReviewRows,
+    leanVoteRows,
+    comments,
+    memberProgress,
+  ] = await fetchTitleDetailCollections(
+    pb,
+    groupId,
+    titleId,
+    titleInGroup,
+    access,
+    resolvedSession,
+  );
 
   if (titleRecord.group !== groupId) {
     throw new Error("TITLE_NOT_IN_GROUP");
   }
 
-  const ownReviewTextByTitle = new Map<string, string>();
-  for (const r of ownReviewRows) {
-    if (r.reviewText && r.title)
-      ownReviewTextByTitle.set(r.title, r.reviewText);
-  }
-  const leanVotesByTitle = new Map<string, LeanVoteRow[]>([
-    [titleRecord.id, leanVoteRows],
-  ]);
+  const ownReviewTextByTitle = indexOwnReviewTextByTitle(ownReviewRows);
+  const leanVotesByTitle = new Map<string, LeanVoteRow[]>([[titleRecord.id, leanVoteRows]]);
   const leanReviewsByTitle = new Map<
     string,
     ReviewsResponse<{ user?: UsersResponse }>[]
@@ -450,13 +542,11 @@ export async function fetchCircleTitleDetail(
     resolvedSession?.id,
   );
 
-  const projectedComments: PublicComment[] = comments.map(projectCommentRow);
-
   return {
     access,
     group,
     title,
-    comments: projectedComments,
+    comments: comments.map(projectCommentRow),
     memberProgress,
     isOwnerOrAdmin,
   };

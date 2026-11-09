@@ -42,102 +42,122 @@ const LLM_NO_TITLES =
 
 const CHUNK_SIZE = 25;
 
-export async function extractTitlesFromDump(text: string): Promise<ActionResult<ExtractResult>> {
-  const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Please sign in to extract titles." };
+async function reconcileCandidatesWithProviders(
+  candidates: ReturnType<typeof parseAndValidateLlmOutput>["candidates"],
+): Promise<CandidateDraft[]> {
+  const drafts: CandidateDraft[] = [];
+  for (let i = 0; i < candidates.length; i += 3) {
+    const chunk = candidates.slice(i, i + 3);
+    const results = await Promise.all(
+      chunk.map(async (candidate): Promise<CandidateDraft> => {
+        const query = candidate.creator
+          ? `${candidate.title} ${candidate.creator}`.trim()
+          : candidate.title;
+        let matches: CandidateDraft["matches"] = [];
+        try {
+          matches = (await getProvider(candidate.mediaType).search(query))
+            .map((result) => normalizeProviderResult(candidate.mediaType, result))
+            .filter((result): result is NonNullable<typeof result> => result !== null)
+            .slice(0, 3);
+        } catch {
+          matches = [];
+        }
+        return { raw: candidate, matches };
+      }),
+    );
+    drafts.push(...results);
+  }
+  return drafts;
+}
+
+async function fetchUserGroupsSorted(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  userId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const memberships = await pb
+    .collection("group_members")
+    .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
+      filter: pb.filter("user = {:user}", { user: userId }),
+      expand: "group",
+      fields: "group,expand.group.id,expand.group.name",
+      sort: "joinedAt",
+    });
+  return memberships
+    .map((m) => ({ id: m.expand?.group?.id ?? m.group, name: m.expand?.group?.name ?? "" }))
+    .filter((g) => g.id && g.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function requestLlmExtractionJson(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  config: NonNullable<ReturnType<typeof getLlmConfig>>,
+  cleanDump: string,
+  reservedIds?: string[],
+): Promise<{ ok: true; content: string } | { ok: false; error: string; traceId?: string }> {
+  const prompt = buildExtractPrompt(cleanDump);
+  let content: string | null;
+  try {
+    content = await chatJson(config, prompt.system, prompt.user);
+  } catch (err) {
+    await releaseLlmUsage(pb, reservedIds);
+    // S2-esque: never log the dump — length + model only.
+    const diag = logDiagnostic(err, {
+      action: "llm-extract/chat",
+      dumpLength: cleanDump.length,
+      model: config.model,
+    });
+    return { ok: false, error: LLM_REQUEST_FAILED, traceId: diag.traceId };
   }
 
-  const enabled = await isFeatureEnabled("llm_extract");
-  if (!enabled) {
-    return { success: false, error: LLM_FEATURE_DISABLED };
+  if (!content) {
+    await releaseLlmUsage(pb, reservedIds);
+    return { ok: false, error: LLM_REQUEST_FAILED };
   }
+  return { ok: true, content };
+}
+
+function mapDumpError(reason: "empty" | "too_large"): string {
+  return reason === "too_large" ? LLM_DUMP_TOO_LARGE : LLM_EMPTY_DUMP;
+}
+
+function mapUsageLimitError(reason: "requests" | "input"): string {
+  return reason === "input" ? LLM_INPUT_LIMITED : LLM_RATE_LIMITED;
+}
+
+export async function extractTitlesFromDump(text: string): Promise<ActionResult<ExtractResult>> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "Please sign in to extract titles." };
+  if (!(await isFeatureEnabled("llm_extract"))) return { success: false, error: LLM_FEATURE_DISABLED };
+
   const config = getLlmConfig();
-  if (!config) {
-    return { success: false, error: LLM_NOT_CONFIGURED };
-  }
+  if (!config) return { success: false, error: LLM_NOT_CONFIGURED };
 
   const dumpCheck = validateRawDump(text);
   if (!dumpCheck.ok) {
-    return {
-      success: false,
-      error: dumpCheck.reason === "too_large" ? LLM_DUMP_TOO_LARGE : LLM_EMPTY_DUMP,
-    };
+    return { success: false, error: mapDumpError(dumpCheck.reason) };
   }
 
   try {
     const pb = await getSuperuserClient();
     const usage = await reserveLlmUsage(pb, session.id, dumpCheck.clean.length);
     if (!usage.allowed) {
-      return {
-        success: false,
-        error: usage.reason === "input" ? LLM_INPUT_LIMITED : LLM_RATE_LIMITED,
-      };
+      return { success: false, error: mapUsageLimitError(usage.reason) };
     }
 
-    const prompt = buildExtractPrompt(dumpCheck.clean);
-
-    let content: string | null;
-    try {
-      content = await chatJson(config, prompt.system, prompt.user);
-    } catch (err) {
-      await releaseLlmUsage(pb, usage.reservedIds);
-      // S2-esque: never log the dump — length + model only.
-      const diag = logDiagnostic(err, {
-        action: "llm-extract/chat",
-        dumpLength: dumpCheck.clean.length,
-        model: config.model,
-      });
-      return { success: false, error: LLM_REQUEST_FAILED, traceId: diag.traceId };
+    const llmRes = await requestLlmExtractionJson(pb, config, dumpCheck.clean, usage.reservedIds);
+    if (!llmRes.ok) {
+      return { success: false, error: llmRes.error, traceId: llmRes.traceId };
     }
 
-    if (!content) {
-      await releaseLlmUsage(pb, usage.reservedIds);
-      return { success: false, error: LLM_REQUEST_FAILED };
-    }
-
-    const { candidates, dropped } = parseAndValidateLlmOutput(content);
+    const { candidates, dropped } = parseAndValidateLlmOutput(llmRes.content);
     if (candidates.length === 0) {
       return { success: false, error: LLM_NO_TITLES };
     }
 
-    // Reconcile every candidate against the real media providers (top 3),
-    // independently: a failing provider must not sink the whole batch.
-    const drafts: CandidateDraft[] = [];
-    for (let i = 0; i < candidates.length; i += 3) {
-      const chunk = candidates.slice(i, i + 3);
-      const results = await Promise.all(
-        chunk.map(async (candidate): Promise<CandidateDraft> => {
-          const query = candidate.creator
-            ? `${candidate.title} ${candidate.creator}`.trim()
-            : candidate.title;
-          let matches: CandidateDraft["matches"] = [];
-          try {
-            matches = (await getProvider(candidate.mediaType).search(query))
-              .map((result) => normalizeProviderResult(candidate.mediaType, result))
-              .filter((result): result is NonNullable<typeof result> => result !== null)
-              .slice(0, 3);
-          } catch {
-            matches = [];
-          }
-          return { raw: candidate, matches };
-        }),
-      );
-      drafts.push(...results);
-    }
-
-    const memberships = await pb
-      .collection("group_members")
-      .getFullList<GroupMembersResponse<{ group?: GroupsResponse }>>({
-        filter: pb.filter("user = {:user}", { user: session.id }),
-        expand: "group",
-        fields: "group,expand.group.id,expand.group.name",
-        sort: "joinedAt",
-      });
-    const userGroups = memberships
-      .map((m) => ({ id: m.expand?.group?.id ?? m.group, name: m.expand?.group?.name ?? "" }))
-      .filter((g) => g.id && g.name)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const [drafts, userGroups] = await Promise.all([
+      reconcileCandidatesWithProviders(candidates),
+      fetchUserGroupsSorted(pb, session.id),
+    ]);
 
     return { success: true, data: { candidates: drafts, userGroups, dropped } };
   } catch (err) {
@@ -146,17 +166,209 @@ export async function extractTitlesFromDump(text: string): Promise<ActionResult<
   }
 }
 
+type ResolvedProposeCandidate =
+  | { status: "skipped" }
+  | {
+      status: "valid";
+      entry: ProposeEntry;
+      titleKey: string;
+      customTarget: boolean;
+      externalSource: string;
+      externalId: string;
+      title: string;
+      creator: string | null;
+      coverUrl: string | null;
+      metadata: Record<string, unknown> | null;
+    };
+
+async function resolveProviderMatchedCandidate(
+  groupId: string,
+  entry: ProposeEntry,
+  titleKey: string,
+): Promise<ResolvedProposeCandidate> {
+  const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
+  if (!suppliedMatch) return { status: "skipped" };
+
+  const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
+  let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
+  try {
+    const results = await getProvider(entry.mediaType).search(query);
+    canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
+  } catch (err) {
+    logDiagnostic(err, {
+      action: "proposeExtractedTitles/provider-validation",
+      groupId,
+      mediaType: entry.mediaType,
+    });
+  }
+  if (!canonicalMatch) return { status: "skipped" };
+
+  return {
+    status: "valid",
+    entry,
+    titleKey,
+    customTarget: false,
+    externalSource: canonicalMatch.externalSource,
+    externalId: canonicalMatch.externalId,
+    title: canonicalMatch.title,
+    creator: canonicalMatch.creator ?? null,
+    coverUrl: canonicalMatch.coverUrl ?? null,
+    metadata: canonicalMatch.metadata ?? null,
+  };
+}
+
+function extractProposeEntryTitle(entry: ProposeEntry): string {
+  const rawTitle = entry.match ? entry.match.title : entry.custom?.title;
+  return typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
+}
+
+function extractCustomCreator(entry: ProposeEntry): string | null {
+  const raw = entry.custom?.creator;
+  return typeof raw === "string" ? raw.trim().slice(0, 300) || null : null;
+}
+
+async function resolveSingleProposeEntry(
+  groupId: string,
+  entry: ProposeEntry,
+): Promise<ResolvedProposeCandidate> {
+  if (!entry || !MEDIA_TYPES.includes(entry.mediaType)) {
+    return { status: "skipped" };
+  }
+
+  const title = extractProposeEntryTitle(entry);
+  if (!title) return { status: "skipped" };
+
+  const titleKey = foldTitleKey(entry.mediaType, title);
+  if (entry.match) {
+    return resolveProviderMatchedCandidate(groupId, entry, titleKey);
+  }
+
+  return {
+    status: "valid",
+    entry,
+    titleKey,
+    customTarget: true,
+    externalSource: "custom",
+    externalId: `custom_${crypto.randomUUID()}`,
+    title,
+    creator: extractCustomCreator(entry),
+    coverUrl: null,
+    metadata: null,
+  };
+}
+
+async function resolveProposeCandidatesInChunks(
+  groupId: string,
+  entries: ProposeEntry[],
+): Promise<ResolvedProposeCandidate[]> {
+  const resolved: ResolvedProposeCandidate[] = [];
+  for (let i = 0; i < entries.length; i += 3) {
+    const chunk = entries.slice(i, i + 3);
+    const chunkResults = await Promise.all(
+      chunk.map((entry) => resolveSingleProposeEntry(groupId, entry)),
+    );
+    resolved.push(...chunkResults);
+  }
+  return resolved;
+}
+
+interface TitleInsertRecord {
+  group: string;
+  mediaType: MediaType;
+  externalSource: string;
+  externalId: string;
+  title: string;
+  creator: string | null;
+  coverUrl: string | null;
+  metadata: Record<string, unknown> | null;
+  status: "proposed";
+  addedBy: string;
+}
+
+function buildDeduplicatedTitleInserts(
+  groupId: string,
+  userId: string,
+  existing: TitlesResponse[],
+  resolvedCandidates: ResolvedProposeCandidate[],
+): { toInsert: TitleInsertRecord[]; skippedCount: number } {
+  const existingExt = new Set(
+    existing
+      .filter((t) => t.externalSource && t.externalId)
+      .map((t) => `${t.externalSource}:${t.externalId}`),
+  );
+  const existingTitles = new Set(existing.map((t) => foldTitleKey(t.mediaType, t.title)));
+  const seenTitles = new Set<string>();
+  const seenExt = new Set<string>();
+  const toInsert: TitleInsertRecord[] = [];
+  let skippedCount = 0;
+
+  for (const res of resolvedCandidates) {
+    if (res.status === "skipped") {
+      skippedCount++;
+      continue;
+    }
+    const extKey = `${res.externalSource}:${res.externalId}`;
+    const isExtDup = !res.customTarget && (existingExt.has(extKey) || seenExt.has(extKey));
+    if (existingTitles.has(res.titleKey) || seenTitles.has(res.titleKey) || isExtDup) {
+      skippedCount++;
+      continue;
+    }
+
+    seenTitles.add(res.titleKey);
+    if (!res.customTarget) seenExt.add(extKey);
+
+    toInsert.push({
+      group: groupId,
+      mediaType: res.entry.mediaType,
+      externalSource: res.externalSource,
+      externalId: res.externalId,
+      title: res.title,
+      creator: res.creator,
+      coverUrl: res.coverUrl,
+      metadata: res.metadata,
+      status: "proposed",
+      addedBy: userId,
+    });
+  }
+
+  return { toInsert, skippedCount };
+}
+
+async function insertTitleProposalsInChunks(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  groupId: string,
+  toInsert: TitleInsertRecord[],
+): Promise<{ addedCount: number; failedOrUniqueSkipped: number }> {
+  let addedCount = 0;
+  let failedOrUniqueSkipped = 0;
+
+  for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+    const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+    await Promise.all(
+      chunk.map(async (record) => {
+        try {
+          await pb.collection("titles").create(record);
+          addedCount++;
+        } catch (err) {
+          failedOrUniqueSkipped++;
+          if (!isValidationNotUnique(err)) {
+            logDiagnostic(err, { action: "proposeExtractedTitles/create", groupId });
+          }
+        }
+      }),
+    );
+  }
+
+  return { addedCount, failedOrUniqueSkipped };
+}
+
 export async function proposeExtractedTitles(
   groupId: string,
   entries: ProposeEntry[],
 ): Promise<ActionResult<ProposeResult>> {
   const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Please sign in to propose titles." };
-  }
-  if (!(await isFeatureEnabled("llm_extract"))) {
-    return { success: false, error: LLM_FEATURE_DISABLED };
-  }
+  if (!session) return { success: false, error: "Please sign in to propose titles." };
+  if (!(await isFeatureEnabled("llm_extract"))) return { success: false, error: LLM_FEATURE_DISABLED };
   if (!Array.isArray(entries) || entries.length === 0) {
     return { success: false, error: "No titles selected to add." };
   }
@@ -174,171 +386,32 @@ export async function proposeExtractedTitles(
     }
 
     const pb = await getSuperuserClient();
-    const existing = await pb.collection("titles").getFullList<TitlesResponse>({
-      filter: pb.filter("group = {:group}", { group: groupId }),
-      fields: "id,title,mediaType,externalSource,externalId",
-    });
+    const [existing, resolvedCandidates] = await Promise.all([
+      pb.collection("titles").getFullList<TitlesResponse>({
+        filter: pb.filter("group = {:group}", { group: groupId }),
+        fields: "id,title,mediaType,externalSource,externalId",
+      }),
+      resolveProposeCandidatesInChunks(groupId, entries),
+    ]);
 
-    const existingExt = new Set(
-      existing
-        .filter((t) => t.externalSource && t.externalId)
-        .map((t) => `${t.externalSource}:${t.externalId}`),
+    const { toInsert, skippedCount: preflightSkipped } = buildDeduplicatedTitleInserts(
+      groupId,
+      session.id,
+      existing,
+      resolvedCandidates,
     );
-    const existingTitles = new Set(
-      existing.map((t) => foldTitleKey(t.mediaType, t.title)),
+
+    const { addedCount, failedOrUniqueSkipped } = await insertTitleProposalsInChunks(
+      pb,
+      groupId,
+      toInsert,
     );
-
-    const toInsert: Array<{
-      group: string;
-      mediaType: MediaType;
-      externalSource: string;
-      externalId: string;
-      title: string;
-      creator: string | null;
-      coverUrl: string | null;
-      metadata: Record<string, unknown> | null;
-      status: "proposed";
-      addedBy: string;
-    }> = [];
-    const seenTitles = new Set<string>();
-    const seenExt = new Set<string>();
-    let skippedCount = 0;
-
-    // Resolve candidate provider searches with bounded concurrency (chunks of 3)
-    const resolvedCandidates = [];
-    for (let i = 0; i < entries.length; i += 3) {
-      const chunk = entries.slice(i, i + 3);
-      const chunkResults = await Promise.all(
-        chunk.map(async (entry) => {
-          if (!entry || !MEDIA_TYPES.includes(entry.mediaType)) {
-            return { status: "skipped" as const };
-          }
-
-          const rawTitle = entry.match?.title ?? entry.custom?.title;
-          const title = typeof rawTitle === "string" ? rawTitle.slice(0, 300).trim() : "";
-          if (!title) {
-            return { status: "skipped" as const };
-          }
-
-          const titleKey = foldTitleKey(entry.mediaType, title);
-          const customTarget = !entry.match;
-
-          let externalSource: string;
-          let externalId: string;
-          let creator: string | null = null;
-          let coverUrl: string | null = null;
-          let metadata: Record<string, unknown> | null = null;
-          let resolvedTitleStr = title;
-
-          if (entry.match) {
-            const suppliedMatch = normalizeProviderResult(entry.mediaType, entry.match);
-            if (!suppliedMatch) {
-              return { status: "skipped" as const };
-            }
-
-            const query = `${suppliedMatch.title} ${suppliedMatch.creator ?? ""}`.trim();
-            let canonicalMatch: ReturnType<typeof normalizeProviderResult> = null;
-            try {
-              const results = await getProvider(entry.mediaType).search(query);
-              canonicalMatch = findCanonicalProviderMatch(entry.mediaType, suppliedMatch, results);
-            } catch (err) {
-              logDiagnostic(err, {
-                action: "proposeExtractedTitles/provider-validation",
-                groupId,
-                mediaType: entry.mediaType,
-              });
-            }
-            if (!canonicalMatch) {
-              return { status: "skipped" as const };
-            }
-
-            externalSource = canonicalMatch.externalSource;
-            externalId = canonicalMatch.externalId;
-            resolvedTitleStr = canonicalMatch.title;
-            creator = canonicalMatch.creator ?? null;
-            coverUrl = canonicalMatch.coverUrl ?? null;
-            metadata = canonicalMatch.metadata ?? null;
-          } else {
-            externalSource = "custom";
-            externalId = `custom_${crypto.randomUUID()}`;
-            creator =
-              typeof entry.custom?.creator === "string"
-                ? entry.custom.creator.trim().slice(0, 300) || null
-                : null;
-          }
-
-          return {
-            status: "valid" as const,
-            entry,
-            titleKey,
-            customTarget,
-            externalSource,
-            externalId,
-            title: resolvedTitleStr,
-            creator,
-            coverUrl,
-            metadata,
-          };
-        }),
-      );
-      resolvedCandidates.push(...chunkResults);
-    }
-
-    for (const res of resolvedCandidates) {
-      if (res.status === "skipped") {
-        skippedCount++;
-        continue;
-      }
-
-      const extKey = `${res.externalSource}:${res.externalId}`;
-      if (
-        existingTitles.has(res.titleKey) ||
-        seenTitles.has(res.titleKey) ||
-        (!res.customTarget && (existingExt.has(extKey) || seenExt.has(extKey)))
-      ) {
-        skippedCount++;
-        continue;
-      }
-
-      seenTitles.add(res.titleKey);
-      if (!res.customTarget) seenExt.add(extKey);
-
-      toInsert.push({
-        group: groupId,
-        mediaType: res.entry.mediaType,
-        externalSource: res.externalSource,
-        externalId: res.externalId,
-        title: res.title,
-        creator: res.creator,
-        coverUrl: res.coverUrl,
-        metadata: res.metadata,
-        status: "proposed",
-        addedBy: session.id,
-      });
-    }
-
-    let addedCount = 0;
-    for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
-      const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-      await Promise.all(
-        chunk.map(async (record) => {
-          try {
-            await pb.collection("titles").create(record);
-            addedCount++;
-          } catch (err) {
-            if (isValidationNotUnique(err)) {
-              skippedCount++;
-              return;
-            }
-            skippedCount++;
-            logDiagnostic(err, { action: "proposeExtractedTitles/create", groupId });
-          }
-        }),
-      );
-    }
 
     revalidatePath(`/groups/${groupId}`);
-    return { success: true, data: { addedCount, skippedCount } };
+    return {
+      success: true,
+      data: { addedCount, skippedCount: preflightSkipped + failedOrUniqueSkipped },
+    };
   } catch (err) {
     const diag = logDiagnostic(err, { action: "proposeExtractedTitles", groupId });
     return { success: false, error: "Failed to add titles to the group", traceId: diag.traceId };

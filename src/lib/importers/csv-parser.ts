@@ -8,92 +8,96 @@
  * - Robust column normalization & fuzzy lookup
  */
 
+function pushNonEmptyRow(rows: string[][], row: string[]): void {
+  if (row.some((field) => field.length > 0)) {
+    rows.push(row);
+  }
+}
+
+function stepQuotedCsvChar(
+  cleanText: string,
+  i: number,
+  currentField: string,
+): { nextIndex: number; field: string; inQuotes: boolean } {
+  const char = cleanText[i];
+  if (char !== '"') {
+    return { nextIndex: i + 1, field: currentField + char, inQuotes: true };
+  }
+  if (i + 1 < cleanText.length && cleanText[i + 1] === '"') {
+    return { nextIndex: i + 2, field: currentField + '"', inQuotes: true };
+  }
+  return { nextIndex: i + 1, field: currentField, inQuotes: false };
+}
+
+function resolveDelimiter(delimiter: string): string {
+  return typeof delimiter === "string" && delimiter.length > 0 ? delimiter : ",";
+}
+
+function stripUtf8Bom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+function isLineBreakChar(char: string): boolean {
+  return char === "\r" || char === "\n";
+}
+
+function lineBreakAdvance(cleanText: string, i: number): number {
+  return cleanText[i] === "\r" && cleanText[i + 1] === "\n" ? 2 : 1;
+}
+
+function finalizeRemainingCsvField(
+  rows: string[][],
+  currentRow: string[],
+  currentField: string,
+): void {
+  if (currentField.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    pushNonEmptyRow(rows, currentRow);
+  }
+}
+
 export function parseCsv(text: string, delimiter = ","): string[][] {
   if (!text || typeof text !== "string") return [];
 
-  const delim = typeof delimiter === "string" && delimiter.length > 0 ? delimiter : ",";
-
-  // Strip BOM if present
-  let cleanText = text;
-  if (cleanText.charCodeAt(0) === 0xfeff) {
-    cleanText = cleanText.slice(1);
-  }
+  const delim = resolveDelimiter(delimiter);
+  const cleanText = stripUtf8Bom(text);
 
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentField = "";
   let inQuotes = false;
   let i = 0;
-  const len = cleanText.length;
 
-  while (i < len) {
-    const char = cleanText[i];
-
+  while (i < cleanText.length) {
     if (inQuotes) {
-      if (char === '"') {
-        // Check for escaped quote ("")
-        if (i + 1 < len && cleanText[i + 1] === '"') {
-          currentField += '"';
-          i += 2;
-          continue;
-        } else {
-          // Closing quote
-          inQuotes = false;
-          i++;
-          continue;
-        }
-      } else {
-        currentField += char;
-        i++;
-        continue;
-      }
+      const next = stepQuotedCsvChar(cleanText, i, currentField);
+      i = next.nextIndex;
+      currentField = next.field;
+      inQuotes = next.inQuotes;
+      continue;
+    }
+
+    const char = cleanText[i];
+    if (char === '"') {
+      inQuotes = true;
+      i++;
+    } else if (char === delim) {
+      currentRow.push(currentField.trim());
+      currentField = "";
+      i++;
+    } else if (isLineBreakChar(char)) {
+      currentRow.push(currentField.trim());
+      currentField = "";
+      pushNonEmptyRow(rows, currentRow);
+      currentRow = [];
+      i += lineBreakAdvance(cleanText, i);
     } else {
-      if (char === '"') {
-        inQuotes = true;
-        i++;
-        continue;
-      } else if (char === delim) {
-        currentRow.push(currentField.trim());
-        currentField = "";
-        i++;
-        continue;
-      } else if (char === "\r") {
-        currentRow.push(currentField.trim());
-        currentField = "";
-        if (i + 1 < len && cleanText[i + 1] === "\n") {
-          i++;
-        }
-        if (currentRow.some((field) => field.length > 0)) {
-          rows.push(currentRow);
-        }
-        currentRow = [];
-        i++;
-        continue;
-      } else if (char === "\n") {
-        currentRow.push(currentField.trim());
-        currentField = "";
-        if (currentRow.some((field) => field.length > 0)) {
-          rows.push(currentRow);
-        }
-        currentRow = [];
-        i++;
-        continue;
-      } else {
-        currentField += char;
-        i++;
-        continue;
-      }
+      currentField += char;
+      i++;
     }
   }
 
-  // Push final field/row if any content remains
-  if (currentField.length > 0 || currentRow.length > 0) {
-    currentRow.push(currentField.trim());
-    if (currentRow.some((field) => field.length > 0)) {
-      rows.push(currentRow);
-    }
-  }
-
+  finalizeRemainingCsvField(rows, currentRow, currentField);
   return rows;
 }
 
@@ -160,55 +164,49 @@ export function getField(row: Record<string, string>, ...possibleKeys: string[])
   return undefined;
 }
 
+function toBoundedIsoString(date: Date): string | undefined {
+  if (isNaN(date.getTime())) return undefined;
+  const year = date.getUTCFullYear();
+  if (year < 1000 || year > 9999) return undefined;
+  try {
+    return date.toISOString();
+  } catch {
+    return undefined;
+  }
+}
+
+function parseDateRangeEnd(trimmed: string): string | undefined {
+  if (trimmed.includes(" - ") || trimmed.toLowerCase().includes(" to ") || trimmed.includes(",")) {
+    const parts = trimmed.split(/\s+to\s+|\s+-\s+|,\s*/i);
+    for (let p = parts.length - 1; p >= 0; p--) {
+      const candidate = parseSafeDate(parts[p], false);
+      if (candidate) return candidate;
+    }
+    return undefined;
+  }
+  if (/^\d{4}\/\d{1,2}\/\d{1,2}-\d{4}\/\d{1,2}\/\d{1,2}$/.test(trimmed)) {
+    const parts = trimmed.split("-");
+    return parseSafeDate(parts[parts.length - 1], false);
+  }
+  return undefined;
+}
+
 export function parseSafeDate(dateStr?: string | null, allowRange = true): string | undefined {
   if (!dateStr || typeof dateStr !== "string") return undefined;
   const trimmed = dateStr.trim();
-  if (!trimmed) return undefined;
-  if (/[;<>'"`]|\/\*/.test(trimmed)) return undefined;
+  if (!trimmed || /[;<>'"`]|\/\*/.test(trimmed)) return undefined;
 
-  // Handle range formats like "2023/10/01-2023/10/10", "2023/10/01 - 2023/10/10", "2023-01-01 to 2023-01-20"
-  // Taking the last valid date represents completion / latest activity date.
   if (allowRange) {
-    if (trimmed.includes(" - ") || trimmed.toLowerCase().includes(" to ") || trimmed.includes(",")) {
-      const parts = trimmed.split(/\s+to\s+|\s+-\s+|,\s*/i);
-      for (let p = parts.length - 1; p >= 0; p--) {
-        const candidate = parseSafeDate(parts[p], false);
-        if (candidate) return candidate;
-      }
-    } else if (/^\d{4}\/\d{1,2}\/\d{1,2}-\d{4}\/\d{1,2}\/\d{1,2}$/.test(trimmed)) {
-      const parts = trimmed.split("-");
-      const candidate = parseSafeDate(parts[parts.length - 1], false);
-      if (candidate) return candidate;
-    }
+    const rangeResult = parseDateRangeEnd(trimmed);
+    if (rangeResult) return rangeResult;
   }
 
-  // Handle formats like "YYYY/MM/DD", "YYYY-MM-DD", "YYYY.MM.DD"
-  const normalized = trimmed.replace(/\//g, "-").replace(/\./g, "-");
-  const parsed = new Date(normalized);
-  if (!isNaN(parsed.getTime())) {
-    const year = parsed.getUTCFullYear();
-    if (year >= 1000 && year <= 9999) {
-      try {
-        return parsed.toISOString();
-      } catch {
-        return undefined;
-      }
-    }
-  }
+  const normalized = trimmed.replace(/[/.]/g, "-");
+  const isoCandidate = toBoundedIsoString(new Date(normalized));
+  if (isoCandidate) return isoCandidate;
 
-  // Handle year-only like "2024"
   if (/^\d{4}$/.test(trimmed)) {
-    const yearDate = new Date(`${trimmed}-01-01T00:00:00.000Z`);
-    if (!isNaN(yearDate.getTime())) {
-      const year = yearDate.getUTCFullYear();
-      if (year >= 1000 && year <= 9999) {
-        try {
-          return yearDate.toISOString();
-        } catch {
-          return undefined;
-        }
-      }
-    }
+    return toBoundedIsoString(new Date(`${trimmed}-01-01T00:00:00.000Z`));
   }
 
   return undefined;

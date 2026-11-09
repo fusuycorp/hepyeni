@@ -17,6 +17,76 @@ export interface AddTitleOptions {
   pace?: PaceType | string;
 }
 
+function sanitizeOptionalCoverUrl(rawUrl?: string): string | null {
+  const trimmed = rawUrl?.trim();
+  return trimmed && isSafeCoverUrl(trimmed) ? trimmed.slice(0, 2000) : null;
+}
+
+function buildTitleMetadata(
+  baseMetadata: Record<string, unknown> | undefined,
+  rawMoods: unknown,
+  rawPace: unknown,
+): Record<string, unknown> | null {
+  const normalizedMoods = normalizeMoods(rawMoods);
+  const normalizedPace = normalizePace(rawPace);
+  const metadata: Record<string, unknown> = {
+    ...(baseMetadata ?? {}),
+    ...(normalizedMoods.length > 0 ? { moods: normalizedMoods } : {}),
+    ...(normalizedPace ? { pace: normalizedPace } : {}),
+  };
+  return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+function sanitizeNonEmptyText(val: unknown, max: number): string {
+  return typeof val === "string" ? val.slice(0, max).trim() : "";
+}
+
+function resolveTitleMetadataFromOptions(
+  result: NormalizedSearchResult,
+  options?: AddTitleOptions,
+): Record<string, unknown> | null {
+  const baseMeta = result.metadata;
+  return buildTitleMetadata(
+    baseMeta,
+    options ? options.moods : baseMeta?.moods,
+    options ? options.pace : baseMeta?.pace,
+  );
+}
+
+function parseProviderTitleFields(
+  result: NormalizedSearchResult,
+  options?: AddTitleOptions,
+):
+  | {
+      ok: true;
+      title: string;
+      externalSource: string;
+      externalId: string;
+      creator: string | null;
+      coverUrl: string | null;
+      metadata: Record<string, unknown> | null;
+    }
+  | { ok: false; error: string } {
+  const title = sanitizeNonEmptyText(result.title, 300);
+  if (!title) return { ok: false, error: "Title is required" };
+
+  const externalSource = sanitizeNonEmptyText(result.externalSource, 100);
+  const externalId = sanitizeNonEmptyText(result.externalId, 200);
+  if (!externalSource || !externalId) {
+    return { ok: false, error: "External source and ID are required" };
+  }
+
+  return {
+    ok: true,
+    title,
+    externalSource,
+    externalId,
+    creator: result.creator ? String(result.creator).slice(0, 300) : null,
+    coverUrl: sanitizeOptionalCoverUrl(result.coverUrl),
+    metadata: resolveTitleMetadataFromOptions(result, options),
+  };
+}
+
 export async function addTitle(
   groupId: string,
   mediaType: MediaType,
@@ -24,12 +94,8 @@ export async function addTitle(
   options?: AddTitleOptions,
 ): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Please sign in again" };
-  }
-  if (!MEDIA_TYPES.includes(mediaType)) {
-    return { success: false, error: "Invalid media type" };
-  }
+  if (!session) return { success: false, error: "Please sign in again" };
+  if (!MEDIA_TYPES.includes(mediaType)) return { success: false, error: "Invalid media type" };
 
   try {
     const access = await resolveCircleAccess(groupId, session.id);
@@ -37,50 +103,27 @@ export async function addTitle(
       return { success: false, error: "You do not have permission to propose media in this circle" };
     }
 
-    const title = String(result.title ?? "").slice(0, 300).trim();
-    if (!title) {
-      return { success: false, error: "Title is required" };
-    }
-
-    const externalSource = String(result.externalSource ?? "").trim().slice(0, 100);
-    const externalId = String(result.externalId ?? "").trim().slice(0, 200);
-    if (!externalSource || !externalId) {
-      return { success: false, error: "External source and ID are required" };
-    }
-    const creator = result.creator ? String(result.creator).slice(0, 300) : null;
-    const coverUrl =
-      result.coverUrl && isSafeCoverUrl(result.coverUrl.trim())
-        ? result.coverUrl.trim().slice(0, 2000)
-        : null;
-
-    const normalizedMoods = normalizeMoods(options?.moods ?? result.metadata?.moods);
-    const normalizedPace = normalizePace(options?.pace ?? result.metadata?.pace);
-    const metadata: Record<string, unknown> | null = {
-      ...(result.metadata ?? {}),
-      ...(normalizedMoods.length > 0 ? { moods: normalizedMoods } : {}),
-      ...(normalizedPace ? { pace: normalizedPace } : {}),
-    };
+    const parsed = parseProviderTitleFields(result, options);
+    if (!parsed.ok) return { success: false, error: parsed.error };
 
     const pb = await getSuperuserClient();
     try {
       await pb.collection("titles").create({
         group: groupId,
         mediaType,
-        externalSource,
-        externalId,
-        title,
-        creator,
-        coverUrl,
-        metadata: Object.keys(metadata).length > 0 ? metadata : null,
+        externalSource: parsed.externalSource,
+        externalId: parsed.externalId,
+        title: parsed.title,
+        creator: parsed.creator,
+        coverUrl: parsed.coverUrl,
+        metadata: parsed.metadata,
         status: "proposed",
         addedBy: session.id,
       });
       revalidatePath(`/groups/${groupId}`);
       return { success: true, data: undefined };
     } catch (err) {
-      if (isValidationNotUnique(err)) {
-        return { success: true, data: undefined };
-      }
+      if (isValidationNotUnique(err)) return { success: true, data: undefined };
       throw err;
     }
   } catch (err) {
@@ -98,18 +141,42 @@ export type CustomTitleInput = {
   pace?: PaceType | string;
 };
 
+function buildCustomTitleRecord(
+  groupId: string,
+  mediaType: MediaType,
+  userId: string,
+  cleanTitle: string,
+  data: CustomTitleInput,
+): Record<string, unknown> {
+  const cleanCreator = data.creator ? String(data.creator).slice(0, 300).trim() || null : null;
+  const cleanDesc = data.description ? String(data.description).slice(0, 1000).trim() : undefined;
+  const baseMetadata: Record<string, unknown> = {
+    ...(cleanDesc ? { description: cleanDesc } : {}),
+    custom: true,
+  };
+
+  return {
+    group: groupId,
+    mediaType,
+    externalSource: "custom",
+    externalId: `custom_${crypto.randomUUID()}`,
+    title: cleanTitle,
+    creator: cleanCreator,
+    coverUrl: sanitizeOptionalCoverUrl(data.coverUrl),
+    metadata: buildTitleMetadata(baseMetadata, data.moods, data.pace),
+    status: "proposed",
+    addedBy: userId,
+  };
+}
+
 export async function addCustomTitle(
   groupId: string,
   mediaType: MediaType,
   data: CustomTitleInput,
 ): Promise<ActionResult<void>> {
   const session = await getSession();
-  if (!session) {
-    return { success: false, error: "Please sign in again" };
-  }
-  if (!MEDIA_TYPES.includes(mediaType)) {
-    return { success: false, error: "Invalid media type" };
-  }
+  if (!session) return { success: false, error: "Please sign in again" };
+  if (!MEDIA_TYPES.includes(mediaType)) return { success: false, error: "Invalid media type" };
 
   try {
     const access = await resolveCircleAccess(groupId, session.id);
@@ -118,45 +185,12 @@ export async function addCustomTitle(
     }
 
     const cleanTitle = String(data.title ?? "").slice(0, 300).trim();
-    if (!cleanTitle) {
-      return { success: false, error: "Title is required" };
-    }
-
-    const cleanCreator = data.creator
-      ? String(data.creator).slice(0, 300).trim() || null
-      : null;
-    const cleanCover =
-      data.coverUrl && isSafeCoverUrl(data.coverUrl.trim())
-        ? data.coverUrl.trim().slice(0, 2000)
-        : null;
-    const cleanDesc = data.description
-      ? String(data.description).slice(0, 1000).trim()
-      : undefined;
-
-    const customId = `custom_${crypto.randomUUID()}`;
-
-    const normalizedMoods = normalizeMoods(data.moods);
-    const normalizedPace = normalizePace(data.pace);
-    const metadata: Record<string, unknown> = {
-      ...(cleanDesc ? { description: cleanDesc } : {}),
-      custom: true,
-      ...(normalizedMoods.length > 0 ? { moods: normalizedMoods } : {}),
-      ...(normalizedPace ? { pace: normalizedPace } : {}),
-    };
+    if (!cleanTitle) return { success: false, error: "Title is required" };
 
     const pb = await getSuperuserClient();
-    await pb.collection("titles").create({
-      group: groupId,
-      mediaType,
-      externalSource: "custom",
-      externalId: customId,
-      title: cleanTitle,
-      creator: cleanCreator,
-      coverUrl: cleanCover,
-      metadata,
-      status: "proposed",
-      addedBy: session.id,
-    });
+    await pb
+      .collection("titles")
+      .create(buildCustomTitleRecord(groupId, mediaType, session.id, cleanTitle, data));
 
     revalidatePath(`/groups/${groupId}`);
     return { success: true, data: undefined };

@@ -29,6 +29,24 @@ export function getPbUrl(): string {
 // a decoded stale JWT payload) — this is what makes a ban take effect on
 // the caller's very next request, the same latency NextAuth's database
 // sessions gave us, despite PocketBase's tokens being otherwise stateless.
+function resolveUserAvatarUrl(
+  pb: PocketBase,
+  record: UsersResponse & { avatar?: string },
+): string | undefined {
+  if (typeof record.avatarUrl === "string" && record.avatarUrl.trim()) {
+    return record.avatarUrl;
+  }
+  if (typeof record.avatar === "string" && record.avatar.trim()) {
+    if (typeof pb.files?.getURL === "function") {
+      return pb.files.getURL(record as never, record.avatar);
+    }
+    if (typeof pb.getFileUrl === "function") {
+      return pb.getFileUrl(record as never, record.avatar);
+    }
+  }
+  return undefined;
+}
+
 export async function getSessionFromToken(
   token: string | undefined,
 ): Promise<Session | null> {
@@ -37,30 +55,18 @@ export async function getSessionFromToken(
   const pb = new PocketBase(getPbUrl());
   pb.authStore.save(token, null);
 
-
   try {
     const { record } = await pb
       .collection("users")
       .authRefresh<UsersResponse & { avatar?: string }>();
     if (record.bannedAt) return null;
 
-    let avatarUrl: string | undefined = undefined;
-    if (typeof record.avatarUrl === "string" && record.avatarUrl.trim()) {
-      avatarUrl = record.avatarUrl;
-    } else if (typeof record.avatar === "string" && record.avatar.trim()) {
-      if (typeof pb.files?.getURL === "function") {
-        avatarUrl = pb.files.getURL(record as never, record.avatar);
-      } else if (typeof pb.getFileUrl === "function") {
-        avatarUrl = pb.getFileUrl(record as never, record.avatar);
-      }
-    }
-
     return {
       id: record.id,
       isAdmin: Boolean(record.isAdmin),
       name: record.name,
       email: record.email,
-      avatarUrl,
+      avatarUrl: resolveUserAvatarUrl(pb, record),
     };
   } catch {
     return null;
@@ -144,6 +150,25 @@ function isLoopbackHost(host: string): boolean {
   return /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
 }
 
+function firstHeaderToken(
+  headers: { get: (name: string) => string | null },
+  name: string,
+): string | null {
+  return headers.get(name)?.split(",")[0]?.trim() || null;
+}
+
+function extractRequestHostAndProto(headers: {
+  get: (name: string) => string | null;
+}): { host: string | null; proto: string | null } {
+  if (!trustForwardedHeaders()) {
+    return { host: firstHeaderToken(headers, "host"), proto: null };
+  }
+  return {
+    host: firstHeaderToken(headers, "x-forwarded-host") || firstHeaderToken(headers, "host"),
+    proto: firstHeaderToken(headers, "x-forwarded-proto"),
+  };
+}
+
 export function getRequestOrigin(req?: {
   headers: { get: (name: string) => string | null };
 }): string {
@@ -153,22 +178,7 @@ export function getRequestOrigin(req?: {
   }
 
   if (req) {
-    let host: string | null = null;
-    let proto: string | null = null;
-
-    if (trustForwardedHeaders()) {
-      host =
-        req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
-        req.headers.get("host")?.split(",")[0]?.trim() ||
-        null;
-      proto =
-        req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || null;
-    } else {
-      // Host only — do not honor forwarded headers unless explicitly trusted.
-      host = req.headers.get("host")?.split(",")[0]?.trim() || null;
-      proto = null;
-    }
-
+    const { host, proto } = extractRequestHostAndProto(req.headers);
     if (isValidHost(host) && !host.includes("0.0.0.0")) {
       if (proto === null && isLoopbackHost(host)) {
         return `http://${host}`;
