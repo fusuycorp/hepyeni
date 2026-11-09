@@ -3,17 +3,13 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ImportExportView } from "./import-export-view";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
-import { getServerTranslations } from "@/lib/i18n/server";
 import type { UsersResponse } from "@/types/pocketbase-types";
 
 export default async function ImportExportPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [t, pb] = await Promise.all([
-    getServerTranslations(),
-    getSuperuserClient(),
-  ]);
+  const pb = await getSuperuserClient();
 
   const userRecord = await pb
     .collection("users")

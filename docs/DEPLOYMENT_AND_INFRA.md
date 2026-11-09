@@ -47,12 +47,10 @@ flowchart LR
 ### 2.1 Next.js Application: `Dockerfile`
 Located in [`Dockerfile`](file:///home/devhax/projects/fusuycorp/hepyeni/Dockerfile), this multi-stage build creates an optimized Next.js standalone runner:
 
-1. **`base`**: Uses `oven/bun:1-alpine` for minimal image footprint and fast runtime execution.
-2. **`deps`**: Runs `bun install --frozen-lockfile`.
-3. **`builder`**: Copies dependencies and runs `bun --bun next build`.
-   > [!NOTE]
-   > Bun 1.3.14 contains an upstream engine exit issue where the process may segfault after successfully writing `.next/standalone`. The build step gates on `bun --bun next build; test -f .next/standalone/server.js` to ensure the artifact exists before proceeding.
-4. **`runner`**: Copies the standalone server, creates an unprivileged user (`nextjs:nodejs` UID/GID 1001), and starts the server via `CMD ["bun", "run", "server.js"]` on port 3000.
+1. **`base`**: Uses `oven/bun:1.4.2-alpine` for minimal image footprint, deterministic runtime parity, and clean `linux/arm64` musl worker teardown.
+2. **`deps`**: Copies `package.json` and `bun.lock` and runs `bun install --frozen-lockfile`.
+3. **`builder`**: Copies dependencies and runs `bun --bun next build && test -f .next/standalone/server.js` to verify the standalone server artifact.
+4. **`runner`**: Copies the standalone server with `--chown=nextjs:nodejs`, creates an unprivileged user (`nextjs:nodejs` UID/GID 1001), configures a container `HEALTHCHECK` against `/privacy`, and starts the server via `CMD ["bun", "run", "server.js"]` on port 3000.
 
 ### 2.2 PocketBase with Baked Migrations: `Dockerfile.pocketbase`
 Located in [`Dockerfile.pocketbase`](file:///home/devhax/projects/fusuycorp/hepyeni/Dockerfile.pocketbase):

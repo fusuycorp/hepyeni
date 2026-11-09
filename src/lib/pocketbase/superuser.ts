@@ -63,7 +63,7 @@ async function ensureAuthenticated(): Promise<void> {
       }
     } catch (err: unknown) {
       console.error(
-        `[PocketBase Superuser] Failed to authenticate superuser (${email}) at ${process.env.PB_URL ?? "http://localhost:8090"}:`,
+        `[PocketBase Superuser] Failed to authenticate superuser (${email}) at ${getPbUrl()}:`,
         err,
       );
       throw err;

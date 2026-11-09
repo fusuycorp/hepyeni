@@ -1,4 +1,4 @@
-import { createZipArchive, uint8ArrayToBase64, type ZipFileInput } from "./zip";
+import { createZipArchive, type ZipFileInput } from "./zip";
 import type { UserMediaProgressResponse } from "@/types/pocketbase-types";
 
 function sanitizeFilename(name: string): string {

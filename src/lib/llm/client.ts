@@ -1,5 +1,3 @@
-import type { LlmPrompt } from "./prompt";
-
 export const LLM_API_URL_DEFAULT = "https://api.openai.com/v1";
 export const LLM_MODEL_DEFAULT = "gpt-4o-mini";
 export const LLM_TIMEOUT_MS = 8000;

@@ -6,12 +6,7 @@ import { AlertTriangle, RefreshCw, Home, Copy, Check } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-// ponytail: error boundaries render outside the I18nProvider (a root-layout
-// crash skips the provider entirely), so useTranslations() is unavailable and
-// next/headers cookies() throws outside the Server Component request scope.
-// We read the NEXT_LOCALE/locale cookie from document.cookie instead and fall
-// back to Turkish. Upgrade path: SSR the boundary per-locale with a dedicated
-// layout, or precompute locale-specific error bundles at build time.
+// ponytail: inline error boundary locale dictionary <- error boundaries render outside I18nProvider so useTranslations is unavailable -> SSR the boundary per-locale or precompute locale error bundles at build time
 const ERROR_COPY = {
   tr: {
     title: "Bir Hata Oluştu",

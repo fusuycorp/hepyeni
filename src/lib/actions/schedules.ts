@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isNotFound, isValidationNotUnique } from "@/lib/pocketbase/errors";
 import { getSession } from "@/lib/pocketbase/session";
 import { getSuperuserClient } from "@/lib/pocketbase/superuser";
 import {
@@ -68,17 +69,6 @@ export async function createGroupSchedule(
     return { success: false, error: "Please sign in first." };
   }
 
-  // Require circle membership or admin
-  const access = await resolveCircleAccess(groupId, session.id);
-  if (!access.isMember && !session.isAdmin) {
-    return { success: false, error: "You do not have permission to create schedules in this circle." };
-  }
-
-  const cleanName = input.name?.trim();
-  if (!cleanName) {
-    return { success: false, error: "Please provide a schedule name." };
-  }
-
   const validMilestones = (input.milestones || []).filter((m) => m.title && m.title.trim().length > 0);
   if (validMilestones.length === 0) {
     return { success: false, error: "Add at least one valid milestone." };
@@ -87,35 +77,46 @@ export async function createGroupSchedule(
     return { success: false, error: "A schedule can have at most 50 milestones." };
   }
 
-  const pb = await getSuperuserClient();
-
-  const scheduleData: Record<string, unknown> = {
-    group: groupId,
-    name: cleanName.slice(0, 200),
-    description: input.description ? input.description.trim().slice(0, 1000) : null,
-    status: "active",
-    createdBy: session.id,
-  };
-
-  // Only assign relation/date if valid non-empty
-  if (input.titleId && input.titleId.trim()) {
-    try {
-      await requireTitleInGroup(input.titleId.trim(), groupId);
-      scheduleData.title = input.titleId.trim();
-    } catch (err) {
-      return { success: false, error: "The selected media does not belong to this circle." };
-    }
-  }
-  const parsedStartDate = toIsoDate(input.startDate);
-  if (parsedStartDate) {
-    scheduleData.startDate = parsedStartDate;
-  }
-  const parsedTargetDate = toIsoDate(input.targetDate);
-  if (parsedTargetDate) {
-    scheduleData.targetDate = parsedTargetDate;
+  const cleanName = input.name?.trim();
+  if (!cleanName) {
+    return { success: false, error: "Please provide a schedule name." };
   }
 
   try {
+    // Require circle membership or admin
+    const access = await resolveCircleAccess(groupId, session.id);
+    if (!access.isMember && !session.isAdmin) {
+      return { success: false, error: "You do not have permission to create schedules in this circle." };
+    }
+
+    const pb = await getSuperuserClient();
+
+    const scheduleData: Record<string, unknown> = {
+      group: groupId,
+      name: cleanName.slice(0, 200),
+      description: input.description ? input.description.trim().slice(0, 1000) : null,
+      status: "active",
+      createdBy: session.id,
+    };
+
+    // Only assign relation/date if valid non-empty
+    if (input.titleId && input.titleId.trim()) {
+      try {
+        await requireTitleInGroup(input.titleId.trim(), groupId);
+        scheduleData.title = input.titleId.trim();
+      } catch {
+        return { success: false, error: "The selected media does not belong to this circle." };
+      }
+    }
+    const parsedStartDate = toIsoDate(input.startDate);
+    if (parsedStartDate) {
+      scheduleData.startDate = parsedStartDate;
+    }
+    const parsedTargetDate = toIsoDate(input.targetDate);
+    if (parsedTargetDate) {
+      scheduleData.targetDate = parsedTargetDate;
+    }
+
     const schedule = await pb
       .collection("group_schedules")
       .create<GroupSchedulesResponse>(scheduleData);
@@ -138,7 +139,14 @@ export async function createGroupSchedule(
 
       await pb.collection("schedule_milestones").create(milestoneData);
     });
-    await Promise.all(milestoneWrites);
+    const results = await Promise.allSettled(milestoneWrites);
+    const failure = results.find(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    );
+    if (failure) {
+      await pb.collection("group_schedules").delete(schedule.id).catch(() => {});
+      throw failure.reason;
+    }
 
     revalidatePath(`/groups/${groupId}`);
     return { success: true, data: { id: schedule.id } };
@@ -166,12 +174,13 @@ export async function updateGroupScheduleStatus(
   if (!session) {
     return { success: false, error: "Please sign in first." };
   }
-  const access = await resolveCircleAccess(groupId, session.id);
-  if (!access.isOwner && !session.isAdmin) {
-    return { success: false, error: "Only a circle owner can update the schedule status." };
-  }
 
   try {
+    const access = await resolveCircleAccess(groupId, session.id);
+    if (!access.isOwner && !session.isAdmin) {
+      return { success: false, error: "Only a circle owner can update the schedule status." };
+    }
+
     await requireScheduleInGroup(scheduleId, groupId);
     const pb = await getSuperuserClient();
     await pb.collection("group_schedules").update(scheduleId, { status });
@@ -191,12 +200,13 @@ export async function deleteGroupSchedule(
   if (!session) {
     return { success: false, error: "Please sign in first." };
   }
-  const access = await resolveCircleAccess(groupId, session.id);
-  if (!access.isOwner && !session.isAdmin) {
-    return { success: false, error: "Only a circle owner can delete the schedule." };
-  }
 
   try {
+    const access = await resolveCircleAccess(groupId, session.id);
+    if (!access.isOwner && !session.isAdmin) {
+      return { success: false, error: "Only a circle owner can delete the schedule." };
+    }
+
     await requireScheduleInGroup(scheduleId, groupId);
     const pb = await getSuperuserClient();
     await pb.collection("group_schedules").delete(scheduleId);
@@ -233,14 +243,22 @@ export async function toggleMilestoneCheckin(
       .catch(() => null);
 
     if (existing) {
-      await pb.collection("milestone_checkins").delete(existing.id);
+      try {
+        await pb.collection("milestone_checkins").delete(existing.id);
+      } catch (deleteErr) {
+        if (!isNotFound(deleteErr)) throw deleteErr;
+      }
       revalidatePath(`/groups/${groupId}`);
       return { success: true, data: { checkedIn: false } };
     } else {
-      await pb.collection("milestone_checkins").create({
-        milestone: milestoneId,
-        user: session.id,
-      });
+      try {
+        await pb.collection("milestone_checkins").create({
+          milestone: milestoneId,
+          user: session.id,
+        });
+      } catch (createErr) {
+        if (!isValidationNotUnique(createErr)) throw createErr;
+      }
       revalidatePath(`/groups/${groupId}`);
       return { success: true, data: { checkedIn: true } };
     }

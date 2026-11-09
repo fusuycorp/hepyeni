@@ -10,18 +10,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
-  Clock,
-  CheckCircle2,
-  Bookmark,
-  PauseCircle,
-  XCircle,
   Sparkles,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -152,36 +146,6 @@ export function ImportPreviewTable({ items: initialItems, onSuccess }: ImportPre
         });
       }
     });
-  };
-
-  const getStatusIcon = (status: UserMediaProgressStatusOptions) => {
-    switch (status) {
-      case "in_progress":
-        return <Clock className="size-3 text-amber-500" />;
-      case "completed":
-        return <CheckCircle2 className="size-3 text-emerald-500" />;
-      case "plan_to_consume":
-        return <Bookmark className="size-3 text-muted-foreground" />;
-      case "on_hold":
-        return <PauseCircle className="size-3 text-orange-500" />;
-      case "dropped":
-        return <XCircle className="size-3 text-rose-500" />;
-    }
-  };
-
-  const getStatusLabel = (status: UserMediaProgressStatusOptions) => {
-    switch (status) {
-      case "in_progress":
-        return t.shelf.statusInProgress;
-      case "completed":
-        return t.shelf.statusCompleted;
-      case "plan_to_consume":
-        return t.shelf.statusPlanToConsume;
-      case "on_hold":
-        return t.shelf.statusOnHold;
-      case "dropped":
-        return t.shelf.statusDropped;
-    }
   };
 
   return (

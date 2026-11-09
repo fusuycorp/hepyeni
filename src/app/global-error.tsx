@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import "./globals.css";
 
-// ponytail: global-error renders in place of the root layout, so the
-// I18nProvider is never mounted and useTranslations() is unavailable;
-// next/headers cookies() throws outside the Server Component request scope.
-// We read the NEXT_LOCALE/locale cookie from document.cookie and fall back to
-// Turkish. Upgrade path: SSR the boundary per-locale or emit locale-specific
-// error bundles at build time.
+// ponytail: inline global-error locale dictionary <- global-error replaces root layout so I18nProvider is unmounted -> SSR the boundary per-locale or emit locale-specific error bundles at build time
 const ERROR_COPY = {
   tr: {
     title: "Kritik Sistem Hatası",

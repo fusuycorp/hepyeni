@@ -15,6 +15,7 @@ permissions:
 jobs:
   changes:
     name: Detect Changed Paths
+    timeout-minutes: 5
     # GitHub-hosted runner for change detection
     runs-on: ubuntu-latest
     outputs:
@@ -43,6 +44,7 @@ jobs:
 
   build-app:
     name: Build & Push App Image
+    timeout-minutes: 30
     # GitHub-hosted native ARM64 runner (4 vCPU, 16 GB RAM) - free for public repos.
     # Compiles Bun / Next.js standalone natively without QEMU user emulation.
     runs-on: ubuntu-24.04-arm
@@ -84,6 +86,7 @@ jobs:
 
   build-pocketbase:
     name: Build & Push PocketBase Image
+    timeout-minutes: 30
     needs: changes
     if: needs.changes.outputs.pocketbase == 'true'
     # GitHub-hosted runner with multi-arch Buildx
@@ -129,6 +132,7 @@ jobs:
 
   deploy:
     name: Trigger Dokploy Redeployment
+    timeout-minutes: 5
     needs: [changes, build-app, build-pocketbase]
     concurrency:
       group: deploy-main

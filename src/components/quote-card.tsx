@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Quote, Tag, Users, EyeOff, Trash2 } from "lucide-react";
+import { Copy, Check, Quote, Tag, Users, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MediaBadge } from "@/components/media-badge";
 import { ConfirmActionButton } from "@/components/confirm-action-button";
+import { SpoilerText } from "@/components/spoiler-text";
 import { useTranslations } from "@/lib/i18n/client";
 import { canUserDeleteQuote, type QuoteExpand } from "@/lib/marginalia";
 import type { ShelfQuotesResponse } from "@/types/pocketbase-types";
@@ -97,7 +98,7 @@ export function QuoteCard({
         {/* Serif Quote Passage */}
         <blockquote className="space-y-1">
           <p className="font-serif text-base text-foreground/90 italic leading-relaxed tracking-normal font-normal">
-            &ldquo;{quote.quoteText}&rdquo;
+            &ldquo;<SpoilerText text={quote.quoteText} />&rdquo;
           </p>
         </blockquote>
 

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { afterAll, beforeEach, mock, spyOn } from "bun:test";
-import type {
-  UserMediaProgressResponse,
-  UserMediaProgressStatusOptions,
-  UserMediaProgressUnitOptions,
-} from "@/types/pocketbase-types";
+import type { UserMediaProgressStatusOptions } from "@/types/pocketbase-types";
 import { getTitleCircleProgress, getPersonalShelf } from "@/lib/queries/progress";
 import * as sessionModule from "@/lib/pocketbase/session";
 import * as superuserModule from "@/lib/pocketbase/superuser";
