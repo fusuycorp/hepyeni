@@ -109,6 +109,60 @@ export async function pruneExpiredLlmUsage(
   }
 }
 
+async function acquireRequestSlot(
+  pb: PocketBase,
+  userId: string,
+  window: string,
+  maxRequests: number,
+): Promise<string | undefined> {
+  for (let slot = 0; slot < maxRequests; slot++) {
+    const id = await reservationId(userId, window, "request", slot);
+    try {
+      await pb.collection(LLM_USAGE_COLLECTION).create({
+        id,
+        user: userId,
+        window,
+        kind: "request",
+        requestId: id,
+      });
+      return id;
+    } catch (err) {
+      if (!isUniqueReservationConflict(err)) throw err;
+    }
+  }
+  return undefined;
+}
+
+async function acquireInputSlots(
+  pb: PocketBase,
+  userId: string,
+  window: string,
+  requestId: string,
+  costUnits: number,
+  maxCostUnits: number,
+): Promise<string[]> {
+  const inputIds: string[] = [];
+  for (let slot = 0; slot < maxCostUnits && inputIds.length < costUnits; slot++) {
+    const id = await reservationId(userId, window, "input", slot);
+    try {
+      await pb.collection(LLM_USAGE_COLLECTION).create({
+        id,
+        user: userId,
+        window,
+        kind: "input",
+        requestId,
+      });
+      inputIds.push(id);
+    } catch (err) {
+      if (!isUniqueReservationConflict(err)) {
+        await deleteReservations(pb, [requestId, ...inputIds]);
+        throw err;
+      }
+    }
+  }
+  return inputIds;
+}
+
 /**
  * Reserve unique PocketBase records rather than incrementing a shared counter.
  * PocketBase is the single serialization point shared by all Next replicas.
@@ -128,57 +182,26 @@ export async function reserveLlmUsage(
   const window = String(currentWindow);
 
   await pruneExpiredLlmUsage(pb, currentWindow);
-  const requestIds: string[] = [];
-  let requestId: string | undefined;
-
-  for (let slot = 0; slot < limits.maxRequests; slot++) {
-    const id = await reservationId(userId, window, "request", slot);
-    try {
-      await pb.collection(LLM_USAGE_COLLECTION).create({
-        id,
-        user: userId,
-        window,
-        kind: "request",
-        requestId: id,
-      });
-      requestId = id;
-      requestIds.push(id);
-      break;
-    } catch (err) {
-      if (!isUniqueReservationConflict(err)) throw err;
-    }
-  }
-
+  const requestId = await acquireRequestSlot(pb, userId, window, limits.maxRequests);
   if (!requestId) return { allowed: false, reason: "requests" };
 
-  const inputIds: string[] = [];
-  for (let slot = 0; slot < maxCostUnits && inputIds.length < costUnits; slot++) {
-    const id = await reservationId(userId, window, "input", slot);
-    try {
-      await pb.collection(LLM_USAGE_COLLECTION).create({
-        id,
-        user: userId,
-        window,
-        kind: "input",
-        requestId,
-      });
-      inputIds.push(id);
-    } catch (err) {
-      if (!isUniqueReservationConflict(err)) {
-        await deleteReservations(pb, [...requestIds, ...inputIds]);
-        throw err;
-      }
-    }
-  }
+  const inputIds = await acquireInputSlots(
+    pb,
+    userId,
+    window,
+    requestId,
+    costUnits,
+    maxCostUnits,
+  );
 
   if (inputIds.length < costUnits) {
-    await deleteReservations(pb, [...requestIds, ...inputIds]);
+    await deleteReservations(pb, [requestId, ...inputIds]);
     return { allowed: false, reason: "input" };
   }
 
   const result: LlmUsageResult = { allowed: true };
   Object.defineProperty(result, "reservedIds", {
-    value: [...requestIds, ...inputIds],
+    value: [requestId, ...inputIds],
     enumerable: false,
     configurable: true,
     writable: true,

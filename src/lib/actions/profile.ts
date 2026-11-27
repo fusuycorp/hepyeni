@@ -40,6 +40,61 @@ export async function updateProfileName(
   }
 }
 
+async function transferOrDeleteOwnedGroup(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  group: GroupsResponse,
+  userId: string,
+): Promise<void> {
+  const otherMembers = await pb
+    .collection("group_members")
+    .getFullList<GroupMembersResponse>({
+      filter: pb.filter("group = {:groupId} && user != {:userId}", {
+        groupId: group.id,
+        userId,
+      }),
+      sort: "joinedAt",
+    });
+
+  if (otherMembers.length === 0) {
+    await pb.collection("groups").delete(group.id);
+    return;
+  }
+
+  const successor = otherMembers.find((m) => m.role === "owner") ?? otherMembers[0];
+  if (successor.role !== "owner") {
+    await pb.collection("group_members").update(successor.id, { role: "owner" });
+  }
+  await pb.collection("groups").update(group.id, { createdBy: successor.user });
+}
+
+async function reassignOrDeleteGroupRecords(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  collectionName: "titles" | "group_schedules",
+  ownerField: "addedBy" | "createdBy",
+  userId: string,
+): Promise<void> {
+  const records = await pb
+    .collection(collectionName)
+    .getFullList<TitlesResponse | GroupSchedulesResponse>({
+      filter: pb.filter(`${ownerField} = {:userId}`, { userId }),
+    });
+
+  for (const rec of records) {
+    const group = await pb
+      .collection("groups")
+      .getOne<GroupsResponse>(rec.group)
+      .catch((err) => {
+        if (isNotFound(err)) return null;
+        throw err;
+      });
+    if (group?.createdBy && group.createdBy !== userId) {
+      await pb.collection(collectionName).update(rec.id, { [ownerField]: group.createdBy });
+    } else {
+      await pb.collection(collectionName).delete(rec.id);
+    }
+  }
+}
+
 export async function deleteAccount(): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) {
@@ -54,73 +109,11 @@ export async function deleteAccount(): Promise<ActionResult<void>> {
     });
 
     for (const group of ownedGroups) {
-      const otherMembers = await pb
-        .collection("group_members")
-        .getFullList<GroupMembersResponse>({
-          filter: pb.filter("group = {:groupId} && user != {:userId}", {
-            groupId: group.id,
-            userId: session.id,
-          }),
-          sort: "joinedAt",
-        });
-
-      if (otherMembers.length > 0) {
-        const successor =
-          otherMembers.find((m) => m.role === "owner") ?? otherMembers[0];
-        if (successor.role !== "owner") {
-          await pb
-            .collection("group_members")
-            .update(successor.id, { role: "owner" });
-        }
-        await pb
-          .collection("groups")
-          .update(group.id, { createdBy: successor.user });
-      } else {
-        await pb.collection("groups").delete(group.id);
-      }
+      await transferOrDeleteOwnedGroup(pb, group, session.id);
     }
 
-    const addedTitles = await pb.collection("titles").getFullList<TitlesResponse>({
-      filter: pb.filter("addedBy = {:userId}", { userId: session.id }),
-    });
-    for (const title of addedTitles) {
-      const group = await pb
-        .collection("groups")
-        .getOne<GroupsResponse>(title.group)
-        .catch((err) => {
-          if (isNotFound(err)) return null;
-          throw err;
-        });
-      if (group && group.createdBy && group.createdBy !== session.id) {
-        await pb
-          .collection("titles")
-          .update(title.id, { addedBy: group.createdBy });
-      } else {
-        await pb.collection("titles").delete(title.id);
-      }
-    }
-
-    const createdSchedules = await pb
-      .collection("group_schedules")
-      .getFullList<GroupSchedulesResponse>({
-        filter: pb.filter("createdBy = {:userId}", { userId: session.id }),
-      });
-    for (const schedule of createdSchedules) {
-      const group = await pb
-        .collection("groups")
-        .getOne<GroupsResponse>(schedule.group)
-        .catch((err) => {
-          if (isNotFound(err)) return null;
-          throw err;
-        });
-      if (group && group.createdBy && group.createdBy !== session.id) {
-        await pb
-          .collection("group_schedules")
-          .update(schedule.id, { createdBy: group.createdBy });
-      } else {
-        await pb.collection("group_schedules").delete(schedule.id);
-      }
-    }
+    await reassignOrDeleteGroupRecords(pb, "titles", "addedBy", session.id);
+    await reassignOrDeleteGroupRecords(pb, "group_schedules", "createdBy", session.id);
 
     await pb.collection("users").delete(session.id);
     await clearSessionCookie();

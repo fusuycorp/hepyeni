@@ -23,47 +23,49 @@ function escapeCsvField(val: unknown): string {
   return str;
 }
 
-export function exportShelfToCsv(items: UserMediaProgressResponse[]): string {
-  const headers = [
-    "Title",
-    "Creator",
-    "Media Type",
-    "Status",
-    "Rating",
-    "Progress Current",
-    "Progress Total",
-    "Progress Unit",
-    "Current Label",
-    "Notes",
-    "Started At",
-    "Completed At",
-    "Created At",
-    "Updated At",
-    "External Source",
-    "External Id",
-  ];
+const CSV_HEADERS = [
+  "Title",
+  "Creator",
+  "Media Type",
+  "Status",
+  "Rating",
+  "Progress Current",
+  "Progress Total",
+  "Progress Unit",
+  "Current Label",
+  "Notes",
+  "Started At",
+  "Completed At",
+  "Created At",
+  "Updated At",
+  "External Source",
+  "External Id",
+] as const;
 
-  const rows: string[] = [headers.join(",")];
+const CSV_FIELD_KEYS: ReadonlyArray<keyof UserMediaProgressResponse> = [
+  "title",
+  "creator",
+  "mediaType",
+  "status",
+  "rating",
+  "progressCurrent",
+  "progressTotal",
+  "progressUnit",
+  "currentLabel",
+  "notes",
+  "startedAt",
+  "completedAt",
+  "createdAt",
+  "updatedAt",
+  "externalSource",
+  "externalId",
+];
+
+export function exportShelfToCsv(items: UserMediaProgressResponse[]): string {
+  const rows: string[] = [CSV_HEADERS.join(",")];
 
   for (const item of items) {
-    const row = [
-      escapeCsvField(item.title),
-      escapeCsvField(item.creator),
-      escapeCsvField(item.mediaType),
-      escapeCsvField(item.status),
-      escapeCsvField(item.rating ?? ""),
-      escapeCsvField(item.progressCurrent ?? ""),
-      escapeCsvField(item.progressTotal ?? ""),
-      escapeCsvField(item.progressUnit ?? ""),
-      escapeCsvField(item.currentLabel ?? ""),
-      escapeCsvField(item.notes ?? ""),
-      escapeCsvField(item.startedAt ?? ""),
-      escapeCsvField(item.completedAt ?? ""),
-      escapeCsvField(item.createdAt ?? ""),
-      escapeCsvField(item.updatedAt ?? ""),
-      escapeCsvField(item.externalSource ?? ""),
-      escapeCsvField(item.externalId ?? ""),
-    ];
+    const row = CSV_FIELD_KEYS.map((key) => escapeCsvField(item[key]));
     rows.push(row.join(","));
   }
 

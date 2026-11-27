@@ -15,6 +15,24 @@ import { logDiagnostic } from "@/lib/errors";
 const MAX_QUERY_CHARS = 200;
 const SEARCH_LIMIT_PER_WINDOW = 30;
 
+function parseSearchRequestParams(searchParams: URLSearchParams):
+  | { ok: true; mediaType: MediaType; query: string }
+  | { ok: false; error: string } {
+  const mediaType = searchParams.get("mediaType") as MediaType | null;
+  const query = searchParams.get("q")?.trim() || "";
+
+  if (!mediaType || !MEDIA_TYPES.includes(mediaType)) {
+    return { ok: false, error: "Invalid or missing mediaType parameter." };
+  }
+  if (query.length > MAX_QUERY_CHARS) {
+    return {
+      ok: false,
+      error: `Search query must be ${MAX_QUERY_CHARS} characters or fewer.`,
+    };
+  }
+  return { ok: true, mediaType, query };
+}
+
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = await getSessionFromToken(token);
@@ -26,26 +44,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { searchParams } = req.nextUrl;
-  const mediaType = searchParams.get("mediaType") as MediaType | null;
-  const query = searchParams.get("q")?.trim() || "";
-
-  if (!mediaType || !MEDIA_TYPES.includes(mediaType)) {
-    return NextResponse.json(
-      { error: "Invalid or missing mediaType parameter." },
-      { status: 400 },
-    );
-  }
-
   // ADR-007: bound the untrusted query before it reaches any provider. Each
   // book search fans out to up to three sequential upstream fetches, so an
   // unbounded `q` is 1:1 outbound amplification.
-  if (query.length > MAX_QUERY_CHARS) {
-    return NextResponse.json(
-      { error: `Search query must be ${MAX_QUERY_CHARS} characters or fewer.` },
-      { status: 400 },
-    );
+  const params = parseSearchRequestParams(req.nextUrl.searchParams);
+  if (!params.ok) {
+    return NextResponse.json({ error: params.error }, { status: 400 });
   }
+  const { mediaType, query } = params;
 
   if (!query) {
     return NextResponse.json({ results: [] }, { status: 200 });

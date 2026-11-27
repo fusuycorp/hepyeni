@@ -7,6 +7,18 @@ import { FEATURE_FLAGS_COOKIE_NAME } from "./server";
 import { logDiagnostic } from "@/lib/errors";
 import type { ActionResult } from "@/types/actions";
 
+function parseExistingFlagsCookie(raw?: string): Record<string, boolean> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, boolean>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function toggleUserFeatureFlag(
   flagKey: FeatureFlagKey,
   enabled: boolean,
@@ -27,19 +39,9 @@ export async function toggleUserFeatureFlag(
 
   try {
     const store = await cookies();
-    let currentFlags: Record<string, boolean> = {};
-
-    const existingCookie = store.get(FEATURE_FLAGS_COOKIE_NAME)?.value;
-    if (existingCookie) {
-      try {
-        const parsed = JSON.parse(existingCookie);
-        if (typeof parsed === "object" && parsed !== null) {
-          currentFlags = parsed;
-        }
-      } catch {
-        // Reset if malformed
-      }
-    }
+    const currentFlags = parseExistingFlagsCookie(
+      store.get(FEATURE_FLAGS_COOKIE_NAME)?.value,
+    );
 
     currentFlags[flagKey] = Boolean(enabled);
 

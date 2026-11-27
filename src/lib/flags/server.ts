@@ -21,32 +21,39 @@ export interface FeatureFlagContext {
   userId?: string;
 }
 
+function parseFlagBoolean(val: unknown): boolean | undefined {
+  if (typeof val === "boolean") return val;
+  if (typeof val === "number") {
+    if (val === 1) return true;
+    if (val === 0) return false;
+    return undefined;
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (/^(true|1|yes|on)$/i.test(trimmed)) return true;
+    if (/^(false|0|no|off)$/i.test(trimmed)) return false;
+  }
+  return undefined;
+}
+
 function parseCookieFlags(cookieValue?: string): Partial<Record<FeatureFlagKey, boolean>> {
   if (!cookieValue || typeof cookieValue !== "string") return {};
   try {
     const parsed = JSON.parse(cookieValue);
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      const sanitized: Partial<Record<FeatureFlagKey, boolean>> = Object.create(null);
-      for (const [k, v] of Object.entries(parsed)) {
-        if (typeof v === "boolean") {
-          sanitized[k as FeatureFlagKey] = v;
-        } else if (typeof v === "string") {
-          if (/^(true|1|yes|on)$/i.test(v.trim())) {
-            sanitized[k as FeatureFlagKey] = true;
-          } else if (/^(false|0|no|off)$/i.test(v.trim())) {
-            sanitized[k as FeatureFlagKey] = false;
-          }
-        } else if (typeof v === "number") {
-          if (v === 1) sanitized[k as FeatureFlagKey] = true;
-          if (v === 0) sanitized[k as FeatureFlagKey] = false;
-        }
-      }
-      return sanitized;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {};
     }
+    const sanitized: Partial<Record<FeatureFlagKey, boolean>> = Object.create(null);
+    for (const [k, v] of Object.entries(parsed)) {
+      const coerced = parseFlagBoolean(v);
+      if (coerced !== undefined) {
+        sanitized[k as FeatureFlagKey] = coerced;
+      }
+    }
+    return sanitized;
   } catch {
-    // Ignore invalid JSON cookie
+    return {};
   }
-  return {};
 }
 
 async function getCookieValue(
@@ -71,6 +78,68 @@ async function getCookieValue(
   }
 }
 
+function readOwnContextFlag(
+  record: Partial<Record<FeatureFlagKey, boolean>> | undefined,
+  flagKey: FeatureFlagKey,
+): boolean | undefined {
+  if (
+    record &&
+    Object.prototype.hasOwnProperty.call(record, flagKey) &&
+    record[flagKey] !== undefined
+  ) {
+    return Boolean(record[flagKey]);
+  }
+  return undefined;
+}
+
+function resolveSyncFlagOverride(
+  flagKey: FeatureFlagKey,
+  context?: FeatureFlagContext,
+): boolean | undefined {
+  // 1. Environment Variable Override (FLAG_ENABLE_*)
+  const envVal = process.env[`FLAG_ENABLE_${flagKey.toUpperCase()}`];
+  if (envVal !== undefined) {
+    const parsedEnv = parseFlagBoolean(envVal);
+    if (parsedEnv !== undefined) return parsedEnv;
+  }
+
+  // 2. Direct Context Override
+  const direct = readOwnContextFlag(context?.flags, flagKey);
+  if (direct !== undefined) return direct;
+
+  // 3. Circle / Group Settings Override
+  const circle = readOwnContextFlag(context?.circleSettings, flagKey);
+  if (circle !== undefined) return circle;
+
+  return readOwnContextFlag(context?.group?.flags, flagKey);
+}
+
+async function resolveSingleFlag(
+  flagKey: FeatureFlagKey,
+  context: FeatureFlagContext | undefined,
+  preloadedCookieFlags?: Partial<Record<FeatureFlagKey, boolean>>,
+): Promise<boolean> {
+  const syncOverride = resolveSyncFlagOverride(flagKey, context);
+  if (syncOverride !== undefined) return syncOverride;
+
+  // 4. User Cookie Override (skipped for server-only flags)
+  if (!FEATURE_FLAGS[flagKey]?.serverOnly) {
+    const cookieFlags =
+      preloadedCookieFlags ??
+      parseCookieFlags(await getCookieValue(FEATURE_FLAGS_COOKIE_NAME, context));
+    if (cookieFlags[flagKey] !== undefined) {
+      return Boolean(cookieFlags[flagKey]);
+    }
+
+    const individualCookieVal = await getCookieValue(`flag_${flagKey}`, context);
+    const parsedCookie = parseFlagBoolean(individualCookieVal);
+    if (parsedCookie !== undefined) return parsedCookie;
+  }
+
+  // 5. Default Registry Value
+  return FEATURE_FLAGS[flagKey]?.defaultEnabled ?? false;
+}
+
 export async function isFeatureEnabled(
   flagKey: FeatureFlagKey,
   context?: FeatureFlagContext,
@@ -78,57 +147,7 @@ export async function isFeatureEnabled(
   if (!flagKey || typeof flagKey !== "string") {
     return false;
   }
-
-  // 1. Environment Variable Override (FLAG_ENABLE_*)
-  const envKey = `FLAG_ENABLE_${flagKey.toUpperCase()}`;
-  const envVal = process.env[envKey];
-  if (envVal !== undefined) {
-    if (/^(true|1|yes|on)$/i.test(envVal.trim())) return true;
-    if (/^(false|0|no|off)$/i.test(envVal.trim())) return false;
-  }
-
-  // 2. Direct Context Override
-  if (
-    context?.flags &&
-    Object.prototype.hasOwnProperty.call(context.flags, flagKey) &&
-    context.flags[flagKey] !== undefined
-  ) {
-    return Boolean(context.flags[flagKey]);
-  }
-
-  // 3. Circle / Group Settings Override
-  if (
-    context?.circleSettings &&
-    Object.prototype.hasOwnProperty.call(context.circleSettings, flagKey) &&
-    context.circleSettings[flagKey] !== undefined
-  ) {
-    return Boolean(context.circleSettings[flagKey]);
-  }
-  if (
-    context?.group?.flags &&
-    Object.prototype.hasOwnProperty.call(context.group.flags, flagKey) &&
-    context.group.flags[flagKey] !== undefined
-  ) {
-    return Boolean(context.group.flags[flagKey]);
-  }
-
-  // 4. User Cookie Override (skipped for server-only flags)
-  if (!FEATURE_FLAGS[flagKey]?.serverOnly) {
-    const mainCookieVal = await getCookieValue(FEATURE_FLAGS_COOKIE_NAME, context);
-    const cookieFlags = parseCookieFlags(mainCookieVal);
-    if (cookieFlags[flagKey] !== undefined) {
-      return Boolean(cookieFlags[flagKey]);
-    }
-
-    const individualCookieVal = await getCookieValue(`flag_${flagKey}`, context);
-    if (individualCookieVal !== undefined) {
-      if (/^(true|1|yes|on)$/i.test(individualCookieVal.trim())) return true;
-      if (/^(false|0|no|off)$/i.test(individualCookieVal.trim())) return false;
-    }
-  }
-
-  // 5. Default Registry Value
-  return FEATURE_FLAGS[flagKey]?.defaultEnabled ?? false;
+  return resolveSingleFlag(flagKey, context);
 }
 
 export async function getFeatureFlags(
@@ -141,70 +160,7 @@ export async function getFeatureFlags(
   const cookieFlags = parseCookieFlags(mainCookieVal);
 
   for (const key of FEATURE_FLAG_KEYS) {
-    // 1. Environment Variable
-    const envKey = `FLAG_ENABLE_${key.toUpperCase()}`;
-    const envVal = process.env[envKey];
-    if (envVal !== undefined) {
-      if (/^(true|1|yes|on)$/i.test(envVal.trim())) {
-        result[key] = true;
-        continue;
-      }
-      if (/^(false|0|no|off)$/i.test(envVal.trim())) {
-        result[key] = false;
-        continue;
-      }
-    }
-
-    // 2. Context flags
-    if (
-      context?.flags &&
-      Object.prototype.hasOwnProperty.call(context.flags, key) &&
-      context.flags[key] !== undefined
-    ) {
-      result[key] = Boolean(context.flags[key]);
-      continue;
-    }
-
-    // 3. Circle / Group
-    if (
-      context?.circleSettings &&
-      Object.prototype.hasOwnProperty.call(context.circleSettings, key) &&
-      context.circleSettings[key] !== undefined
-    ) {
-      result[key] = Boolean(context.circleSettings[key]);
-      continue;
-    }
-    if (
-      context?.group?.flags &&
-      Object.prototype.hasOwnProperty.call(context.group.flags, key) &&
-      context.group.flags[key] !== undefined
-    ) {
-      result[key] = Boolean(context.group.flags[key]);
-      continue;
-    }
-
-    // 4. Cookie (skipped for server-only flags)
-    if (!FEATURE_FLAGS[key]?.serverOnly) {
-      if (cookieFlags[key] !== undefined) {
-        result[key] = Boolean(cookieFlags[key]);
-        continue;
-      }
-
-      const individualCookieVal = await getCookieValue(`flag_${key}`, context);
-      if (individualCookieVal !== undefined) {
-        if (/^(true|1|yes|on)$/i.test(individualCookieVal.trim())) {
-          result[key] = true;
-          continue;
-        }
-        if (/^(false|0|no|off)$/i.test(individualCookieVal.trim())) {
-          result[key] = false;
-          continue;
-        }
-      }
-    }
-
-    // 5. Default
-    result[key] = FEATURE_FLAGS[key]?.defaultEnabled ?? false;
+    result[key] = await resolveSingleFlag(key, context, cookieFlags);
   }
 
   return result;

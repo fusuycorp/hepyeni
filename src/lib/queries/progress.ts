@@ -71,6 +71,91 @@ export async function getPersonalShelf(
   }
 }
 
+function computeProgressPercentage(p: UserMediaProgressResponse): number | undefined {
+  if (p.status === "completed") return 100;
+  if (
+    typeof p.progressCurrent === "number" &&
+    typeof p.progressTotal === "number" &&
+    p.progressTotal > 0
+  ) {
+    return Math.min(100, Math.round((p.progressCurrent / p.progressTotal) * 100));
+  }
+  return undefined;
+}
+
+function buildMemberProgressFilter(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  titleId: string,
+  resolvedTitle: TitlesResponse,
+  memberUserIds: string[],
+): string {
+  // L5: custom rows carry no externalSource/externalId — only bind the
+  // external clause when both exist so unbound params never reach the filter.
+  // Scope to circle member IDs and project lean fields (R2-Q02).
+  const userOrClause = memberUserIds.map((_, i) => `user = {:u${i}}`).join(" || ");
+  const userParams = Object.fromEntries(memberUserIds.map((u, i) => [`u${i}`, u]));
+  const baseFilter =
+    resolvedTitle.externalSource && resolvedTitle.externalId
+      ? `(groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})) && (${userOrClause})`
+      : `groupTitle = {:titleId} && (${userOrClause})`;
+  return pb.filter(baseFilter, {
+    titleId,
+    src: resolvedTitle.externalSource || "",
+    extId: resolvedTitle.externalId || "",
+    ...userParams,
+  });
+}
+
+async function resolveTargetTitleRecord(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  titleId: string,
+  title: TitlesResponse | null,
+  groupId: string,
+): Promise<TitlesResponse | null> {
+  if (title && title.id === titleId && (!title.group || title.group === groupId)) {
+    return title;
+  }
+  return pb
+    .collection("titles")
+    .getFirstListItem<TitlesResponse>(
+      pb.filter("id = {:titleId} && group = {:groupId}", { titleId, groupId }),
+    )
+    .catch(() => null);
+}
+
+function buildPublicMemberMap(
+  members: GroupMembersResponse<{ user?: UsersResponse }>[],
+): Map<string, PublicUser> {
+  const memberMap = new Map<string, PublicUser>();
+  for (const m of members) {
+    const user = pickReviewerUser(m.expand?.user);
+    if (user) {
+      memberMap.set(m.user, user);
+    }
+  }
+  return memberMap;
+}
+
+function projectVisibleMemberProgress(
+  progressRecords: UserMediaProgressResponse[],
+  memberMap: Map<string, PublicUser>,
+  titleId: string,
+  viewerId?: string,
+): TitleMemberProgressItem[] {
+  const result: TitleMemberProgressItem[] = [];
+  for (const p of progressRecords) {
+    const user = memberMap.get(p.user);
+    if (!user || !isProgressVisibleToViewer(p, viewerId)) continue;
+
+    result.push({
+      user,
+      progress: p.groupTitle && p.groupTitle !== titleId ? { ...p, groupTitle: "" } : p,
+      percentage: computeProgressPercentage(p),
+    });
+  }
+  return result;
+}
+
 export async function getTitleCircleProgress(
   titleId: string,
   title: TitlesResponse | null,
@@ -91,14 +176,7 @@ export async function getTitleCircleProgress(
     const pb = await getSuperuserClient();
 
     const [resolvedTitle, members] = await Promise.all([
-      title && title.id === titleId && (!title.group || title.group === groupId)
-        ? Promise.resolve(title)
-        : pb
-            .collection("titles")
-            .getFirstListItem<TitlesResponse>(
-              pb.filter("id = {:titleId} && group = {:groupId}", { titleId, groupId }),
-            )
-            .catch(() => null),
+      resolveTargetTitleRecord(pb, titleId, title, groupId),
       pb
         .collection("group_members")
         .getFullList<GroupMembersResponse<{ user?: UsersResponse }>>({
@@ -107,26 +185,10 @@ export async function getTitleCircleProgress(
         }),
     ]);
 
-    if (!resolvedTitle) return [];
+    if (!resolvedTitle || members.length === 0) return [];
 
     const memberUserIds = members.map((m) => m.user);
-    if (memberUserIds.length === 0) return [];
-
-    // L5: custom rows carry no externalSource/externalId — only bind the
-    // external clause when both exist so unbound params never reach the filter.
-    // Scope to circle member IDs and project lean fields (R2-Q02).
-    const userOrClause = memberUserIds.map((_, i) => `user = {:u${i}}`).join(" || ");
-    const userParams = Object.fromEntries(memberUserIds.map((u, i) => [`u${i}`, u]));
-    const baseFilter =
-      resolvedTitle.externalSource && resolvedTitle.externalId
-        ? `(groupTitle = {:titleId} || (externalSource = {:src} && externalId = {:extId})) && (${userOrClause})`
-        : `groupTitle = {:titleId} && (${userOrClause})`;
-    const filter = pb.filter(baseFilter, {
-      titleId,
-      src: resolvedTitle.externalSource || "",
-      extId: resolvedTitle.externalId || "",
-      ...userParams,
-    });
+    const filter = buildMemberProgressFilter(pb, titleId, resolvedTitle, memberUserIds);
 
     const progressRecords = await pb
       .collection("user_media_progress")
@@ -136,46 +198,12 @@ export async function getTitleCircleProgress(
           "id,user,groupTitle,status,progressCurrent,progressTotal,progressUnit,isSharedWithCircles,startedAt,completedAt,updatedAt",
       });
 
-    const memberMap = new Map<string, PublicUser>();
-    for (const m of members) {
-      const user = pickReviewerUser(m.expand?.user);
-      if (user) {
-        memberMap.set(m.user, user);
-      }
-    }
-
-    const result: TitleMemberProgressItem[] = [];
-    for (const p of progressRecords) {
-      const user = memberMap.get(p.user);
-      if (user) {
-        if (isProgressVisibleToViewer(p, resolvedSession?.id)) {
-          let percentage: number | undefined;
-          if (p.status === "completed") {
-            percentage = 100;
-          } else if (
-            typeof p.progressCurrent === "number" &&
-            typeof p.progressTotal === "number" &&
-            p.progressTotal > 0
-          ) {
-            percentage = Math.min(
-              100,
-              Math.round((p.progressCurrent / p.progressTotal) * 100),
-            );
-          }
-
-          result.push({
-            user,
-            progress:
-              p.groupTitle && p.groupTitle !== titleId
-                ? { ...p, groupTitle: "" }
-                : p,
-            percentage,
-          });
-        }
-      }
-    }
-
-    return result;
+    return projectVisibleMemberProgress(
+      progressRecords,
+      buildPublicMemberMap(members),
+      titleId,
+      resolvedSession?.id,
+    );
   } catch (err) {
     logDiagnostic(err, { action: "getTitleCircleProgress", titleId, groupId });
     return [];

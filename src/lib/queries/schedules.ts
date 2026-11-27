@@ -26,6 +26,93 @@ export interface GroupScheduleWithMilestones extends GroupSchedulesResponse {
   milestones: MilestoneWithCheckins[];
 }
 
+function canViewerReadSchedules(resolvedAccess: CircleAccess): boolean {
+  if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
+    return false;
+  }
+  return !(
+    !resolvedAccess.isMember &&
+    resolvedAccess.canViewBacklog === false &&
+    resolvedAccess.canViewFinished === false
+  );
+}
+
+async function fetchMilestoneActivity(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  milestoneIds: string[],
+): Promise<{
+  allCheckins: MilestoneCheckinsResponse<{ user?: PublicUser }>[];
+  allComments: MilestoneCommentsResponse[];
+}> {
+  if (milestoneIds.length === 0) {
+    return { allCheckins: [], allComments: [] };
+  }
+  const milestoneFilter = milestoneIds
+    .map((id) => pb.filter("milestone = {:id}", { id }))
+    .join(" || ");
+  const [checkinsRes, commentsRes] = await Promise.all([
+    pb
+      .collection("milestone_checkins")
+      .getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
+        filter: milestoneFilter,
+        expand: "user",
+        // R2: trim the expanded voter to id/name/avatarUrl on the wire.
+        fields:
+          "id,milestone,user,createdAt," +
+          "expand.user.id,expand.user.name,expand.user.avatarUrl",
+      }),
+    // P6: only the milestone id is needed for the comment tally
+    pb
+      .collection("milestone_comments")
+      .getFullList<MilestoneCommentsResponse>({
+        filter: milestoneFilter,
+        fields: "id,milestone",
+      }),
+  ]);
+  const allCheckins = checkinsRes.map((c) => {
+    const user = pickReviewerUser(c.expand?.user);
+    return { ...c, expand: user ? { user } : {} };
+  });
+  return { allCheckins, allComments: commentsRes };
+}
+
+function buildMilestonesByScheduleMap(
+  allMilestones: ScheduleMilestonesResponse[],
+  allCheckins: MilestoneCheckinsResponse<{ user?: PublicUser }>[],
+  allComments: MilestoneCommentsResponse[],
+  currentUserId?: string,
+): Map<string, MilestoneWithCheckins[]> {
+  const checkinsByMilestone = new Map<
+    string,
+    MilestoneCheckinsResponse<{ user?: PublicUser }>[]
+  >();
+  for (const c of allCheckins) {
+    const list = checkinsByMilestone.get(c.milestone) ?? [];
+    list.push(c);
+    checkinsByMilestone.set(c.milestone, list);
+  }
+
+  const commentCountsByMilestone = new Map<string, number>();
+  for (const comment of allComments) {
+    const count = commentCountsByMilestone.get(comment.milestone) ?? 0;
+    commentCountsByMilestone.set(comment.milestone, count + 1);
+  }
+
+  const milestonesBySchedule = new Map<string, MilestoneWithCheckins[]>();
+  for (const m of allMilestones) {
+    const checkins = checkinsByMilestone.get(m.id) ?? [];
+    const hasCheckedIn = currentUserId
+      ? checkins.some((c) => c.user === currentUserId)
+      : false;
+    const commentCount = commentCountsByMilestone.get(m.id) ?? 0;
+
+    const list = milestonesBySchedule.get(m.schedule) ?? [];
+    list.push({ ...m, checkins, hasCheckedIn, commentCount });
+    milestonesBySchedule.set(m.schedule, list);
+  }
+  return milestonesBySchedule;
+}
+
 export async function getGroupSchedules(
   groupId: string,
   session?: Session | null,
@@ -36,14 +123,7 @@ export async function getGroupSchedules(
   const resolvedSession = session === undefined ? await getSession() : session;
   const resolvedAccess =
     access ?? (await resolveCircleAccess(groupId, resolvedSession?.id));
-  if (!resolvedAccess.isMember && !resolvedAccess.group.isPublic) {
-    return [];
-  }
-  if (
-    !resolvedAccess.isMember &&
-    resolvedAccess.canViewBacklog === false &&
-    resolvedAccess.canViewFinished === false
-  ) {
+  if (!canViewerReadSchedules(resolvedAccess)) {
     return [];
   }
 
@@ -65,86 +145,26 @@ export async function getGroupSchedules(
 
     if (schedules.length === 0) return [];
 
-    const scheduleIds = schedules.map((s) => s.id);
-
     // Fetch all milestones for these schedules (S7: bind each id, no raw concat)
     const allMilestones = await pb
       .collection("schedule_milestones")
       .getFullList<ScheduleMilestonesResponse>({
-        filter: scheduleIds
-          .map((id) => pb.filter("schedule = {:id}", { id }))
+        filter: schedules
+          .map((s) => pb.filter("schedule = {:id}", { id: s.id }))
           .join(" || "),
         sort: "orderIndex",
       });
 
-    const milestoneIds = allMilestones.map((m) => m.id);
-
-    // Fetch all checkins for these milestones
-    let allCheckins: MilestoneCheckinsResponse<{ user?: PublicUser }>[] = [];
-    let allComments: MilestoneCommentsResponse[] = [];
-    if (milestoneIds.length > 0) {
-      const milestoneFilter = milestoneIds
-        .map((id) => pb.filter("milestone = {:id}", { id }))
-        .join(" || ");
-      const [checkinsRes, commentsRes] = await Promise.all([
-        pb
-          .collection("milestone_checkins")
-          .getFullList<MilestoneCheckinsResponse<{ user?: UsersResponse }>>({
-            filter: milestoneFilter,
-            expand: "user",
-            // R2: trim the expanded voter to id/name/avatarUrl on the wire.
-            fields:
-              "id,milestone,user,createdAt," +
-              "expand.user.id,expand.user.name,expand.user.avatarUrl",
-          }),
-        // P6: only the milestone id is needed for the comment tally
-        pb
-          .collection("milestone_comments")
-          .getFullList<MilestoneCommentsResponse>({
-            filter: milestoneFilter,
-            fields: "id,milestone",
-          }),
-      ]);
-      allCheckins = checkinsRes.map((c) => {
-        const user = pickReviewerUser(c.expand?.user);
-        return { ...c, expand: user ? { user } : {} };
-      });
-      allComments = commentsRes;
-    }
-
-    const checkinsByMilestone = new Map<
-      string,
-      MilestoneCheckinsResponse<{ user?: PublicUser }>[]
-    >();
-    for (const c of allCheckins) {
-      const list = checkinsByMilestone.get(c.milestone) || [];
-      list.push(c);
-      checkinsByMilestone.set(c.milestone, list);
-    }
-
-    const commentCountsByMilestone = new Map<string, number>();
-    for (const comment of allComments) {
-      const count = commentCountsByMilestone.get(comment.milestone) || 0;
-      commentCountsByMilestone.set(comment.milestone, count + 1);
-    }
-
-    const milestonesBySchedule = new Map<string, MilestoneWithCheckins[]>();
-    for (const m of allMilestones) {
-      const checkins = checkinsByMilestone.get(m.id) || [];
-      const hasCheckedIn = resolvedSession?.id
-        ? checkins.some((c) => c.user === resolvedSession.id)
-        : false;
-      const commentCount = commentCountsByMilestone.get(m.id) || 0;
-
-      const list = milestonesBySchedule.get(m.schedule) || [];
-      list.push({
-        ...m,
-        checkins,
-        hasCheckedIn,
-        commentCount,
-      });
-      milestonesBySchedule.set(m.schedule, list);
-    }
+    const { allCheckins, allComments } = await fetchMilestoneActivity(
+      pb,
+      allMilestones.map((m) => m.id),
+    );
+    const milestonesBySchedule = buildMilestonesByScheduleMap(
+      allMilestones,
+      allCheckins,
+      allComments,
+      resolvedSession?.id,
+    );
 
     // R2 invariant: `creator` is projected, but the raw `expand` block must not
     // ride along on the returned object. Spreading the record (`...s`) would

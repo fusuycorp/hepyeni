@@ -55,34 +55,28 @@ export function projectQuoteRecord(
   };
 }
 
+function splitRawTags(input: string | string[]): string[] {
+  if (Array.isArray(input)) return input;
+  if (typeof input !== "string") return [];
+  return input.includes(",") ? input.split(",") : input.split(/\s+/);
+}
+
+function normalizeSingleTag(rawTag: unknown): string | null {
+  if (typeof rawTag !== "string") return null;
+  let tag = rawTag.trim();
+  if (tag.startsWith("#")) tag = tag.slice(1).trim();
+  if (!tag) return null;
+  return tag.slice(0, 50).toLowerCase();
+}
+
 export function parseTags(input: string | string[] | undefined | null): string[] {
   if (!input) return [];
-  let rawList: string[] = [];
-  if (Array.isArray(input)) {
-    rawList = input;
-  } else if (typeof input === "string") {
-    if (input.includes(",")) {
-      rawList = input.split(",");
-    } else {
-      rawList = input.split(/\s+/);
-    }
-  }
-
   const tagSet = new Set<string>();
   const result: string[] = [];
 
-  for (let tag of rawList) {
-    if (typeof tag !== "string") continue;
-    tag = tag.trim();
-    if (tag.startsWith("#")) {
-      tag = tag.slice(1).trim();
-    }
-    if (!tag) continue;
-    if (tag.length > 50) {
-      tag = tag.slice(0, 50);
-    }
-    const lower = tag.toLowerCase();
-    if (!tagSet.has(lower)) {
+  for (const rawTag of splitRawTags(input)) {
+    const lower = normalizeSingleTag(rawTag);
+    if (lower && !tagSet.has(lower)) {
       tagSet.add(lower);
       result.push(lower);
     }
@@ -91,47 +85,63 @@ export function parseTags(input: string | string[] | undefined | null): string[]
   return result.slice(0, 20);
 }
 
+function formatPageNumber(page: unknown): string | null {
+  if (page === undefined || page === null) return null;
+  try {
+    const pageStr = String(page).trim();
+    if (!pageStr) return null;
+    return /^(p\.|s\.|page)/i.test(pageStr) ? pageStr : `p. ${pageStr}`;
+  } catch {
+    return null;
+  }
+}
+
 export function formatAttribution(
   options?: StructuredAttribution | string | null,
 ): string {
   if (!options) return "";
-  if (typeof options === "string") {
-    return options.trim();
-  }
-  if (typeof options !== "object") {
-    return "";
-  }
+  if (typeof options === "string") return options.trim();
+  if (typeof options !== "object") return "";
 
-  const parts: string[] = [];
-  if (typeof options.author === "string" && options.author.trim()) parts.push(options.author.trim());
-  if (typeof options.work === "string" && options.work.trim()) parts.push(options.work.trim());
-  if (typeof options.chapter === "string" && options.chapter.trim()) parts.push(options.chapter.trim());
+  const parts = [options.author, options.work, options.chapter]
+    .filter((v): v is string => typeof v === "string" && Boolean(v.trim()))
+    .map((v) => v.trim());
 
   let base = parts.join(", ");
-
-  if (options.page !== undefined && options.page !== null) {
-    try {
-      const pageStr = String(options.page).trim();
-      if (pageStr) {
-        const formattedPage =
-          pageStr.startsWith("p.") || pageStr.startsWith("s.") || pageStr.startsWith("page")
-            ? pageStr
-            : `p. ${pageStr}`;
-        base = base ? `${base} (${formattedPage})` : `(${formattedPage})`;
-      }
-    } catch {
-      // Ignore conversion failures on corrupt objects
-    }
+  const formattedPage = formatPageNumber(options.page);
+  if (formattedPage) {
+    base = base ? `${base} (${formattedPage})` : `(${formattedPage})`;
   }
 
-  if (typeof options.timestamp === "string") {
-    const tsStr = options.timestamp.trim();
-    if (tsStr) {
-      base = base ? `${base} [${tsStr}]` : `[${tsStr}]`;
-    }
+  const tsStr = typeof options.timestamp === "string" ? options.timestamp.trim() : "";
+  if (tsStr) {
+    base = base ? `${base} [${tsStr}]` : `[${tsStr}]`;
   }
 
   return base;
+}
+
+function trimOptionalString(val: unknown): string | undefined {
+  if (typeof val !== "string") return undefined;
+  const trimmed = val.trim();
+  return trimmed || undefined;
+}
+
+function sanitizeSharedCircles(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((c): c is string => typeof c === "string" && c.trim().length > 0);
+}
+
+function validateRequiredTextLength(
+  val: unknown,
+  max: number,
+  emptyMsg: string,
+  maxMsg: string,
+): { ok: true; text: string } | { ok: false; error: string } {
+  const text = typeof val === "string" ? val.trim() : "";
+  if (!text) return { ok: false, error: emptyMsg };
+  if (text.length > max) return { ok: false, error: maxMsg };
+  return { ok: true, text };
 }
 
 export function validateQuoteInput(input: AddQuoteInput): {
@@ -149,53 +159,37 @@ export function validateQuoteInput(input: AddQuoteInput): {
 } {
   if (!input || typeof input !== "object") return { valid: false, error: "Invalid input" };
 
-  const rawQuote = typeof input.quoteText === "string" ? input.quoteText.trim() : "";
-  if (!rawQuote || rawQuote.length === 0) {
-    return { valid: false, error: "Quote text is required (1-3000 chars)" };
-  }
-  if (rawQuote.length > 3000) {
-    return { valid: false, error: "Quote text cannot exceed 3000 characters" };
-  }
+  const quoteCheck = validateRequiredTextLength(
+    input.quoteText,
+    3000,
+    "Quote text is required (1-3000 chars)",
+    "Quote text cannot exceed 3000 characters",
+  );
+  if (!quoteCheck.ok) return { valid: false, error: quoteCheck.error };
 
-  const rawTitle = typeof input.titleName === "string" ? input.titleName.trim() : "";
-  if (!rawTitle || rawTitle.length === 0) {
-    return { valid: false, error: "Title name is required (1-200 chars)" };
-  }
-  if (rawTitle.length > 200) {
-    return { valid: false, error: "Title name cannot exceed 200 characters" };
-  }
+  const titleCheck = validateRequiredTextLength(
+    input.titleName,
+    200,
+    "Title name is required (1-200 chars)",
+    "Title name cannot exceed 200 characters",
+  );
+  if (!titleCheck.ok) return { valid: false, error: titleCheck.error };
 
-  const rawAttr = typeof input.attribution === "string" ? input.attribution.trim() : undefined;
+  const rawAttr = trimOptionalString(input.attribution);
   if (rawAttr && rawAttr.length > 200) {
     return { valid: false, error: "Attribution cannot exceed 200 characters" };
-  }
-
-  const tags = parseTags(input.tags);
-  let isSharedWithCircles: string[] = [];
-  if (Array.isArray(input.isSharedWithCircles)) {
-    isSharedWithCircles = input.isSharedWithCircles.filter(
-      (c) => typeof c === "string" && c.trim().length > 0,
-    );
-  } else if (input.isSharedWithCircles === true) {
-    isSharedWithCircles = [];
   }
 
   return {
     valid: true,
     sanitized: {
-      quoteText: rawQuote,
-      titleName: rawTitle,
-      attribution: rawAttr || undefined,
-      mediaType:
-        typeof input.mediaType === "string" && input.mediaType.trim()
-          ? input.mediaType.trim()
-          : undefined,
-      progressItem:
-        typeof input.progressItem === "string" && input.progressItem.trim()
-          ? input.progressItem.trim()
-          : undefined,
-      tags,
-      isSharedWithCircles,
+      quoteText: quoteCheck.text,
+      titleName: titleCheck.text,
+      attribution: rawAttr,
+      mediaType: trimOptionalString(input.mediaType),
+      progressItem: trimOptionalString(input.progressItem),
+      tags: parseTags(input.tags),
+      isSharedWithCircles: sanitizeSharedCircles(input.isSharedWithCircles),
     },
   };
 }
@@ -209,14 +203,7 @@ export function canUserViewQuote(
     return false;
   }
   if (quote.user === viewerUserId) return true;
-  if (
-    !quote.isSharedWithCircles ||
-    !Array.isArray(quote.isSharedWithCircles) ||
-    quote.isSharedWithCircles.length === 0
-  ) {
-    return false;
-  }
-  if (!Array.isArray(memberCircleIds) || memberCircleIds.length === 0) {
+  if (!Array.isArray(quote.isSharedWithCircles) || !Array.isArray(memberCircleIds)) {
     return false;
   }
   return quote.isSharedWithCircles.some(

@@ -15,6 +15,39 @@ function foldTitle(title: string): string {
     .replace(/[^\p{L}\p{N}]/gu, "");
 }
 
+const BLOCKED_EXACT_HOSTS = new Set([
+  "localhost",
+  "0.0.0.0",
+  "::",
+  "::1",
+  "0:0:0:0:0:0:0:1",
+]);
+
+const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal"];
+
+const BLOCKED_HOST_PREFIXES = [
+  "::ffff:",
+  "0:0:0:0:0:ffff:",
+  "127.",
+  "169.254.",
+  "10.",
+  "192.168.",
+];
+
+const BLOCKED_HOST_PATTERNS = [
+  /^fe[89ab][0-9a-f]:/,
+  /^f[cd][0-9a-f]{2}:/,
+  /^172\.(1[6-9]|2\d|3[0-1])\./,
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
+];
+
+function isBlockedCoverHostname(host: string): boolean {
+  if (BLOCKED_EXACT_HOSTS.has(host)) return true;
+  if (BLOCKED_HOST_SUFFIXES.some((s) => host.endsWith(s))) return true;
+  if (BLOCKED_HOST_PREFIXES.some((p) => host.startsWith(p))) return true;
+  return BLOCKED_HOST_PATTERNS.some((re) => re.test(host));
+}
+
 export function isSafeCoverUrl(rawUrl: string): boolean {
   if (!/^https?:\/\//i.test(rawUrl)) return false;
   try {
@@ -24,32 +57,30 @@ export function isSafeCoverUrl(rawUrl: string): boolean {
       .toLowerCase()
       .replace(/\.+$/, "")
       .replace(/^\[|\]$/g, "");
-    if (
-      host === "localhost" ||
-      host.endsWith(".localhost") ||
-      host.endsWith(".local") ||
-      host.endsWith(".internal") ||
-      host === "0.0.0.0" ||
-      host === "::" ||
-      host === "::1" ||
-      host === "0:0:0:0:0:0:0:1" ||
-      host.startsWith("::ffff:") ||
-      host.startsWith("0:0:0:0:0:ffff:") ||
-      /^fe[89ab][0-9a-f]:/.test(host) ||
-      /^f[cd][0-9a-f]{2}:/.test(host) ||
-      host.startsWith("127.") ||
-      host.startsWith("169.254.") ||
-      host.startsWith("10.") ||
-      host.startsWith("192.168.") ||
-      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
-      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)
-    ) {
-      return false;
-    }
-    return true;
+    return !isBlockedCoverHostname(host);
   } catch {
     return false;
   }
+}
+
+function cleanBoundedString(val: unknown, max: number): string {
+  return typeof val === "string" ? val.trim().slice(0, max) : "";
+}
+
+function cleanOptionalCreator(val: unknown): string | undefined {
+  const cleaned = cleanBoundedString(val, MAX_CREATOR_CHARS);
+  return cleaned || undefined;
+}
+
+function cleanOptionalCoverUrl(val: unknown): string | undefined {
+  const cleaned = cleanBoundedString(val, MAX_COVER_URL_CHARS);
+  return cleaned && isSafeCoverUrl(cleaned) ? cleaned : undefined;
+}
+
+function cleanOptionalMetadata(val: unknown): Record<string, unknown> | undefined {
+  return val !== null && typeof val === "object" && !Array.isArray(val)
+    ? { ...(val as Record<string, unknown>) }
+    : undefined;
 }
 
 export function normalizeProviderResult(
@@ -61,12 +92,8 @@ export function normalizeProviderResult(
   }
 
   const record = value as Record<string, unknown>;
-  const externalSource =
-    typeof record.externalSource === "string"
-      ? record.externalSource.trim().toLowerCase().slice(0, MAX_SOURCE_CHARS)
-      : "";
-  const externalId =
-    typeof record.externalId === "string" ? record.externalId.trim().slice(0, MAX_EXTERNAL_ID_CHARS) : "";
+  const externalSource = cleanBoundedString(record.externalSource, MAX_SOURCE_CHARS).toLowerCase();
+  const externalId = cleanBoundedString(record.externalId, MAX_EXTERNAL_ID_CHARS);
   const title =
     typeof record.title === "string"
       ? record.title.replace(/\s+/gu, " ").trim().slice(0, MAX_TITLE_CHARS)
@@ -74,22 +101,14 @@ export function normalizeProviderResult(
 
   if (!externalSource || !externalId || !title) return null;
 
-  const creator =
-    typeof record.creator === "string" && record.creator.trim()
-      ? record.creator.trim().slice(0, MAX_CREATOR_CHARS)
-      : undefined;
-  const coverUrl =
-    typeof record.coverUrl === "string" && isSafeCoverUrl(record.coverUrl.trim())
-      ? record.coverUrl.trim().slice(0, MAX_COVER_URL_CHARS)
-      : undefined;
-  const metadata =
-    record.metadata !== null &&
-    typeof record.metadata === "object" &&
-    !Array.isArray(record.metadata)
-      ? { ...(record.metadata as Record<string, unknown>) }
-      : undefined;
-
-  return { externalSource, externalId, title, creator, coverUrl, metadata };
+  return {
+    externalSource,
+    externalId,
+    title,
+    creator: cleanOptionalCreator(record.creator),
+    coverUrl: cleanOptionalCoverUrl(record.coverUrl),
+    metadata: cleanOptionalMetadata(record.metadata),
+  };
 }
 
 export function findCanonicalProviderMatch(

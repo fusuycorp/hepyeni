@@ -1,6 +1,22 @@
 import { getField, parseCsvToTable, parseSafeDate } from "./csv-parser";
-import type { NormalizedImportItem } from "./types";
+import { parseStarRating, type NormalizedImportItem } from "./types";
 import type { UserMediaProgressStatusOptions } from "@/types/pocketbase-types";
+
+function resolveLetterboxdStatus(
+  isWatchlist: boolean,
+  rating?: number,
+  watchedDate?: string,
+): UserMediaProgressStatusOptions {
+  if (!isWatchlist || rating !== undefined || watchedDate !== undefined) {
+    return "completed";
+  }
+  return "plan_to_consume";
+}
+
+function buildLetterboxdExternalId(rawTitle: string, year?: string, uri?: string): string {
+  if (uri) return uri;
+  return year ? `${rawTitle} (${year})` : rawTitle;
+}
 
 export function parseLetterboxdCsv(csvContent: string, filename?: string): NormalizedImportItem[] {
   const table = parseCsvToTable(csvContent);
@@ -12,30 +28,10 @@ export function parseLetterboxdCsv(csvContent: string, filename?: string): Norma
     if (!rawTitle) continue;
 
     const year = getField(row, "Year", "year");
-    const uri = getField(row, "Letterboxd URI", "letterboxduri", "uri", "url");
     const watchedDate = parseSafeDate(getField(row, "Watched Date", "watcheddate"));
     const entryDate = parseSafeDate(getField(row, "Date", "date"));
-    const review = getField(row, "Review", "review");
-
-    const rawRating = getField(row, "Rating", "rating");
-    let rating: number | undefined;
-    if (rawRating) {
-      const parsed = parseFloat(rawRating);
-      if (!isNaN(parsed) && parsed > 0 && parsed <= 5) {
-        // Letterboxd uses 0.5-5.0 scale, map to 1-5 integer scale
-        rating = Math.max(1, Math.min(5, Math.round(parsed)));
-      }
-    }
-
-    let status: UserMediaProgressStatusOptions = isWatchlist ? "plan_to_consume" : "completed";
-    if (isWatchlist && (rating || watchedDate)) {
-      status = "completed";
-    }
-
-    const dateFinished = status === "completed" ? (watchedDate || entryDate) : undefined;
-    const dateAdded = entryDate || watchedDate;
-
-    const externalId = uri || (year ? `${rawTitle} (${year})` : rawTitle);
+    const rating = parseStarRating(getField(row, "Rating", "rating"));
+    const status = resolveLetterboxdStatus(isWatchlist, rating, watchedDate);
 
     items.push({
       title: rawTitle,
@@ -43,11 +39,15 @@ export function parseLetterboxdCsv(csvContent: string, filename?: string): Norma
       mediaType: "movie",
       status,
       rating,
-      notes: review,
-      dateAdded,
-      dateFinished,
+      notes: getField(row, "Review", "review"),
+      dateAdded: entryDate || watchedDate,
+      dateFinished: status === "completed" ? watchedDate || entryDate : undefined,
       externalSource: "letterboxd",
-      externalId,
+      externalId: buildLetterboxdExternalId(
+        rawTitle,
+        year,
+        getField(row, "Letterboxd URI", "letterboxduri", "uri", "url"),
+      ),
     });
   }
 

@@ -21,6 +21,25 @@ import {
 
 export type { PublicGroupOverview };
 
+async function createGroupWithUniqueInviteCode(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  name: string,
+  userId: string,
+): Promise<GroupsResponse | undefined> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await pb.collection("groups").create<GroupsResponse>({
+        name,
+        inviteCode: generateInviteCode(),
+        createdBy: userId,
+      });
+    } catch (err) {
+      if (!isValidationNotUnique(err, "inviteCode")) throw err;
+    }
+  }
+  return undefined;
+}
+
 export async function createGroup(formData: FormData): Promise<ActionResult<{ groupId: string }>> {
   const session = await getSession();
   if (!session) {
@@ -36,18 +55,7 @@ export async function createGroup(formData: FormData): Promise<ActionResult<{ gr
   const pb = await getSuperuserClient();
 
   try {
-    let group: GroupsResponse | undefined;
-    for (let attempt = 0; !group && attempt < 5; attempt++) {
-      try {
-        group = await pb.collection("groups").create<GroupsResponse>({
-          name,
-          inviteCode: generateInviteCode(),
-          createdBy: session.id,
-        });
-      } catch (err) {
-        if (!isValidationNotUnique(err, "inviteCode")) throw err;
-      }
-    }
+    const group = await createGroupWithUniqueInviteCode(pb, name, session.id);
     if (!group) {
       return { success: false, error: "Couldn't generate a unique invite code, try again" };
     }
@@ -165,6 +173,22 @@ export async function renameGroup(
   }
 }
 
+async function updateGroupInviteCodeWithRetry(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  groupId: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await pb.collection("groups").update(groupId, { inviteCode: generateInviteCode() });
+      return;
+    } catch (err) {
+      if (attempt === 4 || !isValidationNotUnique(err, "inviteCode")) {
+        throw err;
+      }
+    }
+  }
+}
+
 export async function regenerateInviteCode(
   groupId: string,
 ): Promise<ActionResult<void>> {
@@ -177,18 +201,7 @@ export async function regenerateInviteCode(
     await requireOwner(groupId, session.id);
 
     const pb = await getSuperuserClient();
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        await pb
-          .collection("groups")
-          .update(groupId, { inviteCode: generateInviteCode() });
-        break;
-      } catch (err) {
-        if (attempt === 4 || !isValidationNotUnique(err, "inviteCode")) {
-          throw err;
-        }
-      }
-    }
+    await updateGroupInviteCodeWithRetry(pb, groupId);
 
     revalidatePath(`/groups/${groupId}/settings`);
     return { success: true, data: undefined };
@@ -291,6 +304,28 @@ export async function deleteGroup(groupId: string): Promise<ActionResult<void>> 
   }
 }
 
+function buildGuestSettingsPayload(settings: GroupGuestSettings & { isPublic: boolean }) {
+  const vis = settings.visibility;
+  const perms = settings.permissions;
+  return {
+    isPublic: Boolean(settings.isPublic),
+    guestSettings: {
+      visibility: {
+        backlog: Boolean(vis?.backlog),
+        finished: Boolean(vis?.finished),
+        reviews: Boolean(vis?.reviews),
+        comments: Boolean(vis?.comments),
+      },
+      permissions: {
+        canVote: Boolean(perms?.canVote),
+        canComment: Boolean(perms?.canComment),
+        canReview: Boolean(perms?.canReview),
+        canPropose: Boolean(perms?.canPropose),
+      },
+    },
+  };
+}
+
 export async function updateGroupGuestSettings(
   groupId: string,
   settings: GroupGuestSettings & { isPublic: boolean },
@@ -304,23 +339,7 @@ export async function updateGroupGuestSettings(
     await requireOwner(groupId, session.id);
 
     const pb = await getSuperuserClient();
-    await pb.collection("groups").update(groupId, {
-      isPublic: Boolean(settings.isPublic),
-      guestSettings: {
-        visibility: {
-          backlog: Boolean(settings.visibility?.backlog),
-          finished: Boolean(settings.visibility?.finished),
-          reviews: Boolean(settings.visibility?.reviews),
-          comments: Boolean(settings.visibility?.comments),
-        },
-        permissions: {
-          canVote: Boolean(settings.permissions?.canVote),
-          canComment: Boolean(settings.permissions?.canComment),
-          canReview: Boolean(settings.permissions?.canReview),
-          canPropose: Boolean(settings.permissions?.canPropose),
-        },
-      },
-    });
+    await pb.collection("groups").update(groupId, buildGuestSettingsPayload(settings));
 
     revalidatePath(`/groups/${groupId}`);
     revalidatePath(`/groups/${groupId}/settings`);

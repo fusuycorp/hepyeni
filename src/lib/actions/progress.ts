@@ -57,6 +57,130 @@ export async function getPersonalShelf(
   return getPersonalShelfQuery(statusFilter, session);
 }
 
+async function resolveVerifiedGroupTitleId(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  groupTitleId: string | undefined,
+  userId: string,
+): Promise<string | undefined> {
+  const trimmed = groupTitleId?.trim();
+  if (!trimmed) return undefined;
+  const titleRecord = await pb.collection("titles").getOne(trimmed);
+  if (!titleRecord) return undefined;
+  await requireMembership(titleRecord.group, userId);
+  return trimmed;
+}
+
+async function findExistingMediaProgress(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  userId: string,
+  input: SaveMediaProgressInput,
+  cleanGroupTitleId?: string,
+): Promise<UserMediaProgressResponse | null> {
+  if (input.id) {
+    return pb.collection("user_media_progress").getOne<UserMediaProgressResponse>(input.id);
+  }
+  if (input.externalSource && input.externalId) {
+    return pb
+      .collection("user_media_progress")
+      .getFirstListItem<UserMediaProgressResponse>(
+        pb.filter(
+          "user = {:userId} && externalSource = {:source} && externalId = {:extId}",
+          { userId, source: input.externalSource, extId: input.externalId },
+        ),
+      )
+      .catch(() => null);
+  }
+  if (cleanGroupTitleId) {
+    return pb
+      .collection("user_media_progress")
+      .getFirstListItem<UserMediaProgressResponse>(
+        pb.filter("user = {:userId} && groupTitle = {:titleId}", {
+          userId,
+          titleId: cleanGroupTitleId,
+        }),
+      )
+      .catch(() => null);
+  }
+  return null;
+}
+
+function sanitizeNullableString(val: string | undefined, max: number, trim = true): string | null {
+  if (!val) return null;
+  const normalized = trim ? val.trim() : val;
+  return normalized ? normalized.slice(0, max) : null;
+}
+
+function sanitizeBoundedNumber(val: number | undefined, min: number): number | null {
+  return typeof val === "number" && !isNaN(val) ? Math.max(min, val) : null;
+}
+
+function sanitizeRatingValue(rating: number | undefined): number | null {
+  return typeof rating === "number" && rating >= 1 && rating <= 5 ? rating : null;
+}
+
+function applyProgressTimestamps(
+  data: Record<string, unknown>,
+  input: SaveMediaProgressInput,
+  existing: UserMediaProgressResponse | null,
+): void {
+  const parsedStarted = toIsoDate(input.startedAt);
+  if (parsedStarted) data.startedAt = parsedStarted;
+  else if (existing?.startedAt) data.startedAt = existing.startedAt;
+  else if (data.status === "in_progress") data.startedAt = new Date().toISOString();
+
+  const parsedCompleted = toIsoDate(input.completedAt);
+  if (parsedCompleted) data.completedAt = parsedCompleted;
+  else if (data.status === "completed") data.completedAt = new Date().toISOString();
+}
+
+function sanitizeSafeCoverUrlField(rawUrl?: string): string | null {
+  const trimmed = rawUrl?.trim();
+  return trimmed && isSafeCoverUrl(trimmed) ? trimmed.slice(0, 2000) : null;
+}
+
+function resolveSharedWithCirclesFlag(
+  inputFlag: boolean | undefined,
+  existing: UserMediaProgressResponse | null,
+): boolean {
+  if (inputFlag !== undefined) return inputFlag;
+  return existing?.isSharedWithCircles ?? true;
+}
+
+function buildMediaProgressPayload(
+  userId: string,
+  cleanTitle: string,
+  cleanGroupTitleId: string | undefined,
+  input: SaveMediaProgressInput,
+  existing: UserMediaProgressResponse | null,
+): Record<string, unknown> {
+  const normalizedMoods = normalizeMoods(input.moods);
+  const data: Record<string, unknown> = {
+    user: userId,
+    mediaType: input.mediaType,
+    title: cleanTitle.slice(0, 300),
+    creator: sanitizeNullableString(input.creator, 300),
+    coverUrl: sanitizeSafeCoverUrlField(input.coverUrl),
+    externalSource: sanitizeNullableString(input.externalSource, 100, false),
+    externalId: sanitizeNullableString(input.externalId, 200, false),
+    status: input.status,
+    progressCurrent: sanitizeBoundedNumber(input.progressCurrent, 0),
+    progressTotal: sanitizeBoundedNumber(input.progressTotal, 1),
+    progressUnit: input.progressUnit || null,
+    currentLabel: sanitizeNullableString(input.currentLabel, 100),
+    notes: sanitizeNullableString(input.notes, 3000),
+    rating: sanitizeRatingValue(input.rating),
+    moods: normalizedMoods.length > 0 ? normalizedMoods : null,
+    pace: normalizePace(input.pace) ?? null,
+    isSharedWithCircles: resolveSharedWithCirclesFlag(input.isSharedWithCircles, existing),
+  };
+
+  if (cleanGroupTitleId) {
+    data.groupTitle = cleanGroupTitleId;
+  }
+  applyProgressTimestamps(data, input, existing);
+  return data;
+}
+
 export async function saveMediaProgress(
   input: SaveMediaProgressInput,
 ): Promise<ActionResult<UserMediaProgressResponse>> {
@@ -72,115 +196,25 @@ export async function saveMediaProgress(
 
   try {
     const pb = await getSuperuserClient();
+    const cleanGroupTitleId = await resolveVerifiedGroupTitleId(pb, input.groupTitleId, session.id);
+    const existing = await findExistingMediaProgress(pb, session.id, input, cleanGroupTitleId);
 
-    let cleanGroupTitleId: string | undefined;
-    if (input.groupTitleId && input.groupTitleId.trim()) {
-      cleanGroupTitleId = input.groupTitleId.trim();
-      const titleRecord = await pb.collection("titles").getOne(cleanGroupTitleId);
-      if (titleRecord) {
-        await requireMembership(titleRecord.group, session.id);
-      } else {
-        cleanGroupTitleId = undefined;
-      }
+    if (input.id && existing && existing.user !== session.id) {
+      return { success: false, error: "You do not have permission to edit this record." };
     }
 
-    let existing: UserMediaProgressResponse | null = null;
-    if (input.id) {
-      existing = await pb
-        .collection("user_media_progress")
-        .getOne<UserMediaProgressResponse>(input.id);
-      if (existing.user !== session.id) {
-        return { success: false, error: "You do not have permission to edit this record." };
-      }
-    } else if (input.externalSource && input.externalId) {
-      existing = await pb
-        .collection("user_media_progress")
-        .getFirstListItem<UserMediaProgressResponse>(
-          pb.filter(
-            "user = {:userId} && externalSource = {:source} && externalId = {:extId}",
-            {
-              userId: session.id,
-              source: input.externalSource,
-              extId: input.externalId,
-            },
-          ),
-        )
-        .catch(() => null);
-    } else if (cleanGroupTitleId) {
-      existing = await pb
-        .collection("user_media_progress")
-        .getFirstListItem<UserMediaProgressResponse>(
-          pb.filter("user = {:userId} && groupTitle = {:titleId}", {
-            userId: session.id,
-            titleId: cleanGroupTitleId,
-          }),
-        )
-        .catch(() => null);
-    }
+    const data = buildMediaProgressPayload(
+      session.id,
+      cleanTitle,
+      cleanGroupTitleId,
+      input,
+      existing,
+    );
 
-    const normalizedMoods = normalizeMoods(input.moods);
-    const normalizedPace = normalizePace(input.pace);
-    const cleanCoverUrl =
-      input.coverUrl && isSafeCoverUrl(input.coverUrl.trim())
-        ? input.coverUrl.trim().slice(0, 2000)
-        : null;
-
-    const data: Record<string, unknown> = {
-      user: session.id,
-      mediaType: input.mediaType,
-      title: cleanTitle.slice(0, 300),
-      creator: input.creator ? input.creator.trim().slice(0, 300) : null,
-      coverUrl: cleanCoverUrl,
-      externalSource: input.externalSource ? input.externalSource.slice(0, 100) : null,
-      externalId: input.externalId ? input.externalId.slice(0, 200) : null,
-      status: input.status,
-      progressCurrent:
-        typeof input.progressCurrent === "number" && !isNaN(input.progressCurrent)
-          ? Math.max(0, input.progressCurrent)
-          : null,
-      progressTotal:
-        typeof input.progressTotal === "number" && !isNaN(input.progressTotal)
-          ? Math.max(1, input.progressTotal)
-          : null,
-      progressUnit: input.progressUnit || null,
-      currentLabel: input.currentLabel ? input.currentLabel.trim().slice(0, 100) : null,
-      notes: input.notes ? input.notes.trim().slice(0, 3000) : null,
-      rating:
-        typeof input.rating === "number" && input.rating >= 1 && input.rating <= 5
-          ? input.rating
-          : null,
-      moods: normalizedMoods.length > 0 ? normalizedMoods : null,
-      pace: normalizedPace || null,
-      isSharedWithCircles:
-        input.isSharedWithCircles !== undefined
-          ? input.isSharedWithCircles
-          : (existing?.isSharedWithCircles ?? true),
-    };
-
-    if (cleanGroupTitleId) {
-      data.groupTitle = cleanGroupTitleId;
-    }
-
-    const parsedStarted = toIsoDate(input.startedAt);
-    if (parsedStarted) data.startedAt = parsedStarted;
-    else if (existing?.startedAt) data.startedAt = existing.startedAt;
-    else if (data.status === "in_progress") data.startedAt = new Date().toISOString();
-
-    const parsedCompleted = toIsoDate(input.completedAt);
-    if (parsedCompleted) data.completedAt = parsedCompleted;
-    else if (data.status === "completed") data.completedAt = new Date().toISOString();
-
-    let result: UserMediaProgressResponse;
-
-    if (existing) {
-      result = await pb
-        .collection("user_media_progress")
-        .update<UserMediaProgressResponse>(existing.id, data);
-    } else {
-      result = await pb
-        .collection("user_media_progress")
-        .create<UserMediaProgressResponse>(data);
-    }
+    const collection = pb.collection("user_media_progress");
+    const result = existing
+      ? await collection.update<UserMediaProgressResponse>(existing.id, data)
+      : await collection.create<UserMediaProgressResponse>(data);
 
     revalidatePath("/shelf");
     revalidatePath("/activity");
@@ -203,6 +237,22 @@ export async function saveMediaProgress(
     );
     return { success: false, error: userMsg, traceId: diag.traceId };
   }
+}
+
+function buildQuickStepUpdate(
+  existing: UserMediaProgressResponse,
+  delta: number,
+): Partial<UserMediaProgressRecord> {
+  const unclamped = Math.max(0, (existing.progressCurrent ?? 0) + delta);
+  const total = existing.progressTotal;
+  const newCurrent = total && total > 0 ? Math.min(total, unclamped) : unclamped;
+  const updateData: Partial<UserMediaProgressRecord> = { progressCurrent: newCurrent };
+
+  if (total && newCurrent >= total && existing.status !== "completed") {
+    updateData.status = "completed";
+    updateData.completedAt = new Date().toISOString();
+  }
+  return updateData;
 }
 
 export async function updateProgressQuickStep(
@@ -228,25 +278,7 @@ export async function updateProgressQuickStep(
       return { success: false, error: "You do not have permission to edit this record." };
     }
 
-    const current = existing.progressCurrent ?? 0;
-    const unclamped = Math.max(0, current + delta);
-    const newCurrent =
-      existing.progressTotal && existing.progressTotal > 0
-        ? Math.min(existing.progressTotal, unclamped)
-        : unclamped;
-    const updateData: Partial<UserMediaProgressRecord> = {
-      progressCurrent: newCurrent,
-    };
-
-    if (
-      existing.progressTotal &&
-      newCurrent >= existing.progressTotal &&
-      existing.status !== "completed"
-    ) {
-      updateData.status = "completed";
-      updateData.completedAt = new Date().toISOString();
-    }
-
+    const updateData = buildQuickStepUpdate(existing, delta);
     const updated = await pb
       .collection("user_media_progress")
       .update<UserMediaProgressResponse>(progressId, updateData);

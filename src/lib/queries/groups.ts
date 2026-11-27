@@ -21,6 +21,57 @@ export type PublicGroupOverview = {
   }>;
 };
 
+async function findGroupByCleanInviteCode(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  cleanCode: string,
+): Promise<GroupsResponse | null> {
+  try {
+    return await pb
+      .collection("groups")
+      .getFirstListItem<GroupsResponse>(
+        pb.filter("inviteCode = {:code}", { code: cleanCode }),
+      );
+  } catch (err) {
+    if (isNotFound(err)) return null;
+    throw err;
+  }
+}
+
+function projectVisibleInviteProposals(
+  items: Array<Record<string, unknown> & { id: string }>,
+  group: GroupsResponse,
+  userMembership: GroupMembersResponse | null,
+  isAdmin?: boolean,
+): PublicGroupOverview["proposedTitles"] {
+  const canViewBacklog =
+    Boolean(userMembership) ||
+    group.guestSettings?.visibility?.backlog !== false;
+  if (!canViewBacklog) return [];
+
+  const isOwnerOrAdmin = userMembership?.role === "owner" || Boolean(isAdmin);
+  return redactProposedTitles(
+    items as Array<{
+      id: string;
+      title: string;
+      creator?: string;
+      mediaType: string;
+      coverUrl?: string;
+      createdAt: string;
+      status?: string;
+      addedBy?: string;
+    }>,
+    Boolean(group.isBlindPickEnabled),
+    isOwnerOrAdmin,
+  ).map((t) => ({
+    id: t.id,
+    title: t.title,
+    creator: t.creator,
+    mediaType: t.mediaType,
+    coverUrl: t.coverUrl,
+    createdAt: t.createdAt,
+  }));
+}
+
 export async function getGroupByInviteCode(
   code: string,
 ): Promise<PublicGroupOverview | null> {
@@ -32,17 +83,8 @@ export async function getGroupByInviteCode(
   if (!rl.allowed) return null;
 
   const pb = await getSuperuserClient();
-  let group: GroupsResponse;
-  try {
-    group = await pb
-      .collection("groups")
-      .getFirstListItem<GroupsResponse>(
-        pb.filter("inviteCode = {:code}", { code: cleanCode }),
-      );
-  } catch (err) {
-    if (isNotFound(err)) return null;
-    throw err;
-  }
+  const group = await findGroupByCleanInviteCode(pb, cleanCode);
+  if (!group) return null;
 
   const session = await getSession();
 
@@ -79,33 +121,17 @@ export async function getGroupByInviteCode(
         : Promise.resolve(null),
     ]);
 
-  const canViewBacklog =
-    Boolean(userMembership) ||
-    group.guestSettings?.visibility?.backlog !== false;
-  const isOwnerOrAdmin =
-    userMembership?.role === "owner" || Boolean(session?.isAdmin);
-
-  const visibleProposals = canViewBacklog
-    ? redactProposedTitles(
-        proposedTitles.items,
-        Boolean(group.isBlindPickEnabled),
-        isOwnerOrAdmin,
-      ).map((t) => ({
-        id: t.id,
-        title: t.title,
-        creator: t.creator,
-        mediaType: t.mediaType,
-        coverUrl: t.coverUrl,
-        createdAt: t.createdAt,
-      }))
-    : [];
-
   return {
     group,
     memberCount: membersResult.totalItems,
     proposedCount: proposedTitles.totalItems,
     consumedCount: consumedResult.totalItems,
     isMember: Boolean(userMembership),
-    proposedTitles: visibleProposals,
+    proposedTitles: projectVisibleInviteProposals(
+      proposedTitles.items,
+      group,
+      userMembership,
+      session?.isAdmin,
+    ),
   };
 }

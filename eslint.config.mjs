@@ -6,6 +6,24 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "max-depth": ["error", 3],
+    },
+  },
+  {
+    files: [
+      "src/lib/**/*.{ts,tsx}",
+      "src/app/api/**/*.{ts,tsx}",
+      "src/app/groups/[groupId]/group-content-view.tsx",
+      "src/app/groups/[groupId]/titles/[titleId]/title-detail-view.tsx",
+      "src/app/shelf/quotes-tab.tsx",
+    ],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  {
     files: ["**/tests/**"],
     rules: {
       // Tests intentionally use loose typing for PocketBase mocks, fixtures,

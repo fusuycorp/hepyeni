@@ -24,6 +24,34 @@ type ItunesVideoResult = {
   shortDescription?: string;
 };
 
+function buildItunesVideoExternalId(item: ItunesVideoResult): string {
+  const numericId = item.trackId || item.collectionId;
+  if (numericId) return String(numericId);
+  const rawName = item.trackName || item.collectionName || "untitled";
+  const slug =
+    rawName
+      .toLowerCase()
+      .trim()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "") || "untitled";
+  const datePart = (item.releaseDate || "undated").slice(0, 10);
+  return `itunes-${slug}-${datePart}`;
+}
+
+function mapItunesVideoResult(item: ItunesVideoResult): NormalizedSearchResult {
+  return {
+    externalId: buildItunesVideoExternalId(item),
+    externalSource: "itunes",
+    title: item.trackName || item.collectionName || "Untitled",
+    creator: item.artistName,
+    coverUrl: item.artworkUrl100?.replace("100x100", "600x600"),
+    metadata: {
+      overview: item.longDescription || item.shortDescription,
+      releaseDate: item.releaseDate,
+    },
+  };
+}
+
 async function searchItunesVideo(
   query: string,
   mediaType: "movie" | "tv",
@@ -48,27 +76,7 @@ async function searchItunesVideo(
 
   const data = (await res.json()) as { results?: ItunesVideoResult[] };
 
-  return (data.results ?? []).map((item) => ({
-    externalId: String(
-      item.trackId ||
-        item.collectionId ||
-        `itunes-${
-          (item.trackName || item.collectionName || "untitled")
-            .toLowerCase()
-            .trim()
-            .replace(/[^\p{L}\p{N}]+/gu, "-")
-            .replace(/^-+|-+$/g, "") || "untitled"
-        }-${(item.releaseDate || "undated").slice(0, 10)}`,
-    ),
-    externalSource: "itunes",
-    title: item.trackName || item.collectionName || "Untitled",
-    creator: item.artistName,
-    coverUrl: item.artworkUrl100?.replace("100x100", "600x600"),
-    metadata: {
-      overview: item.longDescription || item.shortDescription,
-      releaseDate: item.releaseDate,
-    },
-  }));
+  return (data.results ?? []).map(mapItunesVideoResult);
 }
 
 async function searchTmdbUncached(

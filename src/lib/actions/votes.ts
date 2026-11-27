@@ -12,6 +12,23 @@ import type { VotesResponse } from "@/types/pocketbase-types";
 
 // ponytail: action-layer error strings <- hardcoded English in action layer -> map stable error codes through useTranslations on client
 
+async function toggleExistingVote(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  id: string,
+  value: "up" | "down",
+): Promise<void> {
+  try {
+    const existing = await pb.collection("votes").getOne<VotesResponse>(id);
+    if (existing.value === value) {
+      await pb.collection("votes").delete(id);
+    } else {
+      await pb.collection("votes").update(id, { value });
+    }
+  } catch (toggleErr) {
+    if (!isNotFound(toggleErr)) throw toggleErr;
+  }
+}
+
 export async function voteOnTitle(
   titleId: string,
   groupId: string,
@@ -45,20 +62,7 @@ export async function voteOnTitle(
         .create<VotesResponse>({ id, title: titleId, user: session.id, value });
     } catch (err) {
       if (!isValidationNotUnique(err)) throw err;
-
-      try {
-        const existing = await pb.collection("votes").getOne<VotesResponse>(id);
-        if (existing.value === value) {
-          await pb.collection("votes").delete(id);
-        } else {
-          await pb.collection("votes").update(id, { value });
-        }
-      } catch (toggleErr) {
-        if (isNotFound(toggleErr)) {
-          return { success: true, data: undefined };
-        }
-        throw toggleErr;
-      }
+      await toggleExistingVote(pb, id, value);
     }
 
     revalidatePath(`/groups/${groupId}`);

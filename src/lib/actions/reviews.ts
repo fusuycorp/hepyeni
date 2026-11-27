@@ -10,6 +10,34 @@ import type { ActionResult } from "@/types/actions";
 
 // ponytail: action-layer error strings <- hardcoded English in action layer -> map stable error codes through useTranslations on client
 
+function parseReviewFormData(formData: FormData): {
+  rating: number;
+  reviewText: string | null;
+  clearReviewText: boolean;
+} {
+  const rating = Number(formData.get("rating"));
+  const rawReview = String(formData.get("reviewText") ?? "").trim();
+  const clearVal = formData.get("clearReviewText");
+  return {
+    rating,
+    reviewText: rawReview ? rawReview.slice(0, 5000) : null,
+    clearReviewText: clearVal === "true" || clearVal === "1",
+  };
+}
+
+function resolveUpdatedReviewText(
+  incomingText: string | null,
+  existingText: string | undefined,
+  clearReviewText: boolean,
+): string | null {
+  // H1-defensive: an empty/whitespace incoming reviewText means the client
+  // lost its prefill (cluster-1 P1 strip regressed this). Never null out an
+  // existing review body on a rating-only save unless clearReviewText is set.
+  if (clearReviewText) return incomingText;
+  if (incomingText !== null) return incomingText;
+  return existingText?.trim() ? existingText : null;
+}
+
 export async function submitReview(
   titleId: string,
   groupId: string,
@@ -30,15 +58,10 @@ export async function submitReview(
       return { success: false, error: "You do not have permission to review in this circle." };
     }
 
-    const rating = Number(formData.get("rating"));
+    const { rating, reviewText, clearReviewText } = parseReviewFormData(formData);
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return { success: false, error: "Rating must be an integer between 1 and 5." };
     }
-    const rawReview = String(formData.get("reviewText") ?? "").trim();
-    const reviewText = rawReview ? rawReview.slice(0, 5000) : null;
-    const clearReviewText =
-      formData.get("clearReviewText") === "true" ||
-      formData.get("clearReviewText") === "1";
 
     const pb = await getSuperuserClient();
     try {
@@ -59,13 +82,11 @@ export async function submitReview(
             userId: session.id,
           }),
         );
-      // H1-defensive: an empty/whitespace incoming reviewText means the client
-      // lost its prefill (cluster-1 P1 strip regressed this). Never null out an
-      // existing review body on a rating-only save unless clearReviewText is set.
-      const hasExistingBody = Boolean(existing.reviewText?.trim());
-      const finalReviewText = clearReviewText
-        ? reviewText
-        : (reviewText ?? (hasExistingBody ? existing.reviewText : null));
+      const finalReviewText = resolveUpdatedReviewText(
+        reviewText,
+        existing.reviewText,
+        clearReviewText,
+      );
       await pb.collection("reviews").update(existing.id, { rating, reviewText: finalReviewText });
     }
 

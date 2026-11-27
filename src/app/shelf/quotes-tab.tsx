@@ -23,6 +23,75 @@ interface QuotesTabProps {
   isAdmin?: boolean;
 }
 
+function matchesQuoteFilter(
+  q: ShelfQuotesResponse<QuoteExpand>,
+  selectedMediaType: string,
+  selectedTag: string,
+): boolean {
+  if (selectedMediaType !== "all" && q.mediaType !== selectedMediaType) {
+    return false;
+  }
+  if (selectedTag === "all") return true;
+  if (!Array.isArray(q.tags)) return false;
+  return q.tags.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
+}
+
+function extractUniqueQuoteTags(quotes: ShelfQuotesResponse<QuoteExpand>[]): string[] {
+  const rawTags = quotes.flatMap((q) => (Array.isArray(q.tags) ? q.tags : []));
+  const set = new Set<string>();
+  for (const tag of rawTags) {
+    const clean = tag?.trim().toLowerCase();
+    if (clean) set.add(clean);
+  }
+  return Array.from(set).sort();
+}
+
+function QuickTagPills({
+  allTags,
+  selectedTag,
+  setSelectedTag,
+}: {
+  allTags: string[];
+  selectedTag: string;
+  setSelectedTag: (tag: string) => void;
+}) {
+  const t = useTranslations();
+  if (allTags.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+      <button
+        type="button"
+        onClick={() => setSelectedTag("all")}
+        className={cn(
+          "px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border",
+          selectedTag === "all"
+            ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+            : "bg-muted/50 text-muted-foreground hover:text-foreground border-border/50",
+        )}
+      >
+        {t.marginalia.allTags}
+      </button>
+      {allTags.slice(0, 10).map((tag) => (
+        <button
+          key={tag}
+          type="button"
+          onClick={() => setSelectedTag(selectedTag === tag ? "all" : tag)}
+          className={cn(
+            "px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border flex items-center gap-1",
+            selectedTag === tag
+              ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+              : "bg-muted/50 text-muted-foreground hover:text-foreground border-border/50",
+          )}
+        >
+          <Tag className="size-2.5 opacity-70" />
+          <span>#{tag}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function QuotesTab({
   initialQuotes = [],
   shelfItems = [],
@@ -42,34 +111,13 @@ export function QuotesTab({
   }, [initialQuotes]);
 
   // Extract all unique tags
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const q of quotes) {
-      if (Array.isArray(q.tags)) {
-        for (const tag of q.tags) {
-          if (tag && tag.trim()) {
-            set.add(tag.trim().toLowerCase());
-          }
-        }
-      }
-    }
-    return Array.from(set).sort();
-  }, [quotes]);
+  const allTags = useMemo(() => extractUniqueQuoteTags(quotes), [quotes]);
 
   // Filter quotes by mediaType and tag
-  const filteredQuotes = useMemo(() => {
-    return quotes.filter((q) => {
-      if (selectedMediaType !== "all" && q.mediaType !== selectedMediaType) {
-        return false;
-      }
-      if (selectedTag !== "all") {
-        if (!Array.isArray(q.tags)) return false;
-        const normalized = q.tags.map((tag) => tag.toLowerCase());
-        if (!normalized.includes(selectedTag.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [quotes, selectedMediaType, selectedTag]);
+  const filteredQuotes = useMemo(
+    () => quotes.filter((q) => matchesQuoteFilter(q, selectedMediaType, selectedTag)),
+    [quotes, selectedMediaType, selectedTag],
+  );
 
   const handleDelete = async (quoteId: string) => {
     startTransition(async () => {
@@ -149,39 +197,11 @@ export function QuotesTab({
         </div>
       </div>
 
-      {/* Quick Tag Pills (if available) */}
-      {allTags.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
-          <button
-            type="button"
-            onClick={() => setSelectedTag("all")}
-            className={cn(
-              "px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border",
-              selectedTag === "all"
-                ? "bg-primary text-primary-foreground border-primary shadow-2xs"
-                : "bg-muted/50 text-muted-foreground hover:text-foreground border-border/50",
-            )}
-          >
-            {t.marginalia.allTags}
-          </button>
-          {allTags.slice(0, 10).map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => setSelectedTag(selectedTag === tag ? "all" : tag)}
-              className={cn(
-                "px-2.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border flex items-center gap-1",
-                selectedTag === tag
-                  ? "bg-primary text-primary-foreground border-primary shadow-2xs"
-                  : "bg-muted/50 text-muted-foreground hover:text-foreground border-border/50",
-              )}
-            >
-              <Tag className="size-2.5 opacity-70" />
-              <span>#{tag}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <QuickTagPills
+        allTags={allTags}
+        selectedTag={selectedTag}
+        setSelectedTag={setSelectedTag}
+      />
 
       {/* Quotes Gallery Grid */}
       {filteredQuotes.length === 0 ? (

@@ -49,6 +49,147 @@ const MAX_EXPORT_ROWS = 10000;
 
 // ponytail: action error strings and sync memory export <- synchronous memory buffer and English action strings -> map stable error codes to useTranslations and stream large exports via route handler
 
+interface ImportDedupIndex {
+  checkAndMark(item: NormalizedImportItem): boolean;
+}
+
+function buildImportDedupIndex(existingRecords: UserMediaProgressResponse[]): ImportDedupIndex {
+  const externalKeySet = new Set<string>();
+  const titleKeySet = new Set<string>();
+  const noCreatorTitleKeySet = new Set<string>();
+  const seenBatchKeys = new Set<string>();
+
+  for (const rec of existingRecords) {
+    if (rec.externalSource && rec.externalId) {
+      externalKeySet.add(`${rec.externalSource}:${rec.externalId}`);
+    }
+    const normTitle = normalizeTitleKey(rec.title);
+    const normCreator = rec.creator ? normalizeTitleKey(rec.creator) : "";
+    titleKeySet.add(`${rec.mediaType}:${normTitle}:${normCreator}`);
+    titleKeySet.add(`${rec.mediaType}:${normTitle}`);
+    if (!normCreator) {
+      noCreatorTitleKeySet.add(`${rec.mediaType}:${normTitle}`);
+    }
+  }
+
+  function isExternalDuplicate(item: NormalizedImportItem): boolean {
+    if (!item.externalSource || !item.externalId) return false;
+    const extKey = `${item.externalSource}:${item.externalId}`;
+    if (externalKeySet.has(extKey) || seenBatchKeys.has(extKey)) return true;
+    seenBatchKeys.add(extKey);
+    return false;
+  }
+
+  return {
+    checkAndMark(item: NormalizedImportItem): boolean {
+      if (isExternalDuplicate(item)) return true;
+
+      const normTitle = normalizeTitleKey(item.title);
+      const normCreator = item.creator ? normalizeTitleKey(item.creator) : "";
+      const fullTitleKey = `${item.mediaType}:${normTitle}:${normCreator}`;
+      const shortTitleKey = `${item.mediaType}:${normTitle}`;
+
+      if (
+        titleKeySet.has(fullTitleKey) ||
+        (normCreator === "" && titleKeySet.has(shortTitleKey)) ||
+        noCreatorTitleKeySet.has(shortTitleKey) ||
+        seenBatchKeys.has(fullTitleKey)
+      ) {
+        return true;
+      }
+
+      seenBatchKeys.add(fullTitleKey);
+      if (!normCreator) {
+        noCreatorTitleKeySet.add(shortTitleKey);
+      }
+      return false;
+    },
+  };
+}
+
+function neutralizeFreeText(val: string | undefined, max: number): string | null {
+  return val ? neutralizeFormulaPrefix(val.trim()).slice(0, max) : null;
+}
+
+function resolveImportTimestamp(
+  rawDate: string | undefined,
+  status: string,
+  targetStatus: string,
+): string | null {
+  return toIsoDate(rawDate) || (status === targetStatus ? new Date().toISOString() : null);
+}
+
+function toProgressCreateRecord(
+  userId: string,
+  item: NormalizedImportItem,
+): Record<string, unknown> {
+  // Formula-leading bytes are neutralized at the import boundary for the
+  // free-text fields only: notes/currentLabel are the realistic carrier
+  // for CSV-injection payloads, while title/creator keep display fidelity
+  // and machine identifiers (e.g. Goodreads "=0441478123" ISBNs) stay
+  // untouched. escapeCsvField neutralizes every field at export time, so
+  // anything stored verbatim is still safe when written to a spreadsheet.
+  return {
+    user: userId,
+    mediaType: item.mediaType,
+    title: item.title.slice(0, 300),
+    creator: item.creator ?? null,
+    coverUrl: item.coverUrl ?? null,
+    status: item.status,
+    progressCurrent: item.progressCurrent !== undefined ? Math.max(0, item.progressCurrent) : null,
+    progressTotal: item.progressTotal !== undefined ? Math.max(1, item.progressTotal) : null,
+    progressUnit: item.progressUnit ?? null,
+    currentLabel: neutralizeFreeText(item.currentLabel, 100),
+    notes: neutralizeFreeText(item.notes, 3000),
+    rating: item.rating ?? null,
+    isSharedWithCircles: true,
+    startedAt: resolveImportTimestamp(item.dateAdded, item.status, "in_progress"),
+    completedAt: resolveImportTimestamp(item.dateFinished, item.status, "completed"),
+    externalSource: item.externalSource ?? null,
+    externalId: item.externalId ?? null,
+  };
+}
+
+async function createSingleProgressRow(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  record: Record<string, unknown>,
+): Promise<"imported" | "skipped" | "failed"> {
+  try {
+    await pb.collection("user_media_progress").create(record);
+    return "imported";
+  } catch (err) {
+    // Only a genuine uniqueness conflict is a legitimate "skip". Any
+    // other datastore failure (busy/locked, schema mismatch,
+    // connection drop, over-long notes) must not be reported to the
+    // user as a successful duplicate — it is a failed import row.
+    if (isValidationNotUnique(err)) return "skipped";
+    logDiagnostic(err, { action: "batchImportProgress/create" });
+    return "failed";
+  }
+}
+
+async function insertProgressInChunks(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  toInsert: Array<Record<string, unknown>>,
+): Promise<{ importedCount: number; skippedCount: number; writeErrors: number }> {
+  let importedCount = 0;
+  let skippedCount = 0;
+  let writeErrors = 0;
+  const CHUNK_SIZE = 25;
+
+  for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+    const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+    const outcomes = await Promise.all(chunk.map((rec) => createSingleProgressRow(pb, rec)));
+    for (const outcome of outcomes) {
+      if (outcome === "imported") importedCount++;
+      else if (outcome === "skipped") skippedCount++;
+      else writeErrors++;
+    }
+  }
+
+  return { importedCount, skippedCount, writeErrors };
+}
+
 export async function batchImportProgress(
   items: NormalizedImportItem[],
 ): Promise<ActionResult<BatchImportResult>> {
@@ -80,159 +221,26 @@ export async function batchImportProgress(
         fields: "id,externalSource,externalId,title,creator,mediaType",
       });
 
-    // 2. Build deduplication lookups
-    const externalKeySet = new Set<string>();
-    const titleKeySet = new Set<string>();
-    const noCreatorTitleKeySet = new Set<string>();
-
-    for (const rec of existingRecords) {
-      if (rec.externalSource && rec.externalId) {
-        externalKeySet.add(`${rec.externalSource}:${rec.externalId}`);
-      }
-      const normTitle = normalizeTitleKey(rec.title);
-      const normCreator = rec.creator ? normalizeTitleKey(rec.creator) : "";
-      titleKeySet.add(`${rec.mediaType}:${normTitle}:${normCreator}`);
-      titleKeySet.add(`${rec.mediaType}:${normTitle}`);
-      if (!normCreator) {
-        noCreatorTitleKeySet.add(`${rec.mediaType}:${normTitle}`);
-      }
-    }
-
-    let importedCount = 0;
-    let skippedCount = 0;
-    let writeErrors = 0;
-
-    // Filter out invalid items and duplicates in the incoming payload
+    // 2. Build deduplication lookups and filter incoming payload
+    const dedup = buildImportDedupIndex(existingRecords);
     const toInsert: Array<Record<string, unknown>> = [];
-    const seenBatchKeys = new Set<string>();
+    let preflightSkipped = 0;
 
     for (const rawItem of items) {
       const item = normalizeImportItemPayload(rawItem);
-      if (!item) {
-        skippedCount++;
+      if (!item || dedup.checkAndMark(item)) {
+        preflightSkipped++;
         continue;
       }
-
-      const cleanTitle = item.title;
-      if (!cleanTitle) {
-        skippedCount++;
-        continue;
-      }
-
-      // Check external ID duplicate
-      if (item.externalSource && item.externalId) {
-        const extKey = `${item.externalSource}:${item.externalId}`;
-        if (externalKeySet.has(extKey) || seenBatchKeys.has(extKey)) {
-          skippedCount++;
-          continue;
-        }
-        seenBatchKeys.add(extKey);
-      }
-
-      // Check title duplicate
-      const normTitle = normalizeTitleKey(cleanTitle);
-      const normCreator = item.creator ? normalizeTitleKey(item.creator) : "";
-      const fullTitleKey = `${item.mediaType}:${normTitle}:${normCreator}`;
-      const shortTitleKey = `${item.mediaType}:${normTitle}`;
-
-      if (
-        titleKeySet.has(fullTitleKey) ||
-        (normCreator === "" && titleKeySet.has(shortTitleKey)) ||
-        noCreatorTitleKeySet.has(shortTitleKey) ||
-        seenBatchKeys.has(fullTitleKey)
-      ) {
-        skippedCount++;
-        continue;
-      }
-
-      seenBatchKeys.add(fullTitleKey);
-      if (!normCreator) {
-        noCreatorTitleKeySet.add(shortTitleKey);
-      }
-
-      // Prepare clean record payload
-      const startedAt =
-        toIsoDate(item.dateAdded) ||
-        (item.status === "in_progress" ? new Date().toISOString() : null);
-      const completedAt =
-        toIsoDate(item.dateFinished) ||
-        (item.status === "completed" ? new Date().toISOString() : null);
-
-      const record: Record<string, unknown> = {
-        user: session.id,
-        mediaType: item.mediaType,
-        title: cleanTitle.slice(0, 300),
-        creator: item.creator ? item.creator.trim().slice(0, 300) : null,
-        coverUrl: item.coverUrl || null,
-        status: item.status,
-        progressCurrent:
-          typeof item.progressCurrent === "number" &&
-          !isNaN(item.progressCurrent)
-            ? Math.max(0, item.progressCurrent)
-            : null,
-        progressTotal:
-          typeof item.progressTotal === "number" && !isNaN(item.progressTotal)
-            ? Math.max(1, item.progressTotal)
-            : null,
-        progressUnit: item.progressUnit || null,
-        // Formula-leading bytes are neutralized at the import boundary for the
-        // free-text fields only: notes/currentLabel are the realistic carrier
-        // for CSV-injection payloads, while title/creator keep display fidelity
-        // and machine identifiers (e.g. Goodreads "=0441478123" ISBNs) stay
-        // untouched. escapeCsvField neutralizes every field at export time, so
-        // anything stored verbatim is still safe when written to a spreadsheet.
-        currentLabel: item.currentLabel
-          ? neutralizeFormulaPrefix(item.currentLabel.trim()).slice(0, 100)
-          : null,
-        notes: item.notes
-          ? neutralizeFormulaPrefix(item.notes.trim()).slice(0, 3000)
-          : null,
-        rating:
-          typeof item.rating === "number" &&
-          item.rating >= 1 &&
-          item.rating <= 5
-            ? item.rating
-            : null,
-        isSharedWithCircles: true,
-        startedAt,
-        completedAt,
-        externalSource: item.externalSource
-          ? item.externalSource.slice(0, 100)
-          : null,
-        externalId: item.externalId ? item.externalId.slice(0, 200) : null,
-      };
-
-      toInsert.push(record);
+      toInsert.push(toProgressCreateRecord(session.id, item));
     }
 
     // 3. Batch insert in parallel chunks
-    const CHUNK_SIZE = 25;
-    for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
-      const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-      const outcomes = await Promise.all(
-        chunk.map(
-          async (record): Promise<"imported" | "skipped" | "failed"> => {
-            try {
-              await pb.collection("user_media_progress").create(record);
-              return "imported";
-            } catch (err) {
-              // Only a genuine uniqueness conflict is a legitimate "skip". Any
-              // other datastore failure (busy/locked, schema mismatch,
-              // connection drop, over-long notes) must not be reported to the
-              // user as a successful duplicate — it is a failed import row.
-              if (isValidationNotUnique(err)) return "skipped";
-              logDiagnostic(err, { action: "batchImportProgress/create" });
-              return "failed";
-            }
-          },
-        ),
-      );
-      for (const outcome of outcomes) {
-        if (outcome === "imported") importedCount++;
-        else if (outcome === "skipped") skippedCount++;
-        else writeErrors++;
-      }
-    }
+    const { importedCount, skippedCount: dbSkipped, writeErrors } = await insertProgressInChunks(
+      pb,
+      toInsert,
+    );
+    const skippedCount = preflightSkipped + dbSkipped;
 
     revalidatePath("/shelf");
     revalidatePath("/activity");

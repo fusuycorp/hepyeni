@@ -19,6 +19,28 @@ export interface RateLimitResult {
   resetMs: number;
 }
 
+function pruneStaleRateLimitRecords(now: number): void {
+  if (rateLimitStore.size <= 2000) return;
+  for (const [k, v] of rateLimitStore.entries()) {
+    const entryCutoff = now - v.windowMs;
+    const valid = v.timestamps.filter((t) => t > entryCutoff);
+    if (valid.length === 0) {
+      rateLimitStore.delete(k);
+    } else {
+      rateLimitStore.set(k, { timestamps: valid, windowMs: v.windowMs });
+    }
+  }
+}
+
+function evictOldestRateLimitKeyIfNeeded(key: string): void {
+  if (!rateLimitStore.has(key) && rateLimitStore.size >= MAX_STORE_KEYS) {
+    const oldestKey = rateLimitStore.keys().next().value;
+    if (oldestKey !== undefined) {
+      rateLimitStore.delete(oldestKey);
+    }
+  }
+}
+
 /**
  * Sliding window in-memory rate limiter for public endpoints and server actions.
  */
@@ -35,12 +57,9 @@ export function checkRateLimit(
     };
   }
 
-  const record = rateLimitStore.get(key) ?? {
-    timestamps: [],
-    windowMs: options.windowMs,
-  };
+  const record = rateLimitStore.get(key);
   const cutoff = now - options.windowMs;
-  const recent = record.timestamps.filter((ts) => ts > cutoff);
+  const recent = record ? record.timestamps.filter((ts) => ts > cutoff) : [];
 
   if (recent.length >= options.limit) {
     const oldest = recent[0];
@@ -48,25 +67,8 @@ export function checkRateLimit(
     return { allowed: false, remaining: 0, resetMs };
   }
 
-  // Periodically clean stale keys if store grows using each entry's own windowMs
-  if (rateLimitStore.size > 2000) {
-    for (const [k, v] of rateLimitStore.entries()) {
-      const entryCutoff = now - v.windowMs;
-      const valid = v.timestamps.filter((t) => t > entryCutoff);
-      if (valid.length === 0) {
-        rateLimitStore.delete(k);
-      } else {
-        rateLimitStore.set(k, { timestamps: valid, windowMs: v.windowMs });
-      }
-    }
-  }
-
-  if (!rateLimitStore.has(key) && rateLimitStore.size >= MAX_STORE_KEYS) {
-    const oldestKey = rateLimitStore.keys().next().value;
-    if (oldestKey !== undefined) {
-      rateLimitStore.delete(oldestKey);
-    }
-  }
+  pruneStaleRateLimitRecords(now);
+  evictOldestRateLimitKeyIfNeeded(key);
 
   recent.push(now);
   rateLimitStore.delete(key);
@@ -83,24 +85,25 @@ export function resetRateLimits(): void {
   rateLimitStore.clear();
 }
 
+function extractTrustedIpFromHeaders(h: { get: (name: string) => string | null }): string | null {
+  if (!trustForwardedHeaders()) return null;
+  const realIp = h.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const forwarded = h.get("x-forwarded-for");
+  if (!forwarded) return null;
+  const parts = forwarded
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts[parts.length - 1] || null;
+}
+
 export async function getClientIp(): Promise<string> {
   try {
     const { headers } = await import("next/headers");
-    const h = await headers();
-    if (trustForwardedHeaders()) {
-      const realIp = h.get("x-real-ip")?.trim();
-      if (realIp) return realIp;
-
-      const forwarded = h.get("x-forwarded-for");
-      if (forwarded) {
-        const parts = forwarded
-          .split(",")
-          .map((p) => p.trim())
-          .filter(Boolean);
-        const hop = parts[parts.length - 1];
-        if (hop) return hop;
-      }
-    }
+    const trustedIp = extractTrustedIpFromHeaders(await headers());
+    if (trustedIp) return trustedIp;
   } catch {
     // outside request context or in unit tests
   }

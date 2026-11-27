@@ -31,6 +31,36 @@ export type {
   QuoteExpand,
 } from "@/lib/marginalia";
 
+async function resolveAuthorizedQuoteCircles(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  userId: string,
+  requestedCircles?: string[],
+): Promise<string[]> {
+  if (!requestedCircles || requestedCircles.length === 0) return [];
+  const memberships = await pb.collection("group_members").getFullList({
+    filter: pb.filter("user = {:userId}", { userId }),
+    fields: "group",
+  });
+  const memberGroupIds = new Set(memberships.map((m) => m.group));
+  return requestedCircles.filter((id) => memberGroupIds.has(id));
+}
+
+async function resolveVerifiedProgressItemId(
+  pb: Awaited<ReturnType<typeof getSuperuserClient>>,
+  userId: string,
+  progressItemId?: string,
+): Promise<string | undefined> {
+  if (!progressItemId) return undefined;
+  try {
+    const item = await pb
+      .collection("user_media_progress")
+      .getOne(progressItemId, { fields: "id,user" });
+    return item.user === userId ? item.id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function addQuote(
   input: AddQuoteInput,
 ): Promise<ActionResult<ShelfQuotesResponse<QuoteExpand>>> {
@@ -47,43 +77,22 @@ export async function addQuote(
     }
 
     const pb = await getSuperuserClient();
-
-    let authorizedCircles: string[] = [];
-    if (validation.sanitized.isSharedWithCircles && validation.sanitized.isSharedWithCircles.length > 0) {
-      const memberships = await pb
-        .collection("group_members")
-        .getFullList({
-          filter: pb.filter("user = {:userId}", { userId: session.id }),
-          fields: "group",
-        });
-      const memberGroupIds = new Set(memberships.map((m) => m.group));
-      authorizedCircles = validation.sanitized.isSharedWithCircles.filter((id) =>
-        memberGroupIds.has(id),
-      );
-    }
+    const { sanitized } = validation;
+    const [authorizedCircles, verifiedProgressId] = await Promise.all([
+      resolveAuthorizedQuoteCircles(pb, session.id, sanitized.isSharedWithCircles),
+      resolveVerifiedProgressItemId(pb, session.id, sanitized.progressItem),
+    ]);
 
     const payload: Partial<ShelfQuotesRecord> = {
       user: session.id,
-      titleName: validation.sanitized.titleName,
-      quoteText: validation.sanitized.quoteText,
-      attribution: validation.sanitized.attribution || "",
-      mediaType: validation.sanitized.mediaType || "",
-      tags: validation.sanitized.tags,
+      titleName: sanitized.titleName,
+      quoteText: sanitized.quoteText,
+      attribution: sanitized.attribution || "",
+      mediaType: sanitized.mediaType || "",
+      tags: sanitized.tags,
       isSharedWithCircles: authorizedCircles,
+      ...(verifiedProgressId ? { progressItem: verifiedProgressId } : {}),
     };
-
-    if (validation.sanitized.progressItem) {
-      try {
-        const item = await pb
-          .collection("user_media_progress")
-          .getOne(validation.sanitized.progressItem, { fields: "id,user" });
-        if (item.user === session.id) {
-          payload.progressItem = item.id;
-        }
-      } catch {
-        // Omit unverified or foreign progress item record safely
-      }
-    }
 
     const record = await pb
       .collection("shelf_quotes")
